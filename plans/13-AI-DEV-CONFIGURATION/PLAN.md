@@ -1,0 +1,1636 @@
+# 13 — AI DEVELOPMENT CONFIGURATION PLAN
+
+> **Purpose**: Define the complete AI development configuration system — the
+> rules, skills, agent types, and CLAUDE.md files that help **human developers**
+> use Claude Code and Cursor to **build** the Knowledge Graph Agent System. This
+> covers sandboxing strategy, master CLAUDE.md, Cursor rules, Claude Code skills,
+> Cursor skills, development agent types, self-updating configuration, master
+> planner configuration, "always on" strategy, and evolution strategy.
+>
+> **CRITICAL DISTINCTION**: This plan covers **development-time** AI
+> configuration — how developers use AI tools to write code for this project.
+> It is **completely separate** from the **application-runtime** AI
+> configuration defined in `06-AGENT-SYSTEM/` — which governs how the built
+> application uses Claude Code agents to serve end users. These two domains
+> MUST remain strictly sandboxed at the directory level, naming level, and
+> conceptual level.
+>
+> **Phase**: 1 (Foundation — should be established before heavy development)
+> **Dependencies**: `01-PROJECT-STRUCTURE/PLAN.md`
+> **Estimated tasks**: 230+
+
+---
+
+## Table of Contents
+
+1. [Sandboxing & Directory Strategy](#1-sandboxing--directory-strategy)
+2. [Master Development CLAUDE.md](#2-master-development-claudemd)
+3. [Cursor Rules Configuration](#3-cursor-rules-configuration)
+4. [Claude Code Skills for Development](#4-claude-code-skills-for-development)
+5. [Cursor Skills for Development](#5-cursor-skills-for-development)
+6. [Development Agent Types](#6-development-agent-types)
+7. [Self-Updating Configuration (Back-feeding)](#7-self-updating-configuration-back-feeding)
+8. [Master Planner Configuration](#8-master-planner-configuration)
+9. ["Always On" Configuration Strategy](#9-always-on-configuration-strategy)
+10. [Configuration for Evolving Project](#10-configuration-for-evolving-project)
+
+---
+
+## 1. Sandboxing & Directory Strategy
+
+Establish a clear, enforceable boundary between development-time AI configuration
+(files that help humans build the project) and application-runtime AI
+configuration (files that the deployed application uses to drive its agent
+system). Confusion between these two domains is the single highest-risk failure
+mode for this configuration system.
+
+### 1.1 Directory Layout
+
+- [ ] **DEV-AI-001**: Define the canonical directory layout for development AI config
+  - Root-level `CLAUDE.md` — master context for Claude Code dev sessions
+  - `.claude/` — Claude Code specific config (settings, commands)
+  - `.cursor/rules/` — Cursor rule files (`.md` or `.mdc` per Cursor convention)
+  - `.cursor/skills/` — Cursor skill files (`SKILL.md` format)
+  - `scripts/ai-dev/` — Helper scripts for AI config management (validation, health checks)
+  - `docs/ai-dev/` — Human-readable documentation of the AI dev config system
+  - None of these directories overlap with `server/agents/`, `server/mcp-servers/`, or any runtime config path
+- [ ] **DEV-AI-002**: Define the canonical directory layout for application-runtime AI config
+  - `server/src/modules/agent/` — NestJS agent module (runtime orchestrator, session manager)
+  - `server/src/modules/agent/prompts/` — Runtime CLAUDE.md templates (assembled per-session)
+  - `server/src/modules/agent/skills/` — Runtime skills files (deployed with the app)
+  - `server/src/modules/mcp-servers/` — Application MCP servers (knowledge graph, RAG, etc.)
+  - `knowledge-graph/` — The data the runtime agents operate on
+  - These directories are never touched by development config tooling
+- [ ] **DEV-AI-003**: Create `.claude/` directory with a `README.md` explaining its purpose
+  - Document that this is for **development** Claude Code config only
+  - List what belongs here: settings, commands, custom instructions
+  - Explicitly state: "Nothing in this directory is deployed or used at runtime"
+- [ ] **DEV-AI-004**: Create `.cursor/rules/` directory with an `_README.md` explaining its purpose
+  - Prefix with underscore so it sorts to the top
+  - Document the rule file naming convention, glob patterns, and activation modes
+  - Explicitly state: "These rules guide developers, they do not affect the running application"
+- [ ] **DEV-AI-005**: Create `.cursor/skills/` directory with an `_README.md` explaining its purpose
+  - Document the SKILL.md format, registration, and usage
+  - Explicitly state: "These skills help developers perform project tasks, they are not runtime agent skills"
+
+### 1.2 Naming Conventions
+
+- [ ] **DEV-AI-006**: Establish naming prefix convention for development vs runtime config
+  - Development config files: no prefix needed (they live in dev-only directories)
+  - Runtime prompt templates: prefixed or suffixed with `runtime-` or live inside `server/` only
+  - If a file must reference both domains, include a clear header comment stating which domain it belongs to
+- [ ] **DEV-AI-007**: Establish naming convention for Cursor rule files
+  - Pattern: `{domain}.md` — e.g., `frontend-components.md`, `server-architecture.md`
+  - Always lowercase, hyphen-separated
+  - No numeric prefixes (Cursor applies rules by glob match, not ordering)
+- [ ] **DEV-AI-008**: Establish naming convention for Claude Code skill files
+  - Pattern: `skill-{action}-{target}.md` — e.g., `skill-create-component.md`, `skill-create-store.md`
+  - Always lowercase, hyphen-separated
+  - Action verbs: `create`, `update`, `debug`, `refactor`, `test`, `add`
+- [ ] **DEV-AI-009**: Establish naming convention for Cursor skill files
+  - Pattern: `SKILL.md` inside a descriptively named directory — e.g., `.cursor/skills/create-component/SKILL.md`
+  - Directory name describes the skill; file is always `SKILL.md`
+
+### 1.3 Boundary Enforcement
+
+- [ ] **DEV-AI-010**: Create `scripts/ai-dev/validate-sandbox.ts` CI validation script
+  - Scan `server/src/modules/agent/` — verify no references to `.cursor/`, `.claude/`, or root `CLAUDE.md`
+  - Scan `.cursor/rules/`, `.claude/`, root `CLAUDE.md` — verify no references to runtime prompt assembly, session management, or MCP server startup
+  - Verify no dev config files exist inside `server/` or `knowledge-graph/`
+  - Verify no runtime config files exist in root-level AI config directories
+  - Exit non-zero with descriptive error if any boundary violation found
+- [ ] **DEV-AI-011**: Add sandbox validation to CI pipeline
+  - Run `scripts/ai-dev/validate-sandbox.ts` on every PR
+  - Block merge if any sandbox violations are found
+  - Include in the "lint" step alongside ESLint and Prettier checks
+- [ ] **DEV-AI-012**: Add a `BOUNDARY.md` reference document
+  - Single-page reference that lists every dev config path and every runtime config path
+  - Two-column table: "Development Config" vs "Application Runtime Config"
+  - Include examples of what goes where
+  - Include a "When in doubt" decision tree
+- [ ] **DEV-AI-013**: Add boundary awareness to the root `CLAUDE.md`
+  - Include a dedicated section titled "Development vs Runtime Configuration Boundary"
+  - List the directories for each domain
+  - Instruct any Claude Code session: "You are operating as a DEVELOPMENT tool. Never modify files in `server/src/modules/agent/prompts/` or `server/src/modules/agent/skills/` as part of dev config tasks. Those are runtime application files."
+- [ ] **DEV-AI-014**: Add boundary awareness to all Cursor rule files
+  - Every rule file includes a header comment: `<!-- Domain: Development Configuration -->`
+  - Any rule file about the agent system includes an explicit note: "These rules apply to DEVELOPING the agent system, not configuring it at runtime"
+- [ ] **DEV-AI-015**: Create a boundary-check pre-commit hook
+  - Lightweight check that runs on staged files
+  - If a commit touches both dev config files and runtime config files, emit a warning
+  - Warning is advisory (not blocking) but alerts the developer to verify intent
+
+---
+
+## 2. Master Development CLAUDE.md
+
+The root `CLAUDE.md` is the single most important file in the development AI
+config system. Every Claude Code session loads it automatically when working in
+the project root. It must be comprehensive yet concise enough to fit in the
+context window alongside actual code.
+
+### 2.1 Project Identity & Overview
+
+- [ ] **DEV-AI-016**: Write the project identity header
+  - Project name, one-sentence description
+  - "This is a Knowledge Graph Agent System — a collaborative knowledge management platform where humans author structured knowledge through AI-assisted dialog."
+  - Architecture diagram reference (link to `docs/architecture.md`)
+- [ ] **DEV-AI-017**: Write the architecture overview section
+  - Monorepo structure: `client/ui/`, `server/`, `packages/shared/`, `knowledge-graph/`
+  - Frontend: React + Vite + MobX + BEM SCSS
+  - Backend: NestJS + Drizzle ORM + PostgreSQL
+  - Runtime: Bun (package manager, test runner, script executor)
+  - Agent system: Claude Code wrapper + MCP servers (runtime, in `server/`)
+  - Knowledge store: JSON files + folders, git-backed
+  - Auth: bcrypt + JWT http-only cookies
+- [ ] **DEV-AI-018**: Write the domain boundary warning section
+  - Clearly state: "You are a DEVELOPMENT assistant. You help humans write code for this project."
+  - List the dev config directories vs runtime config directories
+  - Instruct: "Never confuse dev-time AI config with runtime agent config. See BOUNDARY.md for the full reference."
+
+### 2.2 Tech Stack Declaration
+
+- [ ] **DEV-AI-019**: Write the tech stack section with every technology and version constraint
+  - React (latest stable), Vite (latest stable), TypeScript (strict mode)
+  - MobX with `makeObservable`, decorators, `enforceActions: 'always'`
+  - BEM SCSS with PascalCase convention
+  - NestJS with ESM, Drizzle ORM, PostgreSQL
+  - Bun as runtime and package manager
+  - TipTap for rich text editing
+  - `@tanstack/virtual` for virtualized lists
+  - `bcrypt` for password hashing, JWT for auth tokens
+  - `bun test` for unit/integration testing, `@testing-library/react` for component tests, Playwright for E2E
+- [ ] **DEV-AI-020**: Document third-party library preferences
+  - State which libraries are approved and which to avoid
+  - Example: "Use `date-fns` not `moment.js`", "Use `zod` for validation"
+  - Include reasoning for each choice (bundle size, ESM support, maintenance status)
+
+### 2.3 Coding Standards
+
+- [ ] **DEV-AI-021**: Write BEM SCSS coding standards
+  - Convention: `.PascalCase { &__Item { } &--prop { } }`
+  - Single-level nesting only (no `&__Item &__SubItem`)
+  - File naming: `ComponentName.module.scss` colocated with the component
+  - Variables and mixins in `client/ui/src/styles/`
+  - No inline styles; all styling through BEM classes
+  - Include 2–3 concrete examples of correct and incorrect usage
+- [ ] **DEV-AI-022**: Write MobX coding standards
+  - Class stores with `makeObservable` in constructor
+  - Use decorators: `@observable`, `@computed`, `@action`, `@action.bound`
+  - `enforceActions: 'always'` — all state mutations in actions
+  - Store categories: `domain/` (business entities), `session/` (user session, auth), `ui/` (transient UI state)
+  - `RootStore` pattern: single root that instantiates and holds all stores
+  - Components receive data via props, not by importing stores directly
+  - `observer()` wrapper on container components that read from stores
+  - Include a concrete store example (class, constructor, decorators, actions)
+- [ ] **DEV-AI-023**: Write React component coding standards
+  - Props-driven design: leaf components are pure functions of props
+  - Container pattern: `observer()` containers read from stores, pass props to leaves
+  - File structure: `ComponentName/index.ts`, `ComponentName.tsx`, `ComponentName.module.scss`, `ComponentName.test.tsx`
+  - Named exports only (no default exports)
+  - Props interface named `{ComponentName}Props`, exported
+  - Hooks in `hooks/` directory, named `use{HookName}`
+  - No business logic in components — delegate to stores or utility functions
+- [ ] **DEV-AI-024**: Write NestJS module coding standards
+  - One module per domain area (e.g., `AuthModule`, `SpecModule`, `AgentModule`)
+  - Module file layout: `{module-name}/`, `{module-name}.module.ts`, `{module-name}.controller.ts`, `{module-name}.service.ts`, `dto/`, `guards/`, `interceptors/`
+  - Controllers handle HTTP concerns only (parsing, validation, response formatting)
+  - Services contain all business logic
+  - DTOs validated with class-validator decorators
+  - Guards for authorization checks
+  - All endpoints documented with Swagger decorators
+- [ ] **DEV-AI-025**: Write TypeScript strictness rules
+  - `strict: true` in all `tsconfig.json`
+  - No `any` — use `unknown` and type guards instead
+  - No non-null assertions (`!`) unless accompanied by a comment explaining why
+  - Prefer `interface` over `type` for object shapes
+  - Use discriminated unions for variant types
+  - Exhaustive `switch` statements with `never` default
+- [ ] **DEV-AI-026**: Write import ordering conventions
+  - Order: (1) Node built-ins, (2) third-party packages, (3) `@kg/shared`, (4) project-relative imports, (5) sibling/local imports
+  - Each group separated by a blank line
+  - Alphabetized within each group
+  - No circular imports — enforce with ESLint rule
+- [ ] **DEV-AI-027**: Write file naming conventions
+  - Directories: `kebab-case` (e.g., `knowledge-graph/`, `auth-module/`)
+  - React components: `PascalCase.tsx` (e.g., `SpecEditor.tsx`)
+  - Stores: `PascalCase.store.ts` (e.g., `SpecEditor.store.ts`)
+  - Services: `kebab-case.service.ts` (e.g., `spec-editor.service.ts`)
+  - DTOs: `kebab-case.dto.ts` (e.g., `create-spec.dto.ts`)
+  - Types: `kebab-case.types.ts` (e.g., `knowledge-graph.types.ts`)
+  - Tests: `{source-file}.test.ts` or `{source-file}.test.tsx`, colocated with source
+  - SCSS: `ComponentName.module.scss`, colocated with component
+- [ ] **DEV-AI-028**: Write test file conventions
+  - Colocated: test file sits next to the source file it tests
+  - Naming: `{SourceFile}.test.ts` or `{SourceFile}.test.tsx`
+  - Use `describe` blocks named after the module/function under test
+  - Use `it` blocks with descriptive names starting with a verb
+  - Test factories in `__fixtures__/` directories for shared test data
+  - No mocking libraries — prefer dependency injection for testability
+  - Use `bun test` runner, not Jest or Vitest
+
+### 2.4 Project Structure Map
+
+- [ ] **DEV-AI-029**: Write the annotated directory tree
+  - Full directory tree with one-line purpose annotation for every directory
+  - Mark which directories are workspaces (`client/ui/`, `server/`, `packages/shared/`)
+  - Mark which directories are git-tracked data (`knowledge-graph/`)
+  - Mark AI config directories with "(DEV CONFIG)" annotation
+  - Mark runtime agent directories with "(RUNTIME CONFIG)" annotation
+- [ ] **DEV-AI-030**: Write the package dependency map
+  - Which workspace packages depend on which
+  - `@kg/client` → `@kg/shared`
+  - `@kg/server` → `@kg/shared`
+  - No circular workspace dependencies
+
+### 2.5 Workflow Instructions
+
+- [ ] **DEV-AI-031**: Write development workflow commands
+  - `bun install` — install all dependencies
+  - `bun dev` — start client, server, and database for development
+  - `bun build` — produce production builds
+  - `bun test` — run all tests
+  - `bun test:client` — run client tests only
+  - `bun test:server` — run server tests only
+  - `bun lint` — run ESLint and Prettier checks
+  - `bun lint:fix` — auto-fix linting issues
+  - `bun db:migrate` — run database migrations
+  - `bun db:seed` — seed development database
+- [ ] **DEV-AI-032**: Write the "before you start coding" checklist
+  - Ensure `bun install` is current
+  - Ensure database is running (`docker compose up -d postgres`)
+  - Ensure tests pass (`bun test`)
+  - Check for open plan tasks related to the work area
+  - Read relevant Cursor rules for the domain you're working in
+- [ ] **DEV-AI-033**: Write the "after you finish coding" checklist
+  - Run `bun test` and ensure all tests pass
+  - Run `bun lint` and ensure no lint errors
+  - Run `bun build` to verify no build errors
+  - Update or add tests for changed code
+  - Update documentation if public API changed
+
+### 2.6 Agent Delegation Instructions
+
+- [ ] **DEV-AI-034**: Write sub-agent delegation guidelines
+  - When to use sub-agents: tasks spanning multiple workspaces, large refactors, multi-step operations
+  - When NOT to use sub-agents: single-file edits, simple bug fixes, small additions
+  - Sub-agent scope rules: each sub-agent should work within a single workspace or domain
+  - Handoff format: describe what the sub-agent should do, what files it should touch, and what the expected output is
+- [ ] **DEV-AI-035**: Write skill reference index
+  - List every available skill file with a one-line description
+  - Group by domain: frontend, server, database, knowledge-graph, testing, config
+  - Include file paths so agents can load skills on demand
+- [ ] **DEV-AI-036**: Write the "do not" rules
+  - Do not modify files in `server/src/modules/agent/prompts/` when doing dev config work
+  - Do not install packages without checking if an existing package covers the use case
+  - Do not create new directories without checking the project structure plan
+  - Do not skip tests — every code change should include or update tests
+  - Do not use `console.log` for debugging — use the NestJS logger on the server, remove debug logs before committing
+- [ ] **DEV-AI-037**: Write error handling conventions
+  - Frontend: React error boundaries for component trees, toast notifications for user-facing errors
+  - Server: NestJS exception filters, typed exception classes, structured error responses
+  - Knowledge graph: validation errors logged as inquiry items, never silent failures
+  - All errors must include enough context for debugging (what was attempted, what failed, relevant IDs)
+
+### 2.7 CLAUDE.md Maintenance
+
+- [ ] **DEV-AI-038**: Define CLAUDE.md update triggers
+  - New technology added to the stack → update tech stack section
+  - New coding convention established → update coding standards section
+  - New workflow command added → update workflow section
+  - New skill file created → update skill reference index
+  - Directory structure changed → update project structure map
+- [ ] **DEV-AI-039**: Define CLAUDE.md size budget
+  - Target: under 8,000 tokens (leaves room for skills and code context)
+  - If CLAUDE.md exceeds budget, extract detailed sections into referenced skill files
+  - Core rules stay in CLAUDE.md; detailed examples and templates move to skills
+  - Measure with `wc -w CLAUDE.md` as a rough proxy (target under 6,000 words)
+- [ ] **DEV-AI-040**: Create a CLAUDE.md linting script
+  - `scripts/ai-dev/lint-claude-md.ts`
+  - Verify required sections are present (project identity, tech stack, coding standards, workflow, boundaries)
+  - Verify no runtime config references have leaked in
+  - Verify token count is within budget
+  - Run as part of CI
+
+---
+
+## 3. Cursor Rules Configuration
+
+Cursor rule files (`.cursor/rules/*.md`) provide context-aware guidance to
+Cursor's AI features. Each rule file targets a specific domain and activates
+based on glob patterns matching the files being edited.
+
+### 3.1 Rule File Infrastructure
+
+- [ ] **DEV-AI-041**: Create `.cursor/rules/` directory structure
+  - Flat directory (no subdirectories) — Cursor scans `.cursor/rules/` for `.md` files
+  - Each file covers one domain or concern
+  - `_README.md` file explaining the system (prefixed with underscore to sort first)
+- [ ] **DEV-AI-042**: Define rule file template structure
+  - Every rule file follows this structure:
+    ```
+    ---
+    description: One-line description of what this rule covers
+    globs: ["glob/pattern/**/*.ext"]
+    alwaysApply: false
+    ---
+    # Rule Title
+    ## Context (what this rule covers and when it activates)
+    ## Conventions (the rules to follow)
+    ## Examples (correct patterns)
+    ## Anti-patterns (incorrect patterns to avoid)
+    ```
+  - `alwaysApply: true` for rules that should be active on every file
+  - `globs` for rules that activate only on matching file paths
+- [ ] **DEV-AI-043**: Document rule file precedence and layering
+  - Always-on rules provide the base layer (project-wide conventions)
+  - Glob-triggered rules add domain-specific conventions on top
+  - If rules conflict, the more specific rule wins (glob-triggered over always-on)
+  - Document this in `_README.md`
+
+### 3.2 Always-On Rules
+
+- [ ] **DEV-AI-044**: Create `project-structure.md` rule (always on)
+  - `alwaysApply: true`
+  - Monorepo layout, workspace boundaries, where things go
+  - Package naming: `@kg/client`, `@kg/server`, `@kg/shared`
+  - Import rules: how to import across workspaces (`@kg/shared/...`)
+  - Directory creation rules: check project structure plan before creating new directories
+  - **Sandboxing note**: "Development AI config lives at root level. Application runtime config lives in `server/src/modules/agent/`."
+- [ ] **DEV-AI-045**: Create `coding-standards.md` rule (always on)
+  - `alwaysApply: true`
+  - TypeScript strict mode, no `any`, prefer `interface`
+  - Import ordering convention
+  - File naming conventions
+  - Error handling patterns
+  - Logging conventions
+  - Comment style: only non-obvious intent, no narration
+- [ ] **DEV-AI-046**: Create `git-workflow.md` rule (always on)
+  - `alwaysApply: true`
+  - Branch naming: `feature/{ticket-id}-{short-description}`, `fix/{ticket-id}-{short-description}`, `chore/{description}`
+  - Commit message format: `type(scope): description` (conventional commits)
+  - Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `style`, `perf`
+  - PR title matches commit message format
+  - Keep PRs small and focused — one feature/fix per PR
+  - Always include tests in PRs that change behavior
+
+### 3.3 Frontend Domain Rules
+
+- [ ] **DEV-AI-047**: Create `frontend-components.md` rule
+  - Glob: `client/ui/src/components/**/*.{ts,tsx}`
+  - Props-driven component design
+  - Named exports, no default exports
+  - Props interface: `{ComponentName}Props`, exported
+  - File structure: directory per component with `index.ts`, `.tsx`, `.module.scss`, `.test.tsx`
+  - No direct store access in leaf components — receive data via props
+  - `observer()` only on container components
+  - Include concrete example of a correct component file
+- [ ] **DEV-AI-048**: Create `frontend-styling.md` rule
+  - Glob: `client/ui/src/**/*.scss`
+  - BEM convention: `.PascalCase { &__Item { } &--prop { } }`
+  - Single-level nesting only — never nest `&__Item` inside `&__Item`
+  - Use CSS custom properties for theming (not SCSS variables for runtime values)
+  - SCSS variables only for compile-time constants (breakpoints, z-indices)
+  - No `!important` unless overriding third-party styles (with comment)
+  - Include correct and incorrect nesting examples
+- [ ] **DEV-AI-049**: Create `frontend-state.md` rule
+  - Glob: `client/ui/src/store/**/*.ts`
+  - MobX class stores with `makeObservable` in constructor
+  - Decorator usage: `@observable`, `@computed`, `@action`, `@action.bound`
+  - `enforceActions: 'always'` — never mutate state outside actions
+  - Store categories: `domain/` (entities, business logic), `session/` (auth, user preferences), `ui/` (transient UI state like modals, selections)
+  - `RootStore` pattern with `createRootStore()` factory
+  - Stores hold no React references — they are pure TypeScript classes
+  - Include concrete store class example with constructor, observables, computeds, actions
+- [ ] **DEV-AI-050**: Create `frontend-hooks.md` rule
+  - Glob: `client/ui/src/hooks/**/*.ts`
+  - Naming: `use{HookName}` — always camelCase with `use` prefix
+  - Each hook in its own file: `use{HookName}.ts`
+  - Hooks should be composable and reusable
+  - No business logic in hooks — delegate to stores or utility functions
+  - Include test file: `use{HookName}.test.ts`
+- [ ] **DEV-AI-051**: Create `frontend-services.md` rule
+  - Glob: `client/ui/src/services/**/*.ts`
+  - API service modules: one per backend module (e.g., `auth.service.ts`, `spec.service.ts`)
+  - Use a shared `httpClient` instance (configured with base URL, auth interceptors)
+  - Return typed responses matching `@kg/shared` DTOs
+  - Error handling: throw typed errors that components/stores can catch
+  - No direct `fetch()` calls outside service modules
+- [ ] **DEV-AI-052**: Create `frontend-tiptap.md` rule
+  - Glob: `client/ui/src/components/**/editor/**/*.{ts,tsx}`, `client/ui/src/components/**/*Editor*.{ts,tsx}`
+  - TipTap editor configuration patterns
+  - Custom extension creation conventions
+  - Editor state management (separate from MobX stores)
+  - Toolbar command patterns
+  - Content serialization/deserialization (to/from knowledge graph spec format)
+- [ ] **DEV-AI-053**: Create `frontend-virtual-list.md` rule
+  - Glob: `client/ui/src/components/**/*List*.{ts,tsx}`, `client/ui/src/components/**/*Virtual*.{ts,tsx}`
+  - `@tanstack/virtual` usage patterns
+  - Row height estimation, dynamic sizing
+  - Scroll restoration patterns
+  - Keyboard navigation within virtualized lists
+
+### 3.4 Server Domain Rules
+
+- [ ] **DEV-AI-054**: Create `server-architecture.md` rule
+  - Glob: `server/src/**/*.ts`
+  - NestJS module pattern: module → controller → service → repository
+  - Dependency injection via constructor (no property injection)
+  - Module registration in `AppModule`
+  - ESM import/export (no CommonJS `require`)
+  - Error handling: throw `HttpException` subclasses from controllers, throw domain errors from services
+  - Logging: use NestJS `Logger` service, never `console.log`
+- [ ] **DEV-AI-055**: Create `server-api.md` rule
+  - Glob: `server/src/**/*.controller.ts`, `server/src/**/dto/**/*.ts`
+  - REST endpoint conventions: resource-oriented URLs, proper HTTP methods
+  - DTO pattern: `Create{Resource}Dto`, `Update{Resource}Dto`, `{Resource}ResponseDto`
+  - Validation: `class-validator` decorators on all DTO fields
+  - Swagger: `@ApiTags`, `@ApiOperation`, `@ApiResponse` on every endpoint
+  - Response format: consistent envelope with `data`, `meta`, and `error` fields
+  - Pagination: `?page=1&limit=20` with `PaginatedResponseDto`
+- [ ] **DEV-AI-056**: Create `server-auth.md` rule
+  - Glob: `server/src/modules/auth/**/*.ts`, `server/src/**/*.guard.ts`
+  - JWT http-only cookies for authentication
+  - `@UseGuards(AuthGuard)` on protected endpoints
+  - Role-based access: `@Roles('admin', 'editor')` decorator
+  - Password hashing: bcrypt with configurable salt rounds
+  - Token refresh pattern
+  - No secrets in code — all from environment variables
+- [ ] **DEV-AI-057**: Create `server-websocket.md` rule
+  - Glob: `server/src/**/*.gateway.ts`, `server/src/**/ws/**/*.ts`
+  - WebSocket gateway patterns using NestJS `@WebSocketGateway`
+  - Event naming: `{domain}:{action}` (e.g., `spec:updated`, `graph:changed`)
+  - Room/namespace conventions for project isolation
+  - Authentication on WebSocket connections
+  - Reconnection handling and state recovery
+
+### 3.5 Database Domain Rules
+
+- [ ] **DEV-AI-058**: Create `database.md` rule
+  - Glob: `server/src/**/*schema*.ts`, `server/src/**/*migration*.ts`, `server/src/db/**/*.ts`
+  - Drizzle ORM schema definitions in `server/src/db/schema/`
+  - One schema file per domain entity
+  - Use Drizzle's type-safe query builder, not raw SQL (except for complex queries)
+  - Migration files: timestamped, descriptive, reversible
+  - Index strategy: index all foreign keys, frequently queried columns, and unique constraints
+  - Naming: snake_case for database tables and columns, camelCase in TypeScript
+  - Seed data in `server/src/db/seeds/` for development environment
+
+### 3.6 Knowledge Graph Domain Rules
+
+- [ ] **DEV-AI-059**: Create `knowledge-graph.md` rule
+  - Glob: `knowledge-graph/**/*.{ts,json}`, `server/src/modules/knowledge-graph/**/*.ts`
+  - JSON file structure for specs: `{ id, title, content, metadata, edges }`
+  - Directory structure: `knowledge-graph/{project-id}/specs/`, `knowledge-graph/{project-id}/edges/`
+  - Git commit conventions for knowledge graph changes: `kg(project): action — description`
+  - File naming: spec files named by ID (`{spec-id}.json`), human-readable directory names
+  - Validation: all specs must conform to the spec schema, all edges must reference valid specs
+  - **Sandboxing note**: "This rule is for DEVELOPING the knowledge graph module. The knowledge graph data in `knowledge-graph/` is runtime data operated on by the APPLICATION's agents."
+
+### 3.7 Testing Domain Rules
+
+- [ ] **DEV-AI-060**: Create `testing.md` rule
+  - Glob: `**/*.test.{ts,tsx}`, `**/__fixtures__/**/*.ts`
+  - `bun test` as the runner — do not use Jest or Vitest APIs
+  - `@testing-library/react` for component tests (render, screen, userEvent)
+  - Test structure: `describe` → `it` with descriptive verb-starting names
+  - Arrange-Act-Assert pattern
+  - Test factories in `__fixtures__/` for reusable test data
+  - No mocking of internal modules — use dependency injection
+  - Mock only external boundaries (HTTP, database, file system)
+  - Playwright for E2E tests in `e2e/` directory
+  - E2E naming: `{feature}.e2e.test.ts`
+
+### 3.8 Agent System Development Rules
+
+- [ ] **DEV-AI-061**: Create `agent-system-runtime.md` rule
+  - Glob: `server/src/modules/agent/**/*.ts`, `server/src/modules/mcp-servers/**/*.ts`
+  - **Explicit note**: "This rule governs how developers WRITE CODE for the application's agent system. It does NOT configure agent behavior at runtime — that is the domain of `06-AGENT-SYSTEM/04-SKILLS-CONFIG-PLAN.md`."
+  - Claude Code wrapper patterns: spawning, IPC, lifecycle management
+  - MCP server implementation: tool registration, parameter validation, response formatting
+  - Agent session management: creation, context assembly, termination
+  - CLAUDE.md template assembly: building runtime CLAUDE.md from templates + project context
+  - Security constraints: sandboxing, resource limits, permission checks
+  - Testing: agent integration tests use mocked Claude Code responses, not real API calls
+
+### 3.9 Cross-Cutting Rules
+
+- [ ] **DEV-AI-062**: Create `generative-ui.md` rule
+  - Glob: `client/gen/**/*.{ts,tsx}`, `server/src/modules/generative-ui/**/*.ts`
+  - Generated UI project structure: `client/gen/{user}/{project}/`
+  - Iframe sandbox rules: `sandbox="allow-scripts"`, no `allow-same-origin`
+  - ESM module loading for generated projects
+  - Approved package whitelist enforcement
+  - Template scaffolding patterns
+- [ ] **DEV-AI-063**: Create `accessibility.md` rule
+  - Glob: `client/ui/src/**/*.tsx`
+  - ARIA attributes on interactive elements
+  - Keyboard navigation: all interactions reachable via keyboard
+  - Focus management: logical tab order, focus trapping in modals
+  - Screen reader support: meaningful labels, live regions for dynamic content
+  - Color contrast: WCAG AA minimum (4.5:1 for text, 3:1 for large text)
+  - No reliance on color alone to convey information
+- [ ] **DEV-AI-064**: Create `security.md` rule
+  - Glob: `server/src/**/*.ts`, `client/ui/src/**/*.ts`
+  - Input validation: validate all user input on the server side
+  - SQL injection prevention: always use parameterized queries (Drizzle handles this)
+  - XSS prevention: React handles escaping; be careful with `dangerouslySetInnerHTML`
+  - CSRF protection: http-only JWT cookies + CSRF token
+  - Rate limiting on authentication endpoints
+  - No secrets in client-side code or git history
+  - Dependency audit: `bun audit` in CI
+- [ ] **DEV-AI-065**: Create `performance.md` rule
+  - Glob: `client/ui/src/**/*.{ts,tsx}`
+  - React.memo for expensive pure components
+  - useMemo/useCallback only when there's a measured need (not by default)
+  - Virtualize lists with 50+ items using `@tanstack/virtual`
+  - Lazy load routes and heavy components
+  - Image optimization: WebP format, responsive sizes
+  - Bundle size awareness: check import cost before adding dependencies
+
+### 3.10 Rule Validation & Maintenance
+
+- [ ] **DEV-AI-066**: Create `scripts/ai-dev/validate-cursor-rules.ts`
+  - Verify every rule file has the required frontmatter (`description`, `globs` or `alwaysApply`)
+  - Verify glob patterns are syntactically valid
+  - Verify no two rule files have identical globs (potential conflict)
+  - Verify all rule files follow the template structure
+  - Report warnings for rule files that haven't been updated in 90+ days
+- [ ] **DEV-AI-067**: Create a Cursor rules coverage report
+  - Map all project file paths to matching rules
+  - Identify directories/file types with NO matching rules (coverage gaps)
+  - Generate a table: directory → rules that apply
+  - Run as an on-demand script: `bun scripts/ai-dev/cursor-rules-coverage.ts`
+- [ ] **DEV-AI-068**: Document the rule creation process
+  - Step-by-step guide in `_README.md`: how to create a new rule file
+  - Checklist: choose domain, define globs, write conventions, add examples, add anti-patterns
+  - Review process: new rule files require a review from one other developer
+- [ ] **DEV-AI-069**: Create rule file integration tests
+  - For each rule file, validate that the examples in the rule are syntactically valid code
+  - Validate that anti-patterns are actually caught by ESLint rules where applicable
+  - Run as part of the AI config CI step
+
+---
+
+## 4. Claude Code Skills for Development
+
+Skills files provide step-by-step instructions for Claude Code to perform
+specific development tasks. Each skill is a focused, self-contained guide
+that Claude Code can follow autonomously.
+
+### 4.1 Skill File Infrastructure
+
+- [ ] **DEV-AI-070**: Define the canonical skill file template
+  - Header: skill name, description, when to use
+  - Prerequisites: what must be true before running the skill
+  - Steps: numbered, concrete, actionable
+  - File templates: exact file contents to create/modify (with placeholders)
+  - Validation: how to verify the skill was executed correctly
+  - References: links to relevant plan tasks, rule files, and documentation
+- [ ] **DEV-AI-071**: Create a skill index file (`skills/INDEX.md`)
+  - List all available skills with one-line descriptions
+  - Group by domain: frontend, server, database, knowledge-graph, testing, meta
+  - Include file paths for each skill
+  - This file is referenced from the root `CLAUDE.md`
+- [ ] **DEV-AI-072**: Define skill file size guidelines
+  - Target: under 4,000 tokens per skill (leaves room in context window)
+  - If a skill exceeds this, split into sub-skills that reference each other
+  - Complex workflows (like full-stack feature addition) are orchestration skills that reference sub-skills
+
+### 4.2 Component Creation Skill
+
+- [ ] **DEV-AI-073**: Create `skill-create-component.md`
+  - Input: component name, component type (leaf/container), domain area
+  - Steps:
+    1. Create directory `client/ui/src/components/{domain}/{ComponentName}/`
+    2. Create `index.ts` with named re-export
+    3. Create `{ComponentName}.tsx` with props interface, function body, BEM class usage
+    4. Create `{ComponentName}.module.scss` with BEM structure
+    5. Create `{ComponentName}.test.tsx` with render test, props test
+    6. If container: add `observer()` wrapper, import store from `RootStore`
+    7. Export from parent `index.ts` barrel
+  - Include file templates for each file type
+  - Validation: component renders, test passes, lint passes
+- [ ] **DEV-AI-074**: Add variant templates to component creation skill
+  - Template for form component (with `onChange`, validation, error display)
+  - Template for list component (with virtualization hook-up)
+  - Template for modal component (with portal, focus trap, escape handling)
+  - Template for layout component (with responsive breakpoints)
+
+### 4.3 Store Creation Skill
+
+- [ ] **DEV-AI-075**: Create `skill-create-store.md`
+  - Input: store name, store category (domain/session/ui), related entities
+  - Steps:
+    1. Create `client/ui/src/store/{category}/{StoreName}.store.ts`
+    2. Define class with `@observable` properties, `@computed` getters, `@action` methods
+    3. Add `makeObservable(this)` call in constructor
+    4. Register in `RootStore`: add property, instantiate in constructor
+    5. Create `{StoreName}.store.test.ts` with action tests, computed tests
+    6. Export types from store (for component props typing)
+  - Include store class template with all decorator patterns
+  - Validation: store instantiates, actions modify state, computeds derive correctly
+
+### 4.4 API Endpoint Creation Skill
+
+- [ ] **DEV-AI-076**: Create `skill-create-api-endpoint.md`
+  - Input: resource name, HTTP method, URL path, request/response shape
+  - Steps:
+    1. Create or update `server/src/modules/{module}/{module}.controller.ts`
+    2. Add method with `@Get`/`@Post`/`@Put`/`@Delete`/`@Patch` decorator
+    3. Create request DTO in `dto/` with `class-validator` decorators
+    4. Create response DTO in `dto/`
+    5. Add service method in `{module}.service.ts`
+    6. Add Swagger decorators: `@ApiOperation`, `@ApiResponse`, `@ApiTags`
+    7. Add guard if endpoint requires auth: `@UseGuards(AuthGuard)`
+    8. Create controller test and service test
+    9. Update shared types in `packages/shared/` if types cross the frontend/server boundary
+  - Include DTO template, controller method template, service method template
+  - Validation: endpoint responds, DTO validation works, Swagger docs render
+
+### 4.5 Migration Creation Skill
+
+- [ ] **DEV-AI-077**: Create `skill-create-migration.md`
+  - Input: migration description, schema changes
+  - Steps:
+    1. Update Drizzle schema file in `server/src/db/schema/`
+    2. Run `bun drizzle-kit generate` to create migration SQL
+    3. Review generated SQL for correctness
+    4. Add rollback logic if the migration is non-trivial
+    5. Create seed data update if new tables/columns need development data
+    6. Run `bun db:migrate` to apply
+    7. Run `bun test` to verify no regressions
+  - Include schema definition examples (columns, indices, foreign keys, enums)
+  - Validation: migration applies cleanly, rollback works, tests pass
+
+### 4.6 MCP Tool Creation Skill
+
+- [ ] **DEV-AI-078**: Create `skill-create-mcp-tool.md`
+  - **Explicit note**: "This skill helps developers CREATE MCP tools for the application's agent system. The resulting tool is part of the runtime application, not a development tool."
+  - Input: tool name, tool description, parameters, return type
+  - Steps:
+    1. Identify the target MCP server in `server/src/modules/mcp-servers/`
+    2. Add tool definition with name, description, input schema (JSON Schema)
+    3. Implement tool handler with parameter validation
+    4. Add permission checks (does the agent session have access?)
+    5. Add error handling and structured error responses
+    6. Create integration test with mocked dependencies
+    7. Update the MCP server's tool manifest
+    8. Update runtime CLAUDE.md templates to document the new tool
+  - Include tool definition template, handler template, test template
+  - Validation: tool registers, parameters validate, handler executes, test passes
+
+### 4.7 Test Creation Skill
+
+- [ ] **DEV-AI-079**: Create `skill-create-test.md`
+  - Input: target file to test, test type (unit/integration/e2e)
+  - Steps for unit tests:
+    1. Create `{TargetFile}.test.ts` colocated with source
+    2. Import the module under test
+    3. Write `describe` block named after the module
+    4. Write `it` blocks for each behavior (happy path, edge cases, error cases)
+    5. Use test factories from `__fixtures__/` for data
+    6. Run `bun test {file}` to verify
+  - Steps for integration tests:
+    1. Create test in `server/test/integration/`
+    2. Set up test database and fixtures
+    3. Test the full request/response cycle
+    4. Clean up test data
+  - Steps for E2E tests:
+    1. Create `e2e/{feature}.e2e.test.ts`
+    2. Use Playwright to navigate, interact, and assert
+    3. Set up test user and test data
+    4. Clean up after test
+  - Include templates for each test type
+  - Validation: test passes, covers the intended behavior
+
+### 4.8 Knowledge Graph Operations Skill
+
+- [ ] **DEV-AI-080**: Create `skill-kg-operations.md`
+  - **Explicit note**: "This skill helps developers work on the knowledge graph MODULE CODE. It does not operate on knowledge graph data directly — that is done by the application's runtime agents."
+  - Covers: spec CRUD service implementation, edge management, graph traversal algorithms
+  - Steps for adding a new KG operation:
+    1. Define the operation interface in `packages/shared/`
+    2. Implement in `server/src/modules/knowledge-graph/`
+    3. Add file I/O logic (read/write JSON, git commit)
+    4. Add validation (schema conformance, referential integrity)
+    5. Expose via REST endpoint and/or MCP tool
+    6. Add tests: unit test for logic, integration test for file I/O
+  - Include JSON schema examples for specs and edges
+
+### 4.9 Full-Stack Feature Addition Skill
+
+- [ ] **DEV-AI-081**: Create `skill-add-feature.md`
+  - Orchestration skill that references sub-skills in sequence
+  - Input: feature name, feature description, affected domains
+  - Steps:
+    1. Plan: identify all files to create/modify, dependencies, test coverage
+    2. Shared types: define DTOs and interfaces in `packages/shared/`
+    3. Database: schema changes + migration (→ `skill-create-migration.md`)
+    4. Server: API endpoints + services (→ `skill-create-api-endpoint.md`)
+    5. Store: MobX store for the feature (→ `skill-create-store.md`)
+    6. Components: UI components (→ `skill-create-component.md`)
+    7. Integration: wire store to API service, wire components to store
+    8. Tests: unit, integration, and E2E (→ `skill-create-test.md`)
+    9. Documentation: update relevant plan task checkboxes
+  - Validation: full vertical slice works end-to-end
+- [ ] **DEV-AI-082**: Create feature addition dependency checklist
+  - Pre-flight checks: are shared types defined? Is the database schema in place?
+  - Intermediate checks: does the API endpoint respond? Does the store populate?
+  - Final checks: does the UI render? Do tests pass? Does lint pass?
+
+### 4.10 Debug Skill
+
+- [ ] **DEV-AI-083**: Create `skill-debug.md`
+  - Input: error description, affected file(s), reproduction steps
+  - Steps:
+    1. Read the error message and stack trace carefully
+    2. Identify the failing module (frontend, server, database, knowledge-graph)
+    3. Check recent changes (`git log --oneline -10`, `git diff`)
+    4. Add targeted logging (NestJS Logger on server, console.error on client)
+    5. Reproduce the issue with a minimal test case
+    6. Fix the root cause (not just the symptom)
+    7. Add a regression test
+    8. Remove debug logging
+  - Common error patterns and resolutions:
+    - MobX strict mode violation → wrap mutation in `action`
+    - NestJS dependency injection error → check module `providers` and `imports`
+    - Drizzle query type error → check schema definition matches query
+    - Knowledge graph file not found → check directory structure and file naming
+
+### 4.11 Refactor Skill
+
+- [ ] **DEV-AI-084**: Create `skill-refactor.md`
+  - Input: what to refactor, why, scope boundaries
+  - Steps:
+    1. Ensure all existing tests pass (baseline)
+    2. Identify all consumers of the code being refactored (grep for imports/usage)
+    3. Make the change incrementally (one file at a time when possible)
+    4. Run tests after each incremental change
+    5. Update imports and references in all consumers
+    6. Update any affected type definitions in `packages/shared/`
+    7. Run full test suite
+    8. Update documentation and AI config if conventions changed
+  - Safe refactoring patterns: rename, extract function, extract component, move file, change interface (with adapter)
+  - Validation: all tests pass, no lint errors, no runtime regressions
+
+### 4.12 Config Update Skill
+
+- [ ] **DEV-AI-085**: Create `skill-update-config.md`
+  - Self-referential: this skill describes how to update the AI development configuration itself
+  - Input: what changed in the project that requires a config update
+  - Steps:
+    1. Identify which config files are affected (CLAUDE.md, Cursor rules, skills)
+    2. Read the current config file
+    3. Make the minimum necessary change
+    4. Verify the change doesn't violate the sandbox boundary
+    5. Run `scripts/ai-dev/validate-sandbox.ts`
+    6. Run `scripts/ai-dev/validate-cursor-rules.ts`
+    7. Run `scripts/ai-dev/lint-claude-md.ts`
+    8. Update the config changelog
+  - Validation: all validation scripts pass, config is consistent with codebase
+
+### 4.13 Skill Validation
+
+- [ ] **DEV-AI-086**: Create `scripts/ai-dev/validate-skills.ts`
+  - Verify every skill file has required sections: header, prerequisites, steps, validation
+  - Verify file templates in skills are syntactically valid
+  - Verify cross-references between skills resolve to existing files
+  - Verify skill index file is up to date
+- [ ] **DEV-AI-087**: Add skill validation to CI pipeline
+  - Run skill validation on every PR that modifies files in the skills directory
+  - Report broken cross-references, missing sections, outdated index
+
+---
+
+## 5. Cursor Skills for Development
+
+Cursor skills use the `SKILL.md` format — a file inside a descriptively named
+directory under `.cursor/skills/`. These mirror the Claude Code skills but are
+adapted for Cursor's agent system and tool interface.
+
+### 5.1 Cursor Skill Infrastructure
+
+- [ ] **DEV-AI-088**: Define the Cursor SKILL.md template
+  - Directory structure: `.cursor/skills/{skill-name}/SKILL.md`
+  - Header: skill name, description, activation hint
+  - Tool usage instructions: which Cursor tools to use (Read, Write, Shell, Grep, etc.)
+  - Steps: numbered, tool-specific
+  - File templates: same as Claude Code skills but with Cursor tool invocation format
+  - Validation: same as Claude Code skills
+- [ ] **DEV-AI-089**: Create `.cursor/skills/` directory structure
+  - One subdirectory per skill, each containing a single `SKILL.md`
+  - `_README.md` in the root explaining the system
+- [ ] **DEV-AI-090**: Document differences from Claude Code skills
+  - Cursor skills reference Cursor-specific tools (Read, Write, Shell, Glob, Grep, etc.)
+  - Cursor skills can reference rule files (skills and rules work together)
+  - Cursor skills may reference MCP tools if MCP servers are configured
+  - Claude Code skills reference `claude` CLI commands and sub-agent delegation
+
+### 5.2 Frontend Cursor Skills
+
+- [ ] **DEV-AI-091**: Create `.cursor/skills/create-component/SKILL.md`
+  - Mirror of `skill-create-component.md` adapted for Cursor
+  - Use `Write` tool for file creation, `Glob` for finding related files
+  - Reference `frontend-components.md` and `frontend-styling.md` rules
+- [ ] **DEV-AI-092**: Create `.cursor/skills/create-store/SKILL.md`
+  - Mirror of `skill-create-store.md` adapted for Cursor
+  - Use `Read` tool to inspect existing stores for pattern consistency
+  - Reference `frontend-state.md` rule
+- [ ] **DEV-AI-093**: Create `.cursor/skills/create-hook/SKILL.md`
+  - How to create a custom React hook following project conventions
+  - Steps: create file, define hook, add types, add test
+  - Reference `frontend-hooks.md` rule
+
+### 5.3 Server Cursor Skills
+
+- [ ] **DEV-AI-094**: Create `.cursor/skills/create-api-endpoint/SKILL.md`
+  - Mirror of `skill-create-api-endpoint.md` adapted for Cursor
+  - Use `Shell` tool to run generators if available
+  - Reference `server-api.md` and `server-architecture.md` rules
+- [ ] **DEV-AI-095**: Create `.cursor/skills/create-migration/SKILL.md`
+  - Mirror of `skill-create-migration.md` adapted for Cursor
+  - Use `Shell` tool to run `bun drizzle-kit generate`
+  - Reference `database.md` rule
+- [ ] **DEV-AI-096**: Create `.cursor/skills/create-module/SKILL.md`
+  - How to create a new NestJS module from scratch
+  - Steps: create directory, module file, controller, service, DTO directory, register in AppModule
+  - Reference `server-architecture.md` rule
+
+### 5.4 Knowledge Graph Cursor Skills
+
+- [ ] **DEV-AI-097**: Create `.cursor/skills/kg-operations/SKILL.md`
+  - Mirror of `skill-kg-operations.md` adapted for Cursor
+  - **Explicit note**: "This is for developing the KG module, not for operating on KG data"
+  - Reference `knowledge-graph.md` rule
+
+### 5.5 Testing Cursor Skills
+
+- [ ] **DEV-AI-098**: Create `.cursor/skills/create-test/SKILL.md`
+  - Mirror of `skill-create-test.md` adapted for Cursor
+  - Use `Shell` tool to run `bun test` for verification
+  - Reference `testing.md` rule
+- [ ] **DEV-AI-099**: Create `.cursor/skills/create-e2e-test/SKILL.md`
+  - How to create a Playwright E2E test
+  - Steps: create file, define test, add page objects, run with `bun test:e2e`
+  - Include Playwright-specific patterns (selectors, waits, assertions)
+
+### 5.6 Full-Stack Cursor Skills
+
+- [ ] **DEV-AI-100**: Create `.cursor/skills/add-feature/SKILL.md`
+  - Mirror of `skill-add-feature.md` adapted for Cursor
+  - Reference sub-skills for each step
+  - Use `TodoWrite` tool to track multi-step progress
+- [ ] **DEV-AI-101**: Create `.cursor/skills/debug/SKILL.md`
+  - Mirror of `skill-debug.md` adapted for Cursor
+  - Use `Shell` tool for git operations and test runs
+  - Use `Grep` tool for finding error sources
+- [ ] **DEV-AI-102**: Create `.cursor/skills/refactor/SKILL.md`
+  - Mirror of `skill-refactor.md` adapted for Cursor
+  - Use `Grep` for finding all references before refactoring
+  - Use `Shell` to run tests after each step
+
+### 5.7 Meta Cursor Skills
+
+- [ ] **DEV-AI-103**: Create `.cursor/skills/update-ai-config/SKILL.md`
+  - Mirror of `skill-update-config.md` adapted for Cursor
+  - How to update Cursor rules, skills, and CLAUDE.md
+  - Use `Shell` to run validation scripts
+- [ ] **DEV-AI-104**: Create `.cursor/skills/create-cursor-rule/SKILL.md`
+  - How to create a new Cursor rule file
+  - Steps: choose domain, define globs, write conventions, add examples, validate
+  - Reference `_README.md` in `.cursor/rules/`
+- [ ] **DEV-AI-105**: Create `.cursor/skills/create-skill/SKILL.md`
+  - Self-referential: how to create a new Cursor skill
+  - Steps: create directory, write SKILL.md, register in index, validate
+
+### 5.8 Cursor Skill Validation
+
+- [ ] **DEV-AI-106**: Create `scripts/ai-dev/validate-cursor-skills.ts`
+  - Verify every skill directory contains a `SKILL.md` file
+  - Verify SKILL.md files have required sections
+  - Verify cross-references between skills and rules resolve
+  - Verify the skills index is up to date
+- [ ] **DEV-AI-107**: Add Cursor skill validation to CI pipeline
+  - Run on every PR that modifies `.cursor/skills/`
+  - Report missing skills, broken references, outdated index
+
+---
+
+## 6. Development Agent Types
+
+Define focused, small-context agent types that developers invoke for specific
+tasks. Each agent type carries only the context relevant to its domain,
+minimizing context window usage and maximizing accuracy.
+
+### 6.1 Agent Type Infrastructure
+
+- [ ] **DEV-AI-108**: Define the agent type specification format
+  - Each agent type is defined as a YAML or JSON config specifying:
+    - `name`: human-readable agent name
+    - `description`: what this agent specializes in
+    - `context_directories`: which directories the agent should see
+    - `context_files`: specific files always loaded (CLAUDE.md sections, rules)
+    - `skills`: which skill files to load
+    - `rules`: which Cursor rule files to activate
+    - `system_prompt_additions`: extra instructions beyond the base CLAUDE.md
+    - `capabilities`: what this agent can do
+    - `limitations`: what this agent should NOT do
+    - `delegation_targets`: which other agent types it can delegate to
+- [ ] **DEV-AI-109**: Create `docs/ai-dev/agent-types/` directory for agent type specs
+  - One file per agent type
+  - Index file listing all agent types with descriptions
+- [ ] **DEV-AI-110**: Document how to invoke each agent type
+  - Claude Code: `claude --context {dirs} --skills {files} --system-prompt {additions}`
+  - Cursor: configure workspace settings to load specific rules/skills per task
+  - Both: reference the agent type spec for the correct configuration
+
+### 6.2 Master Planner Agent
+
+- [ ] **DEV-AI-111**: Define Master Planner Agent specification
+  - Context: `plans/`, `CLAUDE.md`, `docs/`, `package.json` files across all workspaces
+  - Skills: `skill-add-feature.md`, `skill-update-config.md`
+  - System prompt additions: "You are the Master Planner. You decompose complex tasks into sub-agent assignments. You track progress and ensure all sub-tasks are completed."
+  - Capabilities: read all plan files, create TODO lists, delegate to sub-agents, track progress
+  - Limitations: does not write application code directly — delegates to domain agents
+- [ ] **DEV-AI-112**: Write Master Planner task decomposition rules
+  - Break task into smallest independent units
+  - Identify dependencies between units
+  - Assign each unit to the most specialized agent type
+  - Define acceptance criteria for each unit
+  - Define the integration verification step (after all units complete)
+- [ ] **DEV-AI-113**: Write Master Planner progress tracking format
+  - TODO list with task ID, assigned agent, status (pending/in-progress/done/failed), notes
+  - Each task includes expected files to create/modify
+  - Each task includes expected test coverage
+  - Final integration checklist
+
+### 6.3 Frontend Agent
+
+- [ ] **DEV-AI-114**: Define Frontend Agent specification
+  - Context: `client/ui/`, `packages/shared/src/types/`, `packages/shared/src/dto/`
+  - Skills: `skill-create-component.md`, `skill-create-store.md`
+  - Rules: `frontend-components.md`, `frontend-styling.md`, `frontend-state.md`, `frontend-hooks.md`, `frontend-services.md`, `accessibility.md`
+  - System prompt additions: "You are the Frontend Agent. You write React components, MobX stores, BEM SCSS, and client-side tests. You NEVER modify server code."
+  - Capabilities: create/modify components, stores, hooks, services, styles, client-side tests
+  - Limitations: cannot modify `server/`, cannot modify `knowledge-graph/`, cannot create database migrations
+- [ ] **DEV-AI-115**: Write Frontend Agent coding checklist
+  - Every component has a props interface
+  - Every container component uses `observer()`
+  - Every SCSS file uses BEM with PascalCase
+  - Every component has at least a render test
+  - No direct store imports in leaf components
+- [ ] **DEV-AI-116**: Define Frontend Agent handoff format
+  - When delegating TO Frontend Agent: provide component name, props shape, data source (store or API), visual requirements
+  - When Frontend Agent completes: list created/modified files, test results, screenshots if applicable
+
+### 6.4 Server Agent
+
+- [ ] **DEV-AI-117**: Define Server Agent specification
+  - Context: `server/`, `packages/shared/`
+  - Skills: `skill-create-api-endpoint.md`, `skill-create-migration.md`
+  - Rules: `server-architecture.md`, `server-api.md`, `server-auth.md`, `server-websocket.md`, `database.md`
+  - System prompt additions: "You are the Server Agent. You write NestJS modules, services, controllers, DTOs, Drizzle schemas, and server-side tests. You NEVER modify client code."
+  - Capabilities: create/modify modules, services, controllers, DTOs, guards, migrations, server tests
+  - Limitations: cannot modify `client/`, cannot modify `knowledge-graph/` data files directly
+- [ ] **DEV-AI-118**: Write Server Agent coding checklist
+  - Every endpoint has DTOs with validation decorators
+  - Every endpoint has Swagger documentation
+  - Every service method is tested
+  - Every controller method has a guard if it requires auth
+  - All errors throw typed exceptions
+- [ ] **DEV-AI-119**: Define Server Agent handoff format
+  - When delegating TO Server Agent: provide endpoint spec (method, URL, request/response shapes), business rules, auth requirements
+  - When Server Agent completes: list created/modified files, test results, Swagger endpoint URL
+
+### 6.5 Knowledge Graph Agent (Dev)
+
+- [ ] **DEV-AI-120**: Define Knowledge Graph Agent (Dev) specification
+  - **Explicit note**: "This is the DEVELOPMENT agent for working on the knowledge graph MODULE CODE. It is NOT the runtime Knowledge Graph Agent that operates on user data."
+  - Context: `knowledge-graph/`, `server/src/modules/knowledge-graph/`, `packages/shared/src/types/kg/`
+  - Skills: `skill-kg-operations.md`
+  - Rules: `knowledge-graph.md`
+  - System prompt additions: "You are the Knowledge Graph Development Agent. You write code for the KG module — spec CRUD, edge management, graph algorithms, file I/O, git integration. You do NOT operate on user knowledge data."
+  - Capabilities: create/modify KG module code, schemas, validation, git integration logic, KG-related tests
+  - Limitations: does not modify actual knowledge graph data, does not modify runtime agent config
+- [ ] **DEV-AI-121**: Write KG Dev Agent operational boundaries
+  - Can modify: `server/src/modules/knowledge-graph/**/*.ts`, `packages/shared/src/types/kg/**/*.ts`
+  - Can read (for reference): `knowledge-graph/` sample data structures
+  - Cannot modify: `knowledge-graph/**/*.json` (runtime data), `server/src/modules/agent/` (runtime agent config)
+
+### 6.6 Testing Agent
+
+- [ ] **DEV-AI-122**: Define Testing Agent specification
+  - Context: `**/*.test.{ts,tsx}`, `e2e/`, `__fixtures__/`, test configuration files
+  - Skills: `skill-create-test.md`
+  - Rules: `testing.md`
+  - System prompt additions: "You are the Testing Agent. You write and fix tests across all packages. You ensure test coverage for new and existing code."
+  - Capabilities: create/modify test files, fixtures, E2E tests, analyze coverage
+  - Limitations: does not modify application code (only test code), suggests fixes but delegates implementation
+- [ ] **DEV-AI-123**: Write Testing Agent coverage standards
+  - Unit test coverage target: 80%+ for business logic, 60%+ for UI components
+  - Integration test coverage: every API endpoint, every database query
+  - E2E test coverage: every critical user flow (auth, CRUD, search, agent interaction)
+  - All new features must include tests — no exceptions
+
+### 6.7 Database Agent
+
+- [ ] **DEV-AI-124**: Define Database Agent specification
+  - Context: `server/src/db/`, `server/src/modules/**/schema/`, migration files
+  - Skills: `skill-create-migration.md`
+  - Rules: `database.md`
+  - System prompt additions: "You are the Database Agent. You manage Drizzle ORM schemas, migrations, seed data, and database-related tests."
+  - Capabilities: create/modify schemas, migrations, seeds, database tests, index optimization
+  - Limitations: does not modify application logic, does not modify API endpoints (only the database layer)
+- [ ] **DEV-AI-125**: Write Database Agent schema review checklist
+  - All tables have a primary key
+  - All foreign keys have corresponding indices
+  - All columns have appropriate types and constraints (nullable, default, unique)
+  - All enum types are defined as Drizzle enums or TypeScript union types
+  - Migration is reversible (has a down migration)
+  - Seed data is consistent with constraints
+
+### 6.8 App Agent System Agent
+
+- [ ] **DEV-AI-126**: Define App Agent System Agent specification
+  - **Explicit note**: "This agent helps developers WRITE CODE for the application's agent system. It works on the Claude Code wrapper, MCP servers, runtime skills, and runtime CLAUDE.md templates. It does NOT run or configure agents at runtime."
+  - Context: `server/src/modules/agent/`, `server/src/modules/mcp-servers/`, `packages/shared/src/types/agent/`
+  - Skills: `skill-create-mcp-tool.md`
+  - Rules: `agent-system-runtime.md`
+  - System prompt additions: "You are the App Agent System Agent. You write code for the application's Claude Code wrapper, MCP servers, agent session management, and runtime configuration. You are a DEVELOPER tool, not a runtime agent."
+  - Capabilities: create/modify agent module code, MCP server implementations, runtime prompt templates, agent integration tests
+  - Limitations: does not modify dev-time AI config (CLAUDE.md, Cursor rules, dev skills), does not invoke Claude Code API directly
+- [ ] **DEV-AI-127**: Write App Agent System Agent boundary enforcement
+  - Allowed paths: `server/src/modules/agent/**`, `server/src/modules/mcp-servers/**`
+  - Forbidden paths: `.claude/`, `.cursor/rules/`, root `CLAUDE.md`, `.cursor/skills/`
+  - If a task requires both dev config and runtime agent config, it MUST be split between this agent and the Documentation Agent or Config Update skill
+
+### 6.9 Styling Agent
+
+- [ ] **DEV-AI-128**: Define Styling Agent specification
+  - Context: `client/ui/src/**/*.scss`, `client/ui/src/styles/`, design token files
+  - Skills: (minimal — styling work is guided by rules)
+  - Rules: `frontend-styling.md`, `accessibility.md`
+  - System prompt additions: "You are the Styling Agent. You write BEM SCSS, manage design tokens, ensure accessibility compliance, and create responsive layouts."
+  - Capabilities: create/modify SCSS files, design tokens, CSS custom properties, responsive breakpoints
+  - Limitations: does not modify component logic (only styles), does not modify server code
+- [ ] **DEV-AI-129**: Write Styling Agent BEM enforcement checklist
+  - Every class follows `.PascalCase { &__Item { } &--prop { } }`
+  - No nesting beyond one level of `&__` or `&--`
+  - No orphaned styles (every class is referenced by a component)
+  - All colors use CSS custom properties (not hardcoded hex values)
+  - All spacing uses the spacing scale (not arbitrary pixel values)
+
+### 6.10 DevOps Agent
+
+- [ ] **DEV-AI-130**: Define DevOps Agent specification
+  - Context: `docker-compose.yml`, `Dockerfile`, `.github/workflows/`, `scripts/`, `config/`
+  - Skills: (deployment-specific skills)
+  - Rules: `git-workflow.md`
+  - System prompt additions: "You are the DevOps Agent. You manage Docker configurations, CI/CD pipelines, deployment scripts, and infrastructure."
+  - Capabilities: create/modify Docker files, CI/CD workflows, deployment scripts, environment configs
+  - Limitations: does not modify application code, does not modify AI config (except CI validation steps)
+- [ ] **DEV-AI-131**: Write DevOps Agent CI/CD standards
+  - Every PR triggers: lint, test, build, sandbox validation
+  - Docker images are multi-stage (build stage + production stage)
+  - Environment variables are documented in `.env.example`
+  - No secrets in CI config — use GitHub Secrets or equivalent
+
+### 6.11 Documentation Agent
+
+- [ ] **DEV-AI-132**: Define Documentation Agent specification
+  - Context: `docs/`, `plans/`, `README.md`, `CLAUDE.md`, `.cursor/rules/_README.md`, `CONTRIBUTING.md`
+  - Skills: `skill-update-config.md`
+  - Rules: `coding-standards.md` (for comment/doc conventions)
+  - System prompt additions: "You are the Documentation Agent. You keep README files, plan documents, AI config files, and JSDoc comments up to date."
+  - Capabilities: create/modify documentation, update plan task checkboxes, update AI config files, audit config consistency
+  - Limitations: does not modify application code, does not modify tests
+- [ ] **DEV-AI-133**: Write Documentation Agent audit checklist
+  - README is up to date with current setup instructions
+  - Plan files reflect current project state
+  - AI config files match actual codebase patterns
+  - JSDoc comments exist for all public APIs
+  - BOUNDARY.md is current
+
+### 6.12 Agent Type Validation
+
+- [ ] **DEV-AI-134**: Create `scripts/ai-dev/validate-agent-types.ts`
+  - Verify every agent type spec has required fields
+  - Verify context directories exist in the project
+  - Verify referenced skills and rules exist
+  - Verify no two agent types have identical context (they should be specialized)
+  - Verify boundary constraints are consistent (no agent type can access forbidden paths)
+- [ ] **DEV-AI-135**: Create agent type selection guide
+  - Decision tree: given a task description, which agent type should handle it
+  - Input: task keywords → Output: recommended agent type
+  - Include examples: "Create a new component" → Frontend Agent, "Add database column" → Database Agent
+  - Include multi-agent examples: "Add a full-stack feature" → Master Planner → delegates to Server + Frontend + Testing
+- [ ] **DEV-AI-136**: Create agent type integration test suite
+  - For each agent type, create a sample task and verify the agent can complete it
+  - Test with minimal context (only the directories/files specified in the agent type)
+  - Verify the agent does NOT try to access files outside its context
+  - Run periodically (not on every PR — these are expensive)
+- [ ] **DEV-AI-137**: Document agent type evolution process
+  - How to add a new agent type
+  - How to modify an existing agent type's context/skills/rules
+  - How to deprecate an agent type
+  - How to split an agent type that has become too broad
+
+---
+
+## 7. Self-Updating Configuration (Back-feeding)
+
+Mechanisms for detecting when AI development configuration is out of date
+and triggering updates. Configuration drift — where the config describes
+patterns the code no longer follows — is the second highest-risk failure
+mode after sandbox violations.
+
+### 7.1 Change Detection
+
+- [ ] **DEV-AI-138**: Create `scripts/ai-dev/detect-config-drift.ts`
+  - Compare Cursor rule file conventions against actual code patterns
+  - Example: rule says "BEM with PascalCase" → scan SCSS files for non-conforming class names
+  - Example: rule says "no default exports" → scan TSX files for default exports
+  - Output: list of drift items with severity (info, warning, error)
+- [ ] **DEV-AI-139**: Create a post-PR config review trigger
+  - After a PR is merged, check if the PR changed files matching specific patterns:
+    - New component pattern → flag `frontend-components.md` rule for review
+    - New store pattern → flag `frontend-state.md` rule for review
+    - New API pattern → flag `server-api.md` rule for review
+    - New directory → flag `project-structure.md` rule for review
+  - Create a GitHub issue or TODO item for the config review
+- [ ] **DEV-AI-140**: Create pattern detection for new conventions
+  - When a new coding pattern appears in 3+ files, flag it as a potential convention
+  - Example: if 3+ components use a new error boundary pattern, suggest adding it to rules
+  - Run as a periodic scan (weekly or monthly), not on every commit
+- [ ] **DEV-AI-141**: Create config freshness tracking
+  - Each config file has a metadata header with `last_reviewed: YYYY-MM-DD`
+  - Script flags files not reviewed in 60+ days
+  - Freshness report included in the periodic health check
+
+### 7.2 Automated Update Proposals
+
+- [ ] **DEV-AI-142**: Create a config update proposal system
+  - When drift is detected, generate a proposed config change
+  - Proposals are stored in `docs/ai-dev/proposals/` as markdown files
+  - Each proposal includes: what changed in the code, what the config currently says, what the config should say, diff preview
+  - Proposals require human review before being applied
+- [ ] **DEV-AI-143**: Create Documentation Agent skill for config auditing
+  - The Documentation Agent can run `detect-config-drift.ts` and generate proposals
+  - Skill: `skill-audit-config.md` — steps for reviewing and updating config files
+  - Agent reads drift report → generates proposals → updates config files (with human approval)
+- [ ] **DEV-AI-144**: Create self-updating test for CLAUDE.md tech stack section
+  - Read `package.json` files across all workspaces
+  - Compare declared dependencies against the tech stack section in CLAUDE.md
+  - Flag any dependencies in `package.json` not mentioned in CLAUDE.md
+  - Flag any technologies in CLAUDE.md not present in `package.json`
+- [ ] **DEV-AI-145**: Create self-updating test for project structure section
+  - Read actual directory tree
+  - Compare against the annotated directory tree in CLAUDE.md
+  - Flag new directories not in the tree
+  - Flag removed directories still in the tree
+
+### 7.3 Version Tracking & Changelog
+
+- [ ] **DEV-AI-146**: Create `docs/ai-dev/CHANGELOG.md`
+  - Track every change to AI config files with date, description, and reason
+  - Format: `## YYYY-MM-DD\n- [file] Description of change (reason)\n`
+  - Updated manually or by the Documentation Agent when config changes are merged
+- [ ] **DEV-AI-147**: Add git tagging for config milestones
+  - When a major config reorganization happens, create a git tag: `ai-config-v{N}`
+  - Useful for rollback if a config change causes problems
+  - Tags are lightweight (no release notes — the changelog is sufficient)
+- [ ] **DEV-AI-148**: Create config version header in each config file
+  - Each config file includes a comment: `<!-- Config version: 1.0 | Last updated: YYYY-MM-DD -->`
+  - Incremented when the file is meaningfully changed
+  - Scripts can compare version numbers across files to detect inconsistencies
+
+### 7.4 Config Health Check
+
+- [ ] **DEV-AI-149**: Create `scripts/ai-dev/health-check.ts` — master health check script
+  - Runs all validation scripts in sequence:
+    1. `validate-sandbox.ts` — boundary check
+    2. `validate-cursor-rules.ts` — rule file structure
+    3. `validate-cursor-skills.ts` — skill file structure
+    4. `validate-skills.ts` — Claude Code skills structure
+    5. `validate-agent-types.ts` — agent type specs
+    6. `lint-claude-md.ts` — CLAUDE.md structure and size
+    7. `detect-config-drift.ts` — config vs code consistency
+  - Outputs a summary report with pass/fail for each check
+  - Exit code reflects whether any critical checks failed
+- [ ] **DEV-AI-150**: Add health check to CI as a nightly job
+  - Run the full health check nightly (not on every PR — too expensive)
+  - Send a notification (Slack, email, GitHub issue) if any checks fail
+  - PRs that modify config files run the health check as part of the PR checks
+- [ ] **DEV-AI-151**: Create a health check dashboard
+  - Simple HTML page generated by the health check script
+  - Shows: last run date, pass/fail status for each check, drift items, freshness warnings
+  - Served from `docs/ai-dev/health-report.html` (checked into repo, regenerated nightly)
+- [ ] **DEV-AI-152**: Define config health SLA
+  - All sandbox checks must pass at all times (critical)
+  - All structural checks must pass at all times (critical)
+  - Drift items under 5 (warning at 3, error at 5)
+  - Freshness: no config file older than 90 days without review (warning at 60)
+
+---
+
+## 8. Master Planner Configuration
+
+The Master Planner is the orchestration layer that coordinates complex,
+multi-step development tasks by decomposing them and delegating to
+specialized development agents.
+
+### 8.1 Planner System Prompt
+
+- [ ] **DEV-AI-153**: Write the Master Planner system prompt section in CLAUDE.md
+  - Identity: "You are the Master Planner for the Knowledge Graph Agent System development."
+  - Capability: "You decompose complex development tasks into sub-tasks and delegate to specialized agents."
+  - Process: (1) understand the full task, (2) identify affected domains, (3) decompose into smallest independent units, (4) assign to agent types, (5) define acceptance criteria, (6) track and aggregate results
+  - Constraints: "You do not write application code directly. You orchestrate."
+- [ ] **DEV-AI-154**: Write the Master Planner skill file
+  - `skill-master-planner.md` — detailed orchestration steps
+  - Input: high-level task description
+  - Output: task breakdown document with agent assignments, dependencies, acceptance criteria
+  - Include a template for the output format
+
+### 8.2 Task Decomposition
+
+- [ ] **DEV-AI-155**: Define task decomposition rules
+  - Every sub-task must be completable by a single agent type
+  - Every sub-task must have clear input (what the agent starts with) and output (what the agent produces)
+  - Sub-tasks should be 1–4 hours of human-equivalent work (right-sized for an agent)
+  - Dependencies between sub-tasks must be explicit (not implicit)
+  - Circular dependencies are forbidden — must be resolved by restructuring
+- [ ] **DEV-AI-156**: Define task decomposition templates
+  - Template for "Add Feature": shared types → database → server → frontend → tests → docs
+  - Template for "Fix Bug": reproduce → diagnose → fix → test → verify
+  - Template for "Refactor": baseline tests → incremental changes → verify → update docs
+  - Template for "Add Config": draft → validate → review → merge → update index
+- [ ] **DEV-AI-157**: Define task sizing guidelines
+  - Small (1 agent, 1 step): single file edit, bug fix, add test
+  - Medium (1 agent, 3–5 steps): add component, add endpoint, add migration
+  - Large (2–3 agents, 5–10 steps): full-stack feature, module refactor
+  - Extra-large (Master Planner + 3+ agents, 10+ steps): new domain area, architectural change
+
+### 8.3 Sub-Agent Result Aggregation
+
+- [ ] **DEV-AI-158**: Define result aggregation format
+  - Each sub-agent returns: list of files created/modified, test results (pass/fail counts), warnings/issues encountered, open questions
+  - Master Planner collects all results and produces: summary of all changes, combined test results, integration verification plan, remaining work items
+- [ ] **DEV-AI-159**: Define error handling for sub-agent failures
+  - If a sub-agent fails: capture the error, determine if it's recoverable
+  - Recoverable: retry with adjusted instructions (add more context, simplify the task)
+  - Non-recoverable: mark the sub-task as failed, determine impact on dependent tasks, report to developer
+  - Never silently ignore sub-agent failures
+- [ ] **DEV-AI-160**: Define integration verification steps
+  - After all sub-agents complete: run full test suite
+  - Verify: no type errors across workspaces (`bun build`)
+  - Verify: no lint errors (`bun lint`)
+  - Verify: no runtime errors (start dev server, run smoke tests)
+  - If verification fails: identify the failing sub-task and re-delegate
+
+### 8.4 Progress Reporting
+
+- [ ] **DEV-AI-161**: Define progress reporting format
+  - Real-time: as each sub-task starts/completes, update a progress document
+  - Format: task table with columns: ID, description, agent, status, files touched, notes
+  - Status values: pending → in-progress → done / failed / blocked
+  - Include ETA estimates based on sub-task completion rate
+- [ ] **DEV-AI-162**: Define progress reporting integration
+  - Progress document stored in a temporary file during execution
+  - After completion, archived in `docs/ai-dev/execution-logs/`
+  - Developer can check progress at any time by reading the document
+  - Future: integrate with a dashboard or notification system
+- [ ] **DEV-AI-163**: Define the Master Planner post-mortem format
+  - After a multi-agent task completes, the Master Planner produces a post-mortem
+  - Contents: what was planned, what was executed, what succeeded, what failed, lessons learned
+  - Used to improve future task decomposition and agent type definitions
+  - Stored in `docs/ai-dev/post-mortems/`
+
+### 8.5 Plan File Integration
+
+- [ ] **DEV-AI-164**: Define how the Master Planner references plan files
+  - The Master Planner reads `plans/` to understand the project's planned architecture
+  - When decomposing a task, the planner checks if relevant plan tasks exist
+  - Sub-task descriptions reference plan task IDs where applicable
+  - After sub-tasks complete, the planner suggests updating plan task checkboxes
+- [ ] **DEV-AI-165**: Define Master Planner escalation rules
+  - If a task requires a decision not covered by plan files → escalate to developer
+  - If a task contradicts existing plan files → escalate to developer
+  - If a sub-agent produces output inconsistent with plan files → flag and escalate
+  - Escalation format: describe the decision needed, the options, and the recommendation
+
+---
+
+## 9. "Always On" Configuration Strategy
+
+Define which configuration is always active (regardless of context) and
+which is conditionally activated. The goal is to keep critical rules always
+available while minimizing unnecessary context window consumption.
+
+### 9.1 Always-On Layers
+
+- [ ] **DEV-AI-166**: Define the "always on" rule set
+  - Rules that MUST be active for every file, every session:
+    - `project-structure.md` — where things go, workspace boundaries
+    - `coding-standards.md` — TypeScript strictness, import order, naming
+    - `git-workflow.md` — branching, commit messages, PR conventions
+  - These use `alwaysApply: true` in Cursor
+  - In CLAUDE.md, these are inline (not referenced via skills)
+- [ ] **DEV-AI-167**: Define the always-on context budget
+  - Always-on rules: target under 2,000 tokens total
+  - CLAUDE.md base content (project identity, tech stack summary, workflow commands): under 3,000 tokens
+  - Total always-on context: under 5,000 tokens
+  - This leaves 3,000+ tokens for domain-specific rules and skills
+  - Periodically measure with a token counter script
+- [ ] **DEV-AI-168**: Create `scripts/ai-dev/measure-context-budget.ts`
+  - Measure token count of: CLAUDE.md, each always-on rule file, each conditional rule file
+  - Output: table showing each file's token count, always-on total, and per-domain totals
+  - Flag files exceeding their budget
+  - Use tiktoken or a similar tokenizer
+
+### 9.2 Conditional Layers
+
+- [ ] **DEV-AI-169**: Define domain-triggered rules
+  - Activated by glob patterns when editing files in specific directories:
+    - `client/ui/src/components/` → `frontend-components.md`
+    - `client/ui/src/**/*.scss` → `frontend-styling.md`
+    - `client/ui/src/store/` → `frontend-state.md`
+    - `server/src/` → `server-architecture.md`
+    - `server/src/**/*.controller.ts` → `server-api.md`
+    - `server/src/db/` → `database.md`
+    - `**/*.test.*` → `testing.md`
+    - `server/src/modules/agent/` → `agent-system-runtime.md`
+- [ ] **DEV-AI-170**: Define skill-triggered context loading
+  - Skills are loaded on demand when a specific task is being performed
+  - Claude Code: developer explicitly requests a skill or the Master Planner assigns one
+  - Cursor: skills are loaded when the developer invokes them
+  - Skills never auto-load — they are opt-in to preserve context window
+- [ ] **DEV-AI-171**: Define the layered context assembly for Claude Code
+  - Layer 1 (always): root CLAUDE.md content (project identity, tech stack, base conventions)
+  - Layer 2 (domain): additional context based on the working directory / task domain
+  - Layer 3 (skill): specific skill file loaded for the current task
+  - Each layer adds to the context; layers never contradict each other
+  - If layers conflict, the more specific layer wins (skill > domain > base)
+- [ ] **DEV-AI-172**: Define the layered context assembly for Cursor
+  - Layer 1 (always): `alwaysApply: true` rule files
+  - Layer 2 (domain): glob-matched rule files based on the active file
+  - Layer 3 (skill): skill loaded by the developer on demand
+  - Same precedence: more specific wins
+
+### 9.3 Context Window Optimization
+
+- [ ] **DEV-AI-173**: Define rule file conciseness guidelines
+  - Rules should state conventions directly — no lengthy explanations of WHY
+  - Use bullet points, not prose
+  - Include 1–2 examples (not 5–10)
+  - Anti-patterns: max 3 per rule file
+  - If a rule needs extensive explanation, link to a documentation page
+- [ ] **DEV-AI-174**: Create rule file compression script
+  - `scripts/ai-dev/compress-rules.ts`
+  - Identify verbose rules (high word count relative to convention count)
+  - Suggest edits to reduce token count while preserving all conventions
+  - Output: per-file report with current tokens, target tokens, suggestions
+- [ ] **DEV-AI-175**: Define CLAUDE.md reference strategy
+  - CLAUDE.md includes brief summaries of each domain's conventions
+  - Detailed conventions are in skill files, loaded on demand
+  - CLAUDE.md links to skills: "For detailed component creation steps, load `skill-create-component.md`"
+  - This keeps CLAUDE.md within its token budget while still being useful as a standalone reference
+- [ ] **DEV-AI-176**: Create context window usage tests
+  - For each agent type, calculate the total context: CLAUDE.md + always-on rules + domain rules + skill
+  - Verify total is under 50% of the model's context window (leaving room for code)
+  - Flag agent types that exceed the budget
+  - Run as part of the health check
+
+---
+
+## 10. Configuration for Evolving Project
+
+Define how the AI development configuration system adapts as the project
+grows, new features are added, conventions change, and new domains emerge.
+
+### 10.1 Adding New Domains
+
+- [ ] **DEV-AI-177**: Create a template for adding a new Cursor rule file
+  - Checklist: choose file name, define description, define globs, write conventions, add examples, add anti-patterns, set alwaysApply, validate, update coverage report
+  - Template file in `docs/ai-dev/templates/rule-template.md`
+- [ ] **DEV-AI-178**: Create a template for adding a new Claude Code skill
+  - Checklist: choose file name, write header, define prerequisites, write steps, add templates, add validation, update index
+  - Template file in `docs/ai-dev/templates/skill-template.md`
+- [ ] **DEV-AI-179**: Create a template for adding a new Cursor skill
+  - Same as Claude Code but with Cursor tool references
+  - Template file in `docs/ai-dev/templates/cursor-skill-template.md`
+- [ ] **DEV-AI-180**: Create a template for adding a new agent type
+  - Checklist: choose name, define context directories, assign skills, assign rules, write system prompt additions, define capabilities, define limitations, validate, update index
+  - Template file in `docs/ai-dev/templates/agent-type-template.md`
+- [ ] **DEV-AI-181**: Document the "new domain" workflow
+  - When a new area of the project emerges (e.g., new frontend feature, new server module):
+    1. Create a Cursor rule file for the new domain
+    2. Create skill files if the domain has repeatable tasks
+    3. Consider whether a new agent type is needed
+    4. Update the CLAUDE.md project structure section
+    5. Update the agent type selection guide
+    6. Run the health check
+
+### 10.2 Convention Migration
+
+- [ ] **DEV-AI-182**: Define the convention migration process
+  - When a convention changes (e.g., switch from PascalCase to camelCase for a specific file type):
+    1. Document the old and new convention
+    2. Update all config files that reference the old convention
+    3. Add a migration note in the config changelog
+    4. Run the drift detection to identify code that follows the old convention
+    5. Create tasks to update existing code (optional, can be gradual)
+    6. Remove the old convention from config after all code is migrated
+- [ ] **DEV-AI-183**: Define the convention deprecation process
+  - When an old convention is phased out:
+    1. Mark the convention as deprecated in the rule file with a note: `<!-- DEPRECATED: Use X instead. Remove after YYYY-MM-DD -->`
+    2. Add a lint rule or script to detect the deprecated pattern
+    3. After all code is migrated, remove the deprecated convention
+    4. Update the config changelog
+- [ ] **DEV-AI-184**: Create a convention migration tracker
+  - `docs/ai-dev/migrations/` directory
+  - One file per convention migration: `YYYY-MM-DD-{description}.md`
+  - Contents: what changed, why, what config files were updated, migration status (in-progress/complete)
+
+### 10.3 Config Testing
+
+- [ ] **DEV-AI-185**: Define config testing strategy
+  - Each Cursor rule file includes examples — validate that examples compile
+  - Each skill file includes file templates — validate that templates produce valid code
+  - Agent type specs reference real directories — validate they exist
+  - CLAUDE.md references real files — validate they exist
+- [ ] **DEV-AI-186**: Create `scripts/ai-dev/test-config-examples.ts`
+  - Extract code examples from rule files
+  - Compile each example with TypeScript (or validate SCSS with stylelint)
+  - Report examples that don't compile
+  - Run as part of the CI health check
+- [ ] **DEV-AI-187**: Create config snapshot tests
+  - Snapshot the structure (not content) of each config file
+  - If the structure changes (sections added/removed), the snapshot test fails
+  - This catches accidental structural changes
+  - Snapshots stored in `scripts/ai-dev/__snapshots__/`
+- [ ] **DEV-AI-188**: Create end-to-end config tests
+  - For each skill file, run the skill in a sandbox environment with a test project
+  - Verify the skill produces the expected files with the expected content
+  - These are expensive — run weekly, not on every PR
+  - Use a minimal test project that mimics the real monorepo structure
+
+### 10.4 Config Documentation
+
+- [ ] **DEV-AI-189**: Create `docs/ai-dev/README.md` — master documentation for the config system
+  - Overview: what the AI dev config system is and why it exists
+  - Architecture: directory layout, file types, relationships between configs
+  - Quick start: how to use the configs as a developer
+  - Rule files: what they are, how they work, how to create one
+  - Skill files: what they are, how to use them, how to create one
+  - Agent types: what they are, how to invoke them, how to create one
+  - Self-updating: how configs stay in sync with the codebase
+  - Troubleshooting: common issues and resolutions
+- [ ] **DEV-AI-190**: Create onboarding guide for new developers
+  - `docs/ai-dev/ONBOARDING.md`
+  - Step-by-step guide for a developer joining the project:
+    1. Install Cursor and/or Claude Code
+    2. Clone the repo
+    3. Understand the config system (read this document)
+    4. Set up Cursor: rules auto-load, skills manual-load
+    5. Set up Claude Code: CLAUDE.md auto-loads, skills referenced from CLAUDE.md
+    6. Try a simple task: create a component using the skill
+    7. Try a multi-step task: add a feature using the Master Planner
+  - Include screenshots and example terminal output
+- [ ] **DEV-AI-191**: Create a config system FAQ
+  - `docs/ai-dev/FAQ.md`
+  - Q: "Which config file do I edit for X?" → Decision tree
+  - Q: "How do I add a new convention?" → Link to convention migration process
+  - Q: "The AI is ignoring my rule file" → Troubleshooting checklist (globs, alwaysApply, token budget)
+  - Q: "How do I know if my config change is working?" → Run health check, check coverage report
+  - Q: "What's the difference between dev config and runtime config?" → Link to BOUNDARY.md
+- [ ] **DEV-AI-192**: Create a config system architecture diagram
+  - Visual diagram showing: CLAUDE.md → skill files, Cursor rules → rule activation, agent types → context assembly
+  - Show the layered context assembly (always-on → domain → skill)
+  - Show the relationship between Cursor rules and Claude Code skills
+  - Include in `docs/ai-dev/README.md`
+
+### 10.5 Integration with Plan Files
+
+- [ ] **DEV-AI-193**: Define how completed plan tasks trigger config updates
+  - When a plan task introduces a new pattern, the task completion should include a config review
+  - Add a note in plan task descriptions: "Config impact: may require updating {rule file}"
+  - The Documentation Agent can scan recently completed plan tasks and propose config updates
+- [ ] **DEV-AI-194**: Create a plan-to-config traceability map
+  - Map each plan section to the config files it affects
+  - Example: `02-FRONTEND/02-COMPONENTS-PLAN.md` → `frontend-components.md`, `skill-create-component.md`
+  - Example: `03-SERVER/02-API-PLAN.md` → `server-api.md`, `skill-create-api-endpoint.md`
+  - Stored in `docs/ai-dev/traceability.md`
+  - Updated when new plan files or config files are added
+- [ ] **DEV-AI-195**: Define periodic config review cadence
+  - Weekly: quick drift check (automated)
+  - Monthly: full health check (automated) + human review of proposals
+  - Per-milestone: comprehensive audit of all config files against current codebase state
+  - Document cadence in `docs/ai-dev/README.md`
+
+### 10.6 Bootstrapping the Config System
+
+- [ ] **DEV-AI-196**: Define the bootstrapping order for initial config creation
+  - Phase 1: Create directory structure and BOUNDARY.md (DEV-AI-001 through DEV-AI-015)
+  - Phase 2: Create root CLAUDE.md with base content (DEV-AI-016 through DEV-AI-040)
+  - Phase 3: Create always-on Cursor rules (DEV-AI-044 through DEV-AI-046)
+  - Phase 4: Create domain-specific Cursor rules (DEV-AI-047 through DEV-AI-065)
+  - Phase 5: Create Claude Code skills (DEV-AI-070 through DEV-AI-087)
+  - Phase 6: Create Cursor skills (DEV-AI-088 through DEV-AI-107)
+  - Phase 7: Define agent types (DEV-AI-108 through DEV-AI-137)
+  - Phase 8: Set up self-updating (DEV-AI-138 through DEV-AI-152)
+  - Phase 9: Set up Master Planner (DEV-AI-153 through DEV-AI-165)
+  - Phase 10: Set up monitoring and maintenance (DEV-AI-166 through DEV-AI-195)
+- [ ] **DEV-AI-197**: Define the minimum viable config (MVC) for Phase 1 development
+  - Just enough config to start building the project:
+    - Root CLAUDE.md with project identity, tech stack, base conventions
+    - 3 always-on Cursor rules (project structure, coding standards, git workflow)
+    - 3 essential skills (create component, create store, create API endpoint)
+    - No agent types, no self-updating, no Master Planner
+  - Expand incrementally as the project grows
+- [ ] **DEV-AI-198**: Create a config bootstrap script
+  - `scripts/ai-dev/bootstrap.ts`
+  - Creates all directories, template files, and placeholder content
+  - Developer fills in the actual conventions
+  - Validates the bootstrap was successful
+  - Run once when setting up the project
+
+### 10.7 Long-Term Evolution
+
+- [ ] **DEV-AI-199**: Define config versioning strategy
+  - Config files evolve with the project — no formal versioning scheme beyond git history
+  - Major restructurings get git tags (`ai-config-v{N}`)
+  - CHANGELOG.md tracks all changes
+  - If a convention changes, all affected config files are updated in a single PR
+- [ ] **DEV-AI-200**: Define config rollback procedure
+  - If a config change causes agent confusion or incorrect code generation:
+    1. Identify the problematic config change via CHANGELOG.md or git log
+    2. Revert the change (git revert the config PR)
+    3. Run the health check to verify revert is clean
+    4. Investigate the root cause before re-applying
+  - Keep config PRs small and focused so rollbacks are surgical
+- [ ] **DEV-AI-201**: Define config scalability plan
+  - Current: monolithic CLAUDE.md + flat rule directory + flat skill directory
+  - If config file count exceeds 30: consider subdirectories in `.cursor/rules/` (if Cursor supports it)
+  - If CLAUDE.md exceeds token budget: extract more content into referenced skills
+  - If agent types exceed 12: consider consolidating related types or creating agent type categories
+  - Review scalability annually or at each project milestone
+- [ ] **DEV-AI-202**: Define config deprecation and cleanup schedule
+  - Quarterly: review all config files for relevance
+  - Remove configs for features that have been removed from the project
+  - Archive (don't delete) deprecated configs in `docs/ai-dev/archive/`
+  - Update all cross-references when archiving a config file
+
+---
+
+## Summary
+
+### Task Count by Section
+
+| Section | Tasks |
+|---------|-------|
+| 1. Sandboxing & Directory Strategy | 15 (DEV-AI-001 through DEV-AI-015) |
+| 2. Master Development CLAUDE.md | 25 (DEV-AI-016 through DEV-AI-040) |
+| 3. Cursor Rules Configuration | 29 (DEV-AI-041 through DEV-AI-069) |
+| 4. Claude Code Skills for Development | 18 (DEV-AI-070 through DEV-AI-087) |
+| 5. Cursor Skills for Development | 20 (DEV-AI-088 through DEV-AI-107) |
+| 6. Development Agent Types | 30 (DEV-AI-108 through DEV-AI-137) |
+| 7. Self-Updating Configuration (Back-feeding) | 15 (DEV-AI-138 through DEV-AI-152) |
+| 8. Master Planner Configuration | 13 (DEV-AI-153 through DEV-AI-165) |
+| 9. "Always On" Configuration Strategy | 11 (DEV-AI-166 through DEV-AI-176) |
+| 10. Configuration for Evolving Project | 26 (DEV-AI-177 through DEV-AI-202) |
+| **TOTAL** | **202** |
+
+### Dependencies (What This Plan Enables)
+
+Completion of this plan unblocks or enhances:
+- **All other plans** — every plan benefits from consistent AI-assisted development
+- `01-PROJECT-STRUCTURE/PLAN.md` — needs AI config directories in the monorepo layout
+- `06-AGENT-SYSTEM/04-SKILLS-CONFIG-PLAN.md` — clear boundary between dev skills and runtime skills
+- `08-TESTING/01-STRATEGY-PLAN.md` — testing conventions codified in rules and skills
+- `12-CODE-GENERATION/PLAN.md` — development agent types inform how code generation is built
+
+### Dependencies (What This Plan Requires)
+
+- `01-PROJECT-STRUCTURE/PLAN.md` — monorepo structure must be defined before AI configs reference it
+
+### Definition of Done
+
+This plan is complete when:
+- [ ] Root `CLAUDE.md` exists, is within token budget, and covers all required sections
+- [ ] `.cursor/rules/` contains all defined rule files, each with valid frontmatter and glob patterns
+- [ ] `.cursor/skills/` contains all defined skill directories with valid `SKILL.md` files
+- [ ] `.claude/` directory exists with README
+- [ ] Claude Code skill files exist in the skills directory with all required sections
+- [ ] All 10+ development agent types are defined with specs, context, skills, and boundaries
+- [ ] `BOUNDARY.md` exists and clearly separates dev config from runtime config
+- [ ] `scripts/ai-dev/validate-sandbox.ts` runs in CI and passes
+- [ ] `scripts/ai-dev/health-check.ts` runs all sub-checks and passes
+- [ ] Self-updating mechanisms detect drift between config and code
+- [ ] Master Planner can decompose a multi-step task and delegate to specialized agents
+- [ ] "Always on" rules stay under 2,000 tokens total
+- [ ] Full context for any agent type stays under 50% of the model's context window
+- [ ] Onboarding documentation guides a new developer through setup in under 30 minutes
+- [ ] No sandbox violations: dev config and runtime config are fully separated
+- [ ] Config health check shows all green (no drift, no stale files, no broken references)
