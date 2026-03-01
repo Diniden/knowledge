@@ -1,0 +1,27 @@
+@use './mixins' as m;
+
+// Screen-reader only
+.sr-only {
+  @include m.visually-hidden;
+}
+
+// Text utilities
+.truncate {
+  @include m.truncate;
+}
+
+.line-clamp-1 { @include m.line-clamp(1); }
+.line-clamp-2 { @include m.line-clamp(2); }
+.line-clamp-3 { @include m.line-clamp(3); }
+
+// Clearfix
+.clearfix::after {
+  content: '';
+  display: table;
+  clear: both;
+}
+
+// Focus visible ring
+:focus-visible {
+  @include m.focus-ring;
+}

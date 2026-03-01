@@ -1,0 +1,21 @@
+name: Deploy (Scaffold)
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+# TODO: Implement deployment pipeline in Phase 5
+# See plans/11-DEPLOYMENT/PLAN.md for the full deployment plan
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Placeholder
+        run: echo "Deployment pipeline not yet implemented (Phase 5)"

@@ -1,0 +1,32 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug NestJS Server",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["--inspect", "src/main.ts"],
+      "cwd": "${workspaceFolder}/server",
+      "console": "integratedTerminal",
+      "sourceMaps": true,
+      "restart": true
+    },
+    {
+      "name": "Debug Bun Tests",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["test", "--inspect-wait", "${file}"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "sourceMaps": true
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full Stack",
+      "configurations": ["Debug NestJS Server"]
+    }
+  ]
+}
