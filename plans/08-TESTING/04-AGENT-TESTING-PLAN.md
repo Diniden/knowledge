@@ -82,6 +82,17 @@
   - Sample graph context (neighborhood nodes and edges)
   - Sample RAG results (relevant spec summaries with scores)
 
+#### Design Decisions
+
+> **Q**: Should the mock Claude Code subprocess simulate realistic latency, or return instantly?
+> **A**: **Return instantly by default.** The mock subprocess emits all chunks with zero delay in unit tests. For integration tests that verify timeout or streaming behavior, provide a `withLatency(ms)` option that introduces per-chunk delays.
+
+> **Q**: Should the mock support dynamic responses (based on prompt content) or only static predefined responses?
+> **A**: **Static predefined responses for unit tests; dynamic responses for integration tests.** Unit tests select from a catalog of canned scenarios (`SIMPLE_TEXT`, `TOOL_CALL`, `ERROR`, `MULTI_TURN`). Integration tests can register a response function: `mockAgent.onPrompt((prompt) => { ... })`. Keep dynamic mocks simple — pattern matching on keywords.
+
+> **Q**: Should the mock Claude Code simulate tool call behavior (return `tool_use` blocks that the orchestrator executes), or should tool calls be pre-resolved in the mock?
+> **A**: **Simulate tool calls.** The mock returns `tool_use` blocks that the orchestrator processes through its real tool dispatch logic. The tools themselves are mocked (returning canned results), but the orchestrator's parsing, dispatching, and result-feeding logic runs for real.
+
 ---
 
 ## 2. Claude Code Wrapper Testing
@@ -141,6 +152,17 @@
   - Process cannot access network (if sandboxed)
   - Process resource limits (memory, CPU time)
   - Process user/group restrictions (if applicable)
+
+#### Design Decisions
+
+> **Q**: Should tests mock at the subprocess level (replace `spawn()` to return a fake process) or at the wrapper service level (replace `ClaudeCodeWrapper` with a mock service)?
+> **A**: **Both, at different test levels.** Unit tests of the orchestrator mock the `ClaudeCodeWrapper` service via NestJS DI replacement. Unit tests of `ClaudeCodeWrapper` itself mock at the subprocess level — intercept `Bun.spawn()` to return a fake process with controllable stdout/stderr streams.
+
+> **Q**: If mocking at the subprocess level, how should streaming be simulated?
+> **A**: Create a `MockSubprocess` class that wraps a `ReadableStream`. Write chunks to it synchronously (no delays) for unit tests. The mock provides `emitChunk(data)` and `close()` methods. For latency-sensitive tests, use `emitChunkWithDelay(data, ms)` backed by fake timers.
+
+> **Q**: Should there be both levels of mocking available — subprocess-level for integration tests and service-level for unit tests?
+> **A**: **Yes.** Service-level mocks for unit tests (fast, isolated). Subprocess-level mocks for wrapper tests and integration tests (realistic, verifies stream handling). Both mock utilities live in `test/mocks/agent/` and are well-documented with JSDoc examples.
 
 ---
 
@@ -258,6 +280,26 @@
   - Permission denied → appropriate error code
   - Server error → generic error with logged details
 
+#### Design Decisions
+
+> **Q**: Should MCP tools be tested in isolation (mock the knowledge graph file system, mock the database) or against real backends?
+> **A**: **Both.** Each MCP tool gets unit tests with mocked backends that verify tool logic, parameter validation, and error handling. Critical tools (spec CRUD, graph edge management) also get integration tests against a real temp file system and test PostgreSQL database.
+
+> **Q**: Should each MCP tool have both a unit test and an integration test, or is one sufficient?
+> **A**: **Unit tests for all tools; integration tests for tools that write data.** Read-only tools (search, list, graph traversal) are adequately covered by unit tests. Write tools (create spec, update spec, create edge, delete) need integration tests.
+
+> **Q**: Should MCP protocol compliance be tested separately from tool logic?
+> **A**: **Yes.** Create a shared test helper `assertValidMcpResponse(response)` that validates the response structure against the MCP protocol spec. Additionally, add one dedicated protocol compliance test file that tests MCP lifecycle (initialize, list tools, call tool, shutdown).
+
+> **Q**: Should MCP tool tests create their own knowledge graph test data, or use shared fixtures?
+> **A**: **Own data per test file.** Each tool test file creates its own knowledge graph structure in a temp directory during `beforeAll`. Provide factory helpers (`createTestKnowledgeGraph({ specs: 5, edges: 10 })`) to reduce boilerplate.
+
+> **Q**: Should tool tests verify git commits created by write operations?
+> **A**: **Yes, for integration tests of write tools.** Initialize a git repo in the temp directory. After a write tool executes, verify: a commit was created, the commit message follows the expected format, the committed files are correct.
+
+> **Q**: How should permission boundaries be tested in tools?
+> **A**: Create test scenarios with two users: one with full access, one with restricted access. Verify that the restricted user receives appropriate permission errors. Test at least: read-only user can't write, user A can't modify user B's specs, project-level permissions are enforced.
+
 ---
 
 ## 4. Agent Routing & Classification Testing
@@ -307,6 +349,23 @@
   - When primary agent fails, fallback agent is used
   - Fallback uses general-purpose configuration
   - User is informed of fallback (or not, depending on UX decision)
+
+#### Design Decisions
+
+> **Q**: How should classification accuracy be measured? Against a labeled test set of prompts?
+> **A**: **Labeled test set maintained in `test/fixtures/classification-prompts.json`.** Each entry has a prompt string and an expected classification. Start with 50–100 labeled prompts. Target accuracy: **90%+ exact match**. Run classification tests in CI with every PR that touches the classification logic.
+
+> **Q**: Should classification tests use exact matching or allow ranked results (expected type in top-N)?
+> **A**: **Exact match for the primary classification.** The classifier should return a single best classification, and tests assert it matches exactly. If the classifier returns confidence scores, add a secondary assertion: the correct type should be in the top 2 with confidence > 0.3.
+
+> **Q**: How should ambiguous prompts be handled in tests?
+> **A**: **Mark ambiguous prompts in the test set with `acceptable: [type1, type2]`.** If the classifier returns either acceptable type, the test passes. Limit ambiguous prompts to < 10% of the test set. Do not add an "ambiguous" classification type.
+
+> **Q**: Should the classification test set grow with the project as new agent types are added?
+> **A**: **Yes.** When a new agent type is added, add at least 10 labeled prompts to the test set. Any PR that adds a new agent type must include corresponding classification test prompts.
+
+> **Q**: Should classification performance be tracked over time (accuracy per release)?
+> **A**: **Yes, track in CI output.** The classification test job logs accuracy as a percentage in the CI summary. If accuracy drops below 90% (or below the previous run by > 5 points), the test fails.
 
 ---
 
@@ -408,6 +467,26 @@
   - Tool parameter descriptions are accurate
   - Tool examples (if included) are valid
   - Deprecated tools are not included in prompts
+
+#### Design Decisions
+
+> **Q**: How should prompts be tested for quality? Manual review, automated checks, or by testing agent output quality?
+> **A**: **Automated structural checks + manual review.** Unit tests verify: prompts contain required sections, prompts don't exceed the context window limit, placeholder variables are all resolved, and prompts include the correct tool definitions. Manual review happens during PR review of prompt changes.
+
+> **Q**: Should there be a prompt linting tool that checks for common issues?
+> **A**: **Yes, as a unit test utility, not a standalone tool.** Create `assertValidPrompt(prompt, { maxTokens, requiredSections, noPlaceholders })` and call it in prompt builder tests. Checks: no unresolved placeholders (`/\{\{.*?\}\}/`), length under context window limit, contains system role section, contains user message section.
+
+> **Q**: Should prompts be version-controlled separately from code?
+> **A**: **No, keep prompts in code.** Prompts are TypeScript template strings in the agent module, version-controlled with the rest of the codebase. They reference code constants and must stay in sync. Non-developer review happens through PR review.
+
+> **Q**: Should there be tests for prompt injection attacks?
+> **A**: **Yes, basic prompt injection tests.** Create a test set of 10–15 known injection patterns. Verify the agent's response doesn't comply with the injection. Test at the prompt construction level (verify user input is properly sandboxed) and at the output validation level.
+
+> **Q**: Should the system sanitize user messages before including them in the prompt?
+> **A**: **Minimal sanitization.** Strip control characters and null bytes. Do not strip markdown or `[INST]` tags — they have legitimate uses. Instead, rely on proper prompt structure: clearly delimit user input with markers (e.g., `<user_message>...</user_message>`) that the model respects.
+
+> **Q**: Should there be tests verifying that the agent cannot be tricked into executing unauthorized operations?
+> **A**: **Yes.** Test that destructive operations are either refused or gated behind confirmation. Verify at the tool permission level: the MCP tools enforce authorization regardless of what the agent requests. The tools are the security boundary, not the agent's willingness.
 
 ---
 
@@ -514,6 +593,23 @@
   - Step results feed into subsequent dependent steps
   - Execution can be paused and resumed
 
+#### Design Decisions
+
+> **Q**: How should plan quality be assessed in tests?
+> **A**: **Test structural validity in CI; assess usefulness manually.** CI tests verify: plan output is valid JSON, each step has required fields, dependency graph is acyclic, step types are valid enum values. Usefulness is assessed during nightly test triage and PR review of prompt changes.
+
+> **Q**: Should plan generation tests use a reference knowledge graph with known expected plan output?
+> **A**: **Yes, with structural golden tests only.** Verify the generated plan has: expected number of phases (within a range), covers all referenced spec areas, includes expected step types. Do not assert on exact step descriptions or ordering.
+
+> **Q**: Should plan generation tests verify that generated code compiles and passes basic checks?
+> **A**: **Yes, for mocked tests.** Verify: generated TypeScript code parses without syntax errors (use `ts.createSourceFile`), generated file paths don't escape the project directory. For real API tests (nightly), compilation checks are best-effort.
+
+> **Q**: Should plan execution be tested end-to-end?
+> **A**: **Yes, for a single canonical scenario with mocked tools.** Generate a plan for a small reference knowledge graph, execute each step using mocked tools, verify the expected artifacts are produced.
+
+> **Q**: How should plan execution failures be tested?
+> **A**: **Inject failures via the mock tool layer.** Configure a specific tool to return an error at a specific step. Verify: the execution engine logs the failure, retries if configured, skips or blocks dependents, reports the failure in the plan execution summary.
+
 ---
 
 ## 9. RAG Integration Testing
@@ -560,6 +656,26 @@
   - Empty knowledge base returns no results (not error)
   - Single spec returns that spec when relevant
   - Small graph (< 10 specs) still provides useful results
+
+#### Design Decisions
+
+> **Q**: Should RAG tests use real embeddings (requires model/API call) or pre-computed embeddings?
+> **A**: **Pre-computed embeddings for CI; real embeddings for nightly.** Store pre-computed embedding vectors as JSON fixtures. CI tests use these to test retrieval logic without API calls. The nightly job generates fresh embeddings and compares results.
+
+> **Q**: How should pre-computed embeddings be generated and stored?
+> **A**: Store as **JSON fixture files** in `test/fixtures/embeddings/`. Each file contains `{ text, embedding }` pairs. Regenerate when: the embedding model changes, the test corpus changes, or quarterly. Add a script `test/scripts/regenerate-embeddings.ts`.
+
+> **Q**: Should RAG accuracy be measured with quantitative metrics (MRR, recall@k) or qualitative assessment?
+> **A**: **Quantitative metrics in CI.** Measure **recall@5** and **MRR** against the labeled test set. Target: recall@5 > 80%, MRR > 0.5. Qualitative assessment supplements during nightly review.
+
+> **Q**: What constitutes "good" RAG results? Is there a benchmark set of queries with expected results?
+> **A**: Create a benchmark set of **30–50 queries** in `test/fixtures/rag-benchmark.json`. Each entry: `{ query, relevant_spec_ids }`. "Good" means the most relevant spec appears in the top 3 results for at least 80% of queries.
+
+> **Q**: Should RAG quality be tracked over time?
+> **A**: **Track in CI output, not a dashboard.** The RAG test job logs recall@5 and MRR in the CI summary. If quality degrades (recall@5 drops below 75%), the test fails.
+
+> **Q**: How should RAG be tested with a very small knowledge base (< 10 specs)?
+> **A**: **Test with a small corpus (10–20 specs) and adjust expectations.** With few documents, recall@5 should be near 100%. Add a separate benchmark with a larger corpus (100+ specs) for more realistic quality assessment. Small corpus is the CI default; large corpus runs nightly.
 
 ---
 
@@ -674,6 +790,26 @@
   - Agent retries with corrected parameters
   - Operation succeeds on retry
   - Verify: retry logged, final result correct
+
+#### Design Decisions
+
+> **Q**: Should E2E agent tests use a mocked Claude Code or the real Claude API?
+> **A**: **Hybrid.** CI runs E2E agent tests with mocked Claude Code (deterministic, fast, free). A **nightly job** runs a small subset (5–10 critical flows) against the real Claude API. Never gate PR merges on real API tests.
+
+> **Q**: Should E2E agent tests be part of the CI pipeline (every PR) or run on a schedule?
+> **A**: **Mocked E2E agent tests run on every PR** (fast and deterministic). **Real API E2E tests run nightly** with a test API key and budget cap.
+
+> **Q**: Should E2E agent tests verify the quality of agent responses or only the structure?
+> **A**: **Structure only for CI; quality for nightly.** CI verifies: response is well-formed, correct tools called, correct parameters passed. Nightly real-API tests can include quality checks using fuzzy matching (contains keywords).
+
+> **Q**: Agent responses are non-deterministic. How should tests handle this?
+> **A**: **Assert on structure and key properties, not content.** Verify: response type matches, tool calls are correct, response has non-zero length, response contains expected entity references. For mocked tests, exact matching is fine since the mock returns deterministic output.
+
+> **Q**: Should there be "golden response" tests that compare agent output to reference responses?
+> **A**: **No golden response tests.** They are too brittle for LLM output. Use structural assertions and manual quality review during nightly test triage instead.
+
+> **Q**: Should randomness in test data be seeded for reproducibility?
+> **A**: **Yes, all test data uses deterministic factories.** Factories produce sequential, predictable data. The test knowledge graph structure is the same on every run. For stochastic testing, use a seeded PRNG and log the seed.
 
 ---
 
@@ -823,6 +959,36 @@
   - All tools execute correctly
   - Results aggregated without data loss
   - Response time remains reasonable
+
+#### Design Decisions
+
+> **Q**: What are acceptable response times for different agent operations? Should these measure time to first token or complete response?
+> **A**: Measure **time to first token** (TTFT). Baselines (TTFT): simple chat < 2 seconds, tool-heavy response < 5 seconds, plan generation < 10 seconds. Total completion: simple chat < 10s, tool-heavy < 30s, plan generation < 2 minutes. These apply to real API tests (nightly). Track baselines manually.
+
+> **Q**: Should performance tests measure throughput (agents per second) in addition to latency?
+> **A**: **Not initially.** The system is a professional tool for small teams. Add throughput testing if the user base exceeds 50 concurrent users. Focus on single-session latency first.
+
+> **Q**: Should there be per-user limits on agent usage?
+> **A**: **Yes, implement and test limits.** Enforce: max 3 concurrent agent sessions per user, configurable daily token budget per user. Test: creating a 4th session returns 429, exceeding the token budget returns a budget-exhausted error.
+
+> **Q**: Should there be limits on the size of agent responses?
+> **A**: **Yes.** Set a maximum response token limit (e.g., 16K tokens). If exceeded, truncate and append a "response truncated" notice. Test: mock agent returns response exceeding the limit → verify truncation occurs.
+
+> **Q**: What happens when the system reaches maximum concurrent agent sessions?
+> **A**: **Queue with a short timeout.** When max concurrent sessions (system-wide cap, e.g., 20) is reached, new requests enter a queue. If not dequeued within 30 seconds, return 503 with a retry-after header. Test: fill all slots, submit one more, verify it queues, then verify it either dequeues or times out.
+
+---
+
+## Additional Design Decisions
+
+> **Q**: Should tests verify that agent operations produce correct telemetry (metrics, traces, logs)?
+> **A**: **Yes, for critical telemetry.** Verify: each agent session emits start and end metrics with duration, tool calls are logged with tool name and latency, errors are logged with error type and context. Use a mock telemetry collector. Assert on presence of key fields, not log message formatting.
+
+> **Q**: Should there be tests for the agent health check endpoint?
+> **A**: **Yes.** Test: health check returns 200 when Claude Code subprocess can be spawned, returns 503 when subprocess fails to start (mock `spawn` to throw), includes response time metric. This is a simple integration test in `agent-health.integration.test.ts`.
+
+> **Q**: Should tests verify that agent errors trigger correct alerts?
+> **A**: **Test the alerting logic, not the alert delivery.** Verify: the failure rate tracker correctly counts failures within a time window, crossing the threshold triggers the alert callback, the alert payload contains required fields. Mock the alert delivery mechanism.
 
 ---
 

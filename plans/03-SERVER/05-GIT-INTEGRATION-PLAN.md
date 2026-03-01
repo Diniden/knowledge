@@ -69,6 +69,26 @@
   - Store credentials securely (not in git config, use env or secrets)
   - Log authentication method used (never log credentials)
 
+#### Design Decisions
+
+> **Q**: Should the project use `simple-git` (wraps CLI), `isomorphic-git` (pure JS), or direct shell commands via Bun?
+> **A**: Use `simple-git`. It wraps the git CLI, provides a clean Promise-based API, handles output parsing, and supports all required operations (commit, branch, merge, diff, push, pull, log). It requires the `git` binary on the host, which is an acceptable dependency. `isomorphic-git` lacks merge support which is a dealbreaker. Direct shell commands require too much parsing boilerplate.
+
+> **Q**: If using `simple-git`, does it work correctly under Bun's runtime?
+> **A**: `simple-git` spawns child processes via Node.js `child_process.spawn()`, which Bun supports. It works under Bun. Add an integration test that runs the core operations under Bun to verify and catch regressions.
+
+> **Q**: Is `isomorphic-git` sufficient for the required operations?
+> **A**: No. The lack of merge support is a dealbreaker for the collaboration model. Its diff support is also limited compared to git's native diff. Use `simple-git` instead.
+
+> **Q**: Should the project abstract the git library behind an interface to allow swapping implementations later?
+> **A**: Yes. Define a `GitOperations` interface with methods like `commit()`, `branch()`, `merge()`, `diff()`, `push()`, `pull()`, `log()`, `status()`. The `SimpleGitAdapter` implements this interface. This enables testing (mock the interface), protects against library changes, and provides a clean API for the rest of the server.
+
+> **Q**: How will git performance scale with large knowledge graphs (thousands of JSON files)?
+> **A**: Git handles thousands of files well, but keep directories under ~1,000 files for filesystem performance. Structure: `specs/{first-2-chars-of-id}/{specId}.json` (hash-bucketed). This distributes files across ~256 directories. For a 2,000-spec project, each bucket has ~8 files.
+
+> **Q**: Should git operations that touch the network run in a worker thread to avoid blocking the event loop?
+> **A**: `simple-git` operations are already non-blocking — they spawn child processes and return Promises. The event loop is not blocked during git operations. No worker threads needed. Network operations (push, pull) run as async operations that resolve when the git process completes.
+
 ---
 
 ## 2. Repository Initialization & Cloning
@@ -126,6 +146,26 @@
   - Verify knowledge graph configuration is present
   - Create missing directories if partial structure
   - Log validation results
+
+#### Design Decisions
+
+> **Q**: Should each spec be a separate JSON file or should specs be grouped into fewer larger files?
+> **A**: Each spec is a separate JSON file: `specs/{bucket}/{specId}.json` where `{bucket}` is the first 2 characters of the spec ID. Individual files give clean per-spec diffs, enable per-spec version history, and avoid merge conflicts when different users edit different specs.
+
+> **Q**: Should edge definitions be stored as individual files, as an adjacency list, or as part of node files?
+> **A**: Individual edge files: `graph/edges/{bucket}/{edgeId}.json`. Each edge file contains: `{ id, type, sourceId, targetId, metadata }`. Individual files prevent merge conflicts, enable per-edge version history, and align with the per-spec file approach.
+
+> **Q**: How should media files (images, PDFs) be stored?
+> **A**: External storage. Media files are stored on the server's filesystem under `/data/uploads/{projectId}/` (NOT in the git repo). Specs reference media by upload ID: `![diagram](upload:abc123)`. This keeps the git repo small and fast. Media is backed up separately.
+
+> **Q**: Should the generated UI projects (`gen/`) be in the same git repo as the knowledge graph, or in a separate repo?
+> **A**: Separate directory outside the git repo. Generated UI projects are build artifacts, not source data. Store them in `/data/gen/{projectId}/` on the server filesystem. They can be regenerated from the knowledge graph at any time.
+
+> **Q**: Should spec files be named by UUID or by a slugified title?
+> **A**: Named by nanoid (`{nanoid}.json`), e.g., `V1StGXR8_Z5jdHi.json`. Nanoids are shorter than UUIDs (21 chars vs 36), collision-resistant, and URL-safe. Readability in `git log` comes from the commit message, not the filename. Slugs invite collisions and rename churn when titles change.
+
+> **Q**: Should there be a directory hierarchy within `specs/` or a flat structure?
+> **A**: Hash-bucketed flat structure: `specs/{bucket}/{specId}.json`. Do NOT organize by document ID — moving a spec to a different document would require a file move, which creates noisy git history. The document-to-spec relationship is stored in the document's metadata file, not in the directory structure.
 
 ---
 
@@ -199,6 +239,26 @@
   - Configure signing key per user or per server
   - Verify signatures on incoming commits
 
+#### Design Decisions
+
+> **Q**: Should every single spec edit create its own commit, or should edits be batched?
+> **A**: Each user-initiated save creates one commit. Do NOT commit on every keystroke or auto-save. The user explicitly saves (or the agent completes an operation), and that save is one commit. This gives clean, meaningful commits without noise.
+
+> **Q**: Should edge changes always be committed independently, or bundled with the spec changes that triggered them?
+> **A**: Bundle when they're part of the same logical operation. If the user creates a spec and immediately adds edges, that's one commit. If the user adds an edge to an existing spec later, that's its own commit. The rule: one user action = one commit.
+
+> **Q**: Should the agent's graph operations be a single commit or individual commits?
+> **A**: Batch commit per agent operation. When the agent creates 3 specs and 5 edges in response to a single user message, all changes are committed together. Individual MCP tool calls write files but do not commit; the commit happens after the agent's response is complete.
+
+> **Q**: Should commits made by the agent be attributed to the agent or to the user who initiated the session?
+> **A**: Attributed to the user with an agent co-author trailer. Git author: `Jane Doe <jane@example.com>`. Commit message footer: `Co-authored-by: Claude Agent <agent@botnet.system>`. This gives the user ownership while transparently marking agent involvement.
+
+> **Q**: Should the commit message include structured metadata in a machine-parseable format?
+> **A**: Conventional Commits format with structured trailers. Format: `<type>(<scope>): <description>\n\n[body]\n\n[trailers]`. Types: `feat`, `update`, `delete`, `merge`, `revert`. Trailers: `Spec-Id: <id>`, `Edge-Id: <id>`, `Document-Id: <id>`, `Session-Id: <id>`.
+
+> **Q**: Should there be a way to "squash" multiple consecutive commits to the same spec into a single commit?
+> **A**: No squashing. History rewriting (force push) is dangerous and conflicts with collaboration. The commit-on-save approach already produces clean history. The UI can filter the version history to show only "significant" changes if the timeline feels noisy.
+
 ---
 
 ## 4. Branch Management
@@ -257,6 +317,26 @@
   - Include: hash, message, author, timestamp, files changed
   - Support filtering by date range
   - Support filtering by file path
+
+#### Design Decisions
+
+> **Q**: Should the project use a mainline branching model or a feature-branch model?
+> **A**: Mainline with optional feature branches. Default workflow: users commit directly to `main`. When experimentation is desired, users create a branch, make changes, and merge back. No mandatory branching or PR workflows.
+
+> **Q**: Should branches be per-user, per-feature, or per-experiment?
+> **A**: Per-experiment (named by the user). Branch naming convention: `experiment/{user-slug}/{branch-name}`. Users can create as many branches as they want. The naming convention provides organization without enforcement.
+
+> **Q**: In single-user mode, should the user work directly on `main` without branches?
+> **A**: Yes, work directly on `main`. Branches are optional and only used when the user wants to experiment. The UI doesn't push branches — the branch UI is accessible but not the default workflow.
+
+> **Q**: Should branches be automatically deleted after merge, or kept for reference?
+> **A**: Auto-delete after merge. The merge commit preserves the branch's changes in `main`'s history. The merge commit message includes the branch name for reference. The branch can be recreated from the merge commit if needed.
+
+> **Q**: Should there be a maximum number of branches per project?
+> **A**: Soft limit of 20 branches per project. The UI shows a warning after 10 branches. The server enforces a hard limit of 20 branches — creating a 21st returns an error. This prevents branch sprawl while allowing reasonable experimentation.
+
+> **Q**: Should the system support "protected branches"?
+> **A**: Not for the initial release. Direct commits to `main` are allowed. If protected branches are needed later (for larger teams), add them as a project setting.
 
 ---
 
@@ -322,6 +402,26 @@
   - Create a new commit that undoes the merge
   - Preserve history (no rewriting)
   - Used for backing out problematic merges
+
+#### Design Decisions
+
+> **Q**: Should the default merge strategy be merge commits or fast-forward when possible?
+> **A**: Fast-forward when possible, merge commit when not. Use `git merge --ff` (git's default). If the branch can be fast-forwarded, the history is linear and clean. If main has diverged, a merge commit is created automatically.
+
+> **Q**: Should the system support rebasing as an alternative to merging?
+> **A**: No rebasing. Rebase rewrites commit history, which is dangerous in a collaborative environment. The system uses merge-only. This is safer and simpler.
+
+> **Q**: How should the system handle merge conflicts in JSON files?
+> **A**: Custom conflict presentation, not custom merge drivers. Let git detect conflicts normally. The server parses the conflicted file to extract `<<<<<<`, `======`, `>>>>>>` sections. The API presents the conflict as structured data: `{ base, ours, theirs }`. The UI renders a side-by-side comparison. The user resolves in the UI.
+
+> **Q**: Should conflicts be presented as raw git conflicts or as structured, field-level differences?
+> **A**: Structured, field-level differences. Since all knowledge graph files are JSON with known schemas, the server can diff them semantically: "Field 'title' changed from 'A' to 'B' in your version and from 'A' to 'C' in theirs." Raw git conflict markers are never exposed to the user.
+
+> **Q**: Should the agent be able to help resolve conflicts?
+> **A**: Yes. The user can open an agent session during conflict resolution. The agent receives the conflict context (both versions, the base version) and can suggest a merged resolution. The agent uses a dedicated MCP tool: `resolve_conflict { file, suggestedResolution }`.
+
+> **Q**: Should the system automatically resolve "trivial" conflicts?
+> **A**: Yes, auto-resolve trivial conflicts. If both versions modify different fields of the same JSON file, merge them automatically. Notify the user that an auto-resolution occurred. Conflicts where both sides modify the same field are NOT auto-resolved.
 
 ---
 
@@ -389,6 +489,23 @@
   - Test if remote is reachable (git ls-remote)
   - Timeout: 10 seconds
   - Used in health checks and pre-push validation
+
+#### Design Decisions
+
+> **Q**: Should synchronization be automatic or manual?
+> **A**: Manual sync. The user explicitly triggers pull and push via UI buttons or API calls. Automatic sync during active editing would cause unexpected file changes and potential conflicts mid-edit. The UI shows a "changes available" indicator (via periodic lightweight `git fetch` + compare) but doesn't auto-pull.
+
+> **Q**: What should the sync polling interval be?
+> **A**: Background `git fetch` every 60 seconds (lightweight — only fetches ref updates, not file content). This updates the "changes available" indicator in the UI without pulling changes. The actual pull is manual. Configurable via `GIT_FETCH_INTERVAL_MS=60000`.
+
+> **Q**: Should the system support webhooks from the git remote to trigger pull on push?
+> **A**: Support as optional configuration but don't require it. If the git remote supports webhooks, configure a webhook to `POST /webhooks/git/push` which triggers a `git fetch` and updates the "changes available" indicator. Fall back to polling when webhooks aren't available.
+
+> **Q**: Should the system handle scenarios where the git remote is unreachable?
+> **A**: Yes. All operations work locally when the remote is unreachable. The server's git repository is a full clone — commits, branches, and history are all local. Push/pull operations fail gracefully with a clear error. The UI shows "offline" status for the sync indicator.
+
+> **Q**: If the remote is unreachable during push, should the system queue the push and retry automatically?
+> **A**: Notify the user, no automatic retry. The user may want to make additional changes before pushing. The UI shows "Push failed — remote unreachable. Your changes are saved locally." with a "Retry Push" button. Local commits are safe and persistent.
 
 ---
 
@@ -460,6 +577,23 @@
   - Null vs undefined vs missing field
   - Non-JSON files fallback to text diff
 
+#### Design Decisions
+
+> **Q**: Should diffs be generated as standard unified diffs or as structured JSON diffs?
+> **A**: Structured JSON diffs for knowledge graph files. The server computes diffs using a JSON diff algorithm (deep comparison of JSON objects), producing output like: `{ field: "description", type: "modified", old: "...", new: "..." }`. For non-JSON files, fall back to standard unified diffs. Use the `deep-diff` npm package for JSON comparison.
+
+> **Q**: Should the diff endpoint return raw diff text or pre-parsed structured data?
+> **A**: Pre-parsed structured data. The server does the parsing work so the frontend can render directly without parsing logic. The diff endpoint returns: `{ changes: [{ file, type, fields: [{ path, oldValue, newValue }] }] }`.
+
+> **Q**: For spec content diffs, should the diff be at the markdown level or semantic level?
+> **A**: Line-level diff on the markdown content. Semantic-level diffing is complex and error-prone. Line-level diffs are simple, well-understood, and sufficient. The frontend renders added/removed/changed lines with green/red/yellow highlighting.
+
+> **Q**: Should diffs be computed on demand or pre-computed and cached?
+> **A**: On-demand with response caching. Compute diffs on request but cache the result keyed by `{commitA}:{commitB}:{filePath}`. Since commits are immutable, the cache never needs invalidation. Use an in-memory LRU cache with a 1,000-entry limit.
+
+> **Q**: Should the system support word-level diffs within changed lines?
+> **A**: Word-level diffs for changed lines. After identifying changed lines (line-level diff), run a word-level diff on each changed line pair. The performance cost is minimal since word-level diffing only runs on changed lines.
+
 ---
 
 ## 8. Commit Hash Tracking Per Spec
@@ -505,6 +639,26 @@
   - Create revert commit: "revert: Restore spec '{title}' to {shortHash}"
   - Preserve current edges (don't revert graph connections)
 
+#### Design Decisions
+
+> **Q**: Should the spec version history show every commit that touched the spec, or only "meaningful" changes?
+> **A**: Show every commit by default with filtering options. The UI shows the full history for a spec. Filter options: "Hide agent commits", "Hide merge commits", "Show only content changes". The conventional commit format makes filtering easy.
+
+> **Q**: Should the system support "time travel" — viewing the entire project state at any historical commit?
+> **A**: Yes, but read-only. `GET /projects/:id/at/:commitHash/specs` returns specs as they existed at that commit. The server does `git show <commit>:<file>` to retrieve historical file contents without checking out the commit. Implement in phase 2.
+
+> **Q**: Should there be a "compare" feature for any two versions of a spec?
+> **A**: Yes. `GET /specs/:id/diff?from=<commitA>&to=<commitB>` returns the diff between any two versions. Essential for comparing a spec before and after a branch merge, or comparing to an arbitrary historical point.
+
+> **Q**: When reverting a spec, should the revert also revert connected edges?
+> **A**: Preserve current edges but flag potentially invalid ones. When a spec is reverted, check if the reverted content invalidates edges. If potentially invalid edges are detected, add an entry to the inquiry queue for review. Edges are not automatically reverted or deleted.
+
+> **Q**: Should document-level revert be all-or-nothing?
+> **A**: User selects which specs to revert. The UI presents a list of specs with version histories, and the user checks which ones to revert and to which version. Each reverted spec creates its own commit (or one batch commit if multiple specs are reverted simultaneously).
+
+> **Q**: Should reverts create a new commit or rewrite history?
+> **A**: New commit (forward history). Reverting creates a new commit: `revert(spec): revert 'Auth Requirements' to version <shortHash>`. History is never rewritten. This is safe, auditable, and compatible with collaboration.
+
 ---
 
 ## 9. Git Hooks
@@ -546,6 +700,23 @@
   - No self-referencing edges
   - No duplicate edges (same source, target, type)
   - Warn on isolated nodes (no edges) but don't reject
+
+#### Design Decisions
+
+> **Q**: Should the server use project-level git credentials or per-user git credentials?
+> **A**: Project-level git credentials. Each project has a single set of credentials for communicating with the remote repository. Per-user attribution is handled via commit authoring. This is simpler and sufficient — the audit trail is in the commit history, not the transport credentials.
+
+> **Q**: Should the server strip sensitive data before committing to git?
+> **A**: Yes. Implement a pre-commit validation step that scans staged files for sensitive patterns: API keys, tokens, passwords, `.env` file content. If sensitive data is detected, reject the commit. Spec access tokens are stored in PostgreSQL (not in JSON files).
+
+> **Q**: Should there be a pre-commit check that prevents accidentally committing secrets?
+> **A**: Yes. The `GitService` enforces a file whitelist for commits: only files under `specs/`, `graph/`, `documents/`, and `.botnet/` directories can be committed. Any attempt to stage a file outside these directories is rejected. This is enforced at the application level.
+
+> **Q**: Should the system enforce signed commits?
+> **A**: No signed commits for the initial release. GPG key management adds significant complexity for a self-hosted system where the server is the only committer. Signed commits can be added later for high-security deployments.
+
+> **Q**: Should the system detect and prevent force pushes that rewrite history?
+> **A**: Yes. The `GitService` never executes `git push --force`. The `push()` method does not accept a `force` parameter. If a push is rejected by the remote, the user is prompted to pull and merge first. No code path allows force push.
 
 ---
 
@@ -734,6 +905,26 @@
   - Conflict error → return conflicts for resolution (no retry)
   - Validation error → return validation details (no retry)
   - Not found → return 404 (no retry)
+
+#### Design Decisions
+
+> **Q**: What is the expected repository size after 1 year of active use?
+> **A**: Estimated per project: ~1,000 specs (average 5KB each = ~5MB), ~3,000 edges (~1KB each = ~3MB), ~5,000 commits. Total repository size including git history: ~50-100MB. Git handles this easily — no performance concerns for the expected scale.
+
+> **Q**: Should the system implement git shallow clones?
+> **A**: No shallow clones. Full history is needed for version history, diffs, and time-travel features. At the expected repository size (~100MB), full clones complete in seconds. Shallow clones would break spec history features.
+
+> **Q**: Should large files use Git LFS?
+> **A**: No. Media files are stored outside the git repository. No Git LFS needed. This keeps the git repo lightweight and cloning fast.
+
+> **Q**: Which git operations are expected to be slow?
+> **A**: Network operations (clone, push, pull, fetch) are slow and already run asynchronously. Clone is the slowest (first-time setup) — run it as a background task with WebSocket progress events. Merge and log-with-diff are fast for expected repo sizes (<1 second).
+
+> **Q**: Should the server maintain an in-memory index of the knowledge graph?
+> **A**: Yes. Load on project open, update on mutations (write-through), rebuild on git pull/merge. The index contains: node IDs, edge IDs, edge relationships, spec titles, spec statuses, document-to-spec mappings, and graph stats. This enables sub-millisecond graph traversal queries. The index consumes ~10-20MB per active project.
+
+> **Q**: Should git operations be serialized per-repository or allow concurrent reads with exclusive writes?
+> **A**: Concurrent reads with exclusive writes. Use a read-write lock per project: multiple readers can run concurrently, but writes are exclusive. Implemented via an async ReadWriteLock class.
 
 ---
 

@@ -79,6 +79,23 @@
   - Plan Generation CLAUDE.md: focused on plan structure and traversal
   - Graph Crawler CLAUDE.md: focused on analysis and issue detection
 
+#### Design Decisions
+
+> **Q**: How much of the CLAUDE.md should be static versus dynamically generated per session?
+> **A**: Roughly 60% static / 40% dynamic. Static sections (~1,000 tokens) include project name, agent role, global rules, conventions, and skill references—generated once at project creation. Dynamic sections (~1,000 tokens) include relevant spec summaries and recent session context, generated at session start via database query (~100ms, not an LLM call).
+
+> **Q**: Should the CLAUDE.md include the project's coding conventions and naming standards?
+> **A**: Yes, in the static section. Conventions are maintained manually by the project admin via a "Project Conventions" field (max 500 tokens) in project settings. Auto-derivation from existing specs is unreliable and expensive—manual maintenance ensures conventions are intentional.
+
+> **Q**: Should users be able to contribute custom sections to the CLAUDE.md?
+> **A**: Yes. Project admins can add a custom section (up to 500 tokens) via project settings, appended after auto-generated content under `## Project-Specific Instructions`. This mirrors how CLAUDE.md works in local Claude Code usage.
+
+> **Q**: Should there be different CLAUDE.md files for the same agent type depending on the specific task?
+> **A**: No—one CLAUDE.md per session, consistent across all tasks. Task-specific instructions come from the system prompt (per agent type) and skills files (loaded on demand). Per-task variants would multiply config files and reduce behavioral predictability.
+
+> **Q**: Should the CLAUDE.md embed skill content inline or reference skills by file path?
+> **A**: File path reference. The CLAUDE.md lists available skill files by path; Claude Code reads them from the sandbox when needed. This keeps the CLAUDE.md lean and ensures the agent only reads skills relevant to the current task.
+
 ### 1.2 Dynamic CLAUDE.md Content
 
 - [ ] **AG-SK-004**: Implement project statistics injection
@@ -101,6 +118,17 @@
   - User's permission level description
   - User's communication preferences (concise/detailed, technical/friendly)
   - User's expertise areas (inferred from activity)
+
+#### Design Decisions
+
+> **Q**: Should dynamic CLAUDE.md content reflect changes made during the current conversation or only pre-session state?
+> **A**: Pre-session state only. The CLAUDE.md is generated at session start and stays static. In-session changes are already visible in conversation history, and mid-conversation re-injection isn't supported by Claude Code's `--resume` flow.
+
+> **Q**: Should the CLAUDE.md include a recent conversation summary for resumed sessions?
+> **A**: Yes. For resumed sessions, a "Recent Activity" section (~200 tokens) summarizes the last session's specs, actions, and unresolved items, generated from persisted session metadata. Omitted for brand-new sessions.
+
+> **Q**: Should the topic summary be AI-generated or computed from tag frequencies?
+> **A**: Computed from tag frequencies and spec titles via fast database query. The "Relevant Specs" section uses RAG scoring, while "Project Topics" derives from tag frequencies. Spending an LLM call on topic summarization isn't justified given marginal improvement.
 
 ### 1.3 CLAUDE.md Lifecycle
 
@@ -248,6 +276,23 @@
   - Warning: orphans, missing edges, stale content that may affect plan quality
   - Info: missing metadata, quality suggestions, minor improvements
 
+#### Design Decisions
+
+> **Q**: What is the target token count for system prompts?
+> **A**: 300–500 tokens per system prompt, allocated across role definition (~50), behavior rules (~100), output format (~100), constraints (~50), and agent-specific instructions (~100). Operational procedures go in skills files, not the system prompt.
+
+> **Q**: Should system prompts include negative examples ("Do NOT do X") or only positive instructions?
+> **A**: Primarily positive examples, with 2–3 critical negatives reserved for truly dangerous behaviors (e.g., "Never delete without confirmation"). Frame constraints as positive instructions where possible.
+
+> **Q**: Should system prompts reference specific MCP tool names or use abstract descriptions?
+> **A**: Abstract descriptions (e.g., "use the knowledge graph tools"). The agent discovers specific tool names from MCP server listings, decoupling prompts from tool naming changes.
+
+> **Q**: Should system prompts be adjusted per model if different models are used?
+> **A**: No—all agents use Sonnet at launch. System prompts are designed for the agent's role, not model capabilities. If dynamic model selection is added later, minimal adjustments would be handled as template parameters.
+
+> **Q**: Should user information (name, role, expertise) go in the system prompt or CLAUDE.md?
+> **A**: CLAUDE.md only. The system prompt is shared across all users of the same agent type and defines agent behavior, not user context. This keeps prompts reusable and cacheable.
+
 ---
 
 ## 3. Skills File Architecture
@@ -315,6 +360,35 @@
   - Support skill ordering (most relevant first)
   - Support conditional skills (only include if relevant to current request)
   - Generate skill reference list for CLAUDE.md
+
+#### Design Decisions
+
+> **Q**: How detailed should skill files be?
+> **A**: Medium detail: 500–800 tokens per skill with purpose, 5–8 step procedure, one concrete example (input → output), and 2–3 key constraints. The example anchors behavior more effectively than additional procedural text.
+
+> **Q**: Should skills be prescriptive (exact steps) or advisory (guidelines)?
+> **A**: Prescriptive for high-stakes operations (spec authoring, plan execution) requiring predictable output; advisory for creative tasks (dialog interaction, generative UI) benefiting from agent judgment. Each skill explicitly states its type.
+
+> **Q**: Should skills include anti-patterns describing what NOT to do?
+> **A**: Yes—each skill includes a "Common Mistakes" section (2–3 items) at the end. This is the most space-efficient way to prevent recurring quality issues without consuming many tokens.
+
+> **Q**: Should skills be organized by agent type or by capability?
+> **A**: By agent type. The sandbox includes only skills for the active agent type. Cross-cutting skills are duplicated with type-specific adjustments—slight duplication is better than agents wading through irrelevant skills.
+
+> **Q**: Should there be meta-skills for choosing between other skills?
+> **A**: No. Skill selection is handled by the agent's natural reasoning from CLAUDE.md skill listings. If skill selection fails consistently, the fix is better descriptions, not a meta-skill layer. Keep the architecture flat.
+
+> **Q**: How should new skills be developed and tested?
+> **A**: As part of the prompt evaluation suite. Each skill has 3–5 test cases: test input → expected behavior (structural checks on output). These run in CI when skills are added or modified.
+
+> **Q**: Should skills be versioned independently of the main codebase?
+> **A**: No—skills are files in the repo following git versioning. Decoupling adds complexity (separate pipelines, compatibility matrices) without benefit, since skills change infrequently and should be tested alongside related prompts.
+
+> **Q**: Should skills support inheritance or composition?
+> **A**: No—each skill is standalone. At 500–800 tokens, duplication of common instructions across skills is acceptable and simpler than a composition system that adds template engine complexity.
+
+> **Q**: Should the system track skill effectiveness and auto-adjust selection based on success rates?
+> **A**: Not at launch. Defining "success" per skill, instrumenting usage, and running analysis is a post-launch optimization. At launch, skill effectiveness is evaluated manually by reviewing agent outputs and adjusting content accordingly.
 
 ---
 
@@ -657,6 +731,17 @@
   - Plan format specification
   - Delta information (if delta mode)
 
+#### Design Decisions
+
+> **Q**: How should prompt changes be tested and deployed?
+> **A**: Prompt changes go through code review as TypeScript files and are tested against the evaluation suite (50 test cases) in CI. No A/B testing at launch—the overhead isn't justified for the initial user base.
+
+> **Q**: Should there be a prompt changelog tracking how prompts evolve over time?
+> **A**: Yes, via git history. System prompts are TypeScript files—git log provides full change history with diffs. CI build artifacts store evaluation results correlated with prompt changes for debugging regressions.
+
+> **Q**: Should prompts be tagged with effectiveness metrics for data-driven optimization?
+> **A**: Not at launch. Prompt effectiveness is measured indirectly via operational metrics (parse success rate, tool call success rate, user retry rate) tracked in monitoring and correlated with prompt versions via deployment timestamps.
+
 ---
 
 ## 10. Context Window Management
@@ -687,6 +772,20 @@
     5. CLAUDE.md (remove dynamic sections)
   - Never compress: system prompt, user message, output buffer
 
+#### Design Decisions
+
+> **Q**: What is the target context window size, and should different agent types use different models?
+> **A**: 200K context window (Claude Sonnet) for all agent types at launch. Token budgets are pre-allocated per agent type, with Plan Gen getting the most context for specs and the largest output buffer. A large reserve absorbs overflow.
+
+> **Q**: Should the output buffer be dynamically sized based on expected output type?
+> **A**: Yes, pre-allocated by agent type: Dialog (10K), KG Agent (15K), Gen UI (30K), Plan Gen (30K). This is configured per agent type in the template, not adjusted dynamically at runtime.
+
+> **Q**: How accurate does token counting need to be?
+> **A**: Estimated counting (chars/4) with a 10% safety margin is sufficient. Exact counting via tiktoken adds ~50ms and a dependency, while chars/4 is accurate to ±15%. If Claude rejects as too long, the system trims oldest history and retries.
+
+> **Q**: Should there be a token budget dashboard for operators?
+> **A**: Yes. The monitoring system tracks actual token usage per budget category per session, displayed in Grafana. This data drives future budget tuning. Data collection starts at launch; the dashboard is a post-launch task.
+
 ### 10.2 Content Compression
 
 - [ ] **AG-SK-064**: Implement spec content compression
@@ -703,6 +802,17 @@
   - At reduced budget: include chunk text only
   - At minimal budget: include spec ID and relevance score only
   - At exhausted budget: reduce K (fewer results)
+
+#### Design Decisions
+
+> **Q**: Should conversation history compression use LLM summarization or heuristic approaches?
+> **A**: Heuristic approach: keep first 2 messages, last 20 messages, and only user messages plus first sentences of agent responses for the middle. This is fast, deterministic, and preserves the most important context without consuming tokens on an LLM call.
+
+> **Q**: Should compressed context include markers indicating compression occurred?
+> **A**: Yes. A clear marker is inserted at the boundary: "[Earlier conversation history compressed. Use tools to retrieve full information if needed.]" This helps the agent compensate by making MCP tool calls rather than inferring from compressed content.
+
+> **Q**: Is it better to include fewer full-text RAG results or more truncated results in the context window?
+> **A**: More results with truncated text (10 × 500 tokens vs 3 × 1,500 tokens). Higher recall is more valuable since the agent can fetch full content via `get_spec` calls. Truncation preserves the first 500 tokens—typically enough for relevance judgment.
 
 ---
 
@@ -743,6 +853,23 @@
   - "Tell me about spec X" → conversational (not spec-crud)
   - "Fix the auth spec" → clarification-needed (fix what specifically?)
   - "Do the thing we talked about" → clarification-needed (too vague)
+
+#### Design Decisions
+
+> **Q**: How many few-shot examples should be included per intent category?
+> **A**: 2–3 examples per category. With ~12 categories, 2 examples for common categories and 1 for rare ones yields ~20 examples × ~50 tokens = ~1,000 tokens total, placed only in the orchestrator's system prompt.
+
+> **Q**: Should few-shot examples be static (baked into templates) or dynamically selected based on similarity?
+> **A**: Static, baked into the orchestrator's template. The intent categories are well-defined, and static examples covering boundary cases are sufficient. Dynamic selection adds complexity for marginal improvement.
+
+> **Q**: Should few-shot examples include the full agent response or just classification/routing?
+> **A**: Classification/routing only (~50 tokens per example). The orchestrator's job is classification; sub-agent prompts have their own output examples in skills files.
+
+> **Q**: Should there be "hard negative" examples for boundary cases?
+> **A**: Yes, 3–5 hard negatives placed after standard examples. These are the most valuable for preventing common misroutes (e.g., "Tell me about the auth spec" → Dialog, not KG create).
+
+> **Q**: Should few-shot examples be manually curated or mined from real user interactions?
+> **A**: Manually curated at launch for known categories and boundary cases, with a feedback loop to incorporate real misrouted examples post-launch. The example set is refreshed quarterly.
 
 ### 11.2 Tool Usage Examples
 
@@ -796,6 +923,20 @@
   - "Deduplicate against existing open inquiries."
   - "Set appropriate severity — don't cry wolf with too many critical inquiries."
 
+#### Design Decisions
+
+> **Q**: Should tool usage guidelines be enforced or advisory?
+> **A**: Advisory with hard guardrails. Prompts provide guidance ("prefer search before creating"), while hard limits (max 50 tool calls per message) and MCP tool availability are enforced. Hard enforcement of call sequences would be brittle.
+
+> **Q**: Should there be a tool call budget per session?
+> **A**: Yes—50 MCP tool calls per message (per PRD). The per-message cap prevents runaway loops in a single turn. If the agent hits 50 calls, it returns partial results with a continuation prompt.
+
+> **Q**: Should the system detect and flag tool call loops?
+> **A**: Yes. Same tool called 3+ times with identical arguments triggers a warning; 5+ times with >80% parameter overlap terminates the agent's turn with an error message. This lightweight detection prevents wasted tokens and budget.
+
+> **Q**: Should agents receive runtime feedback on their tool usage quality?
+> **A**: No runtime feedback—it would consume tokens and potentially confuse the agent. Tool usage quality is optimized through good tool descriptions, skill file guidance, and post-hoc analysis of call patterns in monitoring.
+
 ---
 
 ## 13. Agent Behavior Rules & Constraints
@@ -820,6 +961,20 @@
   - "Do not attempt operations you don't have tools for."
   - "For destructive operations (delete), confirm with the user first."
 
+#### Design Decisions
+
+> **Q**: How should behavior rules be prioritized when they conflict?
+> **A**: Explicit priority order: (1) Safety, (2) Correctness, (3) User intent, (4) Conciseness. Context-dependent rules ("match response length to request complexity") are more effective than absolute rules.
+
+> **Q**: Should behavior rules be system-enforced (post-processing) or prompt-based (honor system)?
+> **A**: Prompt-based for soft rules (tone, verbosity); system-enforced post-processing for hard rules: output token limit enforcement, system prompt redaction, and confirm-before-mutation. Post-processing is lightweight string matching, not LLM evaluation.
+
+> **Q**: Should there be project-specific behavior rules that override global rules?
+> **A**: Yes, via the custom CLAUDE.md section. Project admins define rules appended after global rules, and the agent treats them as higher-priority since later instructions in the context window carry more weight.
+
+> **Q**: Should behavior rules automatically evolve based on user feedback?
+> **A**: No automatic adjustment—changes follow a human-in-the-loop process: collect feedback, quarterly review of patterns, deliberate prompt/skill changes tested via evaluation suite. Automatic adjustment risks oscillation and inconsistency.
+
 ### 13.2 Safety Rules
 
 - [ ] **AG-SK-088**: Define content safety rules
@@ -835,6 +990,17 @@
   - "Never attempt to access specs outside the user's permission scope."
   - "Never attempt to bypass tool restrictions."
   - "If a tool call is rejected for permissions, do not retry with different arguments."
+
+#### Design Decisions
+
+> **Q**: Should there be a safety layer reviewing agent output before sending to users?
+> **A**: No dedicated application-level safety layer. Claude Code already includes Anthropic's built-in safety filters. Application-level checks are: confirm-before-mutation, output token limit enforcement, and system prompt redaction. Content safety is delegated to Claude's guardrails.
+
+> **Q**: How should the system handle prompt injection attacks via user-authored spec content?
+> **A**: Content isolation via XML-style delimiters (`<spec_content>` tags) with explicit instructions to treat content as data, not instructions. Combined with confirm-before-mutation, the risk is manageable.
+
+> **Q**: Should agents have emergency stop capabilities?
+> **A**: Yes. Triggers include: calling nonexistent tools (terminate + alert), circuit breaker tripping after 5 consecutive failures (stop processes, alert), and cost threshold exceeded at 10x expected (terminate session, alert). Circuit breaker auto-resets after 5 minutes.
 
 ### 13.3 Quality Rules
 
@@ -992,6 +1158,52 @@
   - Gen-UI: must include build status
   - Plan Gen: must include plan ID and file count
   - Crawler: must include inquiry count
+
+#### Design Decisions
+
+> **Q**: Should output formats be strictly enforced or lenient?
+> **A**: Lenient with fallback. Attempt structured extraction first; if it fails, present the entire output as text. The agent's response always reaches the user—never silently dropped due to format mismatch.
+
+> **Q**: Should agent output include machine-readable metadata alongside human-readable text?
+> **A**: Yes, via `stream-json` format. The wrapper extracts structured data from MCP tool results and sends them as structured WebSocket events alongside the text stream. The agent doesn't need to produce separate JSON blocks.
+
+> **Q**: Should there be a debug output mode showing internal reasoning and tool call details?
+> **A**: Yes, as opt-in developer mode. When enabled, additional `{"type": "debug"}` WebSocket events show tool parameters and reasoning in a collapsible panel. Default is off for regular users.
+
+> **Q**: Should output format specs be shared with the frontend, or should the server parse everything?
+> **A**: The server parses all output and sends structured WebSocket events. The frontend builds against the event schema (`text`, `tool_action`, `status`, `error`, `metadata`), never seeing raw Claude Code output.
+
+> **Q**: How should output exceeding expected length be handled?
+> **A**: Truncate at a sentence boundary and append a continuation prompt. The user can say "continue" to get the next portion via `--resume`. This is preferable to automatic splitting or summarization.
+
+---
+
+## Additional Design Decisions
+
+### Testing & Evaluation
+
+> **Q**: How should prompt and skill effectiveness be measured?
+> **A**: Both automated and human evaluation at different cadences. Automated (per-commit CI): format compliance, tool call correctness, error rate. Human (monthly): quality scores on 20–30 real interactions rated for accuracy, helpfulness, and formatting.
+
+> **Q**: Should there be a prompt regression test suite run whenever prompts change?
+> **A**: Yes. The evaluation suite (~50 test cases) runs in CI on every PR modifying prompts, skills, or CLAUDE.md templates. Tests use structural assertions (not exact text matching) and the mock Claude Code binary for speed.
+
+> **Q**: Should there be a curated agent evaluation dataset?
+> **A**: Yes, starting at 50 entries and growing to 200+ as real interactions are reviewed. Each entry includes user message, context, expected agent type, expected tool calls, and output characteristics. Maintained as a JSON file with quarterly review.
+
+> **Q**: How should consistently poor output for certain request types be handled?
+> **A**: Flagged for human prompt engineering via monitoring (high retry rate, repeated corrections, low tool success rate). Patterns are surfaced in weekly quality reports. Automatic fallback risks making problems worse by routing to a less appropriate agent.
+
+### Internationalization
+
+> **Q**: Should agents respond in languages other than English?
+> **A**: Yes—agents respond in the user's language. Claude naturally detects and matches language. The system prompt includes "Respond in the same language the user is writing in." No special i18n infrastructure is needed.
+
+> **Q**: Should system prompts, skills, and examples have localized variants?
+> **A**: No—English prompts and skills only. The agent is instructed to respond in the user's language while following English instructions, which is a well-tested pattern. Localized variants would multiply maintenance effort with minimal benefit.
+
+> **Q**: How should spec references and entity names be handled in multilingual contexts?
+> **A**: Specs are stored and displayed in their original language. The agent references specs by ID (language-agnostic) and presents titles in the original language. Multilingual embeddings support cross-language RAG search.
 
 ---
 

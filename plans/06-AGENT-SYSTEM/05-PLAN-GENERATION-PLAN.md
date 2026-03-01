@@ -146,6 +146,20 @@
   - Verification: test commands, file checks, or validation criteria
   - Optional: Notes, Warnings, Rollback Instructions
 
+#### Design Decisions
+
+> **Q**: Should plan files use Markdown or a structured format like YAML/JSON?
+> **A**: Markdown with YAML frontmatter. Plan files are `.md` with a YAML frontmatter block for machine-parseable metadata and a Markdown body for human-readable step descriptions. The frontmatter is parsed by the execution engine, and the body is read by agents and reviewers.
+
+> **Q**: Should plan frontmatter use YAML, JSON, or a custom format?
+> **A**: YAML. YAML frontmatter is the de facto standard for Markdown files and familiar to developers and agents. JSON frontmatter would look unusual and require escaped strings; YAML is only used in plan file frontmatter.
+
+> **Q**: How granular should individual plan files be — one per spec, per work unit, or per component?
+> **A**: One file per logical work unit, which is a coherent implementation task referencing 1–3 source specs. This avoids fragmenting related work (one-per-spec) and unwieldy sizes (one-per-component). The plan generation agent determines work units by analyzing spec dependencies.
+
+> **Q**: Should plan files include code snippets or pseudo-code for implementation guidance?
+> **A**: Yes, include pseudo-code for complex steps only — database schemas, API signatures, component interfaces. Simple steps don't need pseudo-code. Hints are prefixed with `> Implementation hint:` to distinguish them from step descriptions.
+
 ---
 
 ## 2. Plan Directory Structure
@@ -244,6 +258,20 @@
   }
   ```
 
+#### Design Decisions
+
+> **Q**: How should the plan generation agent determine which directories are parallel vs. serial?
+> **A**: Primarily graph analysis of spec `depends-on` edges to build a dependency DAG. Lightweight heuristics are tiebreakers: specs tagged with different layers default to parallel, specs with shared dependencies default to serial.
+
+> **Q**: Should parallel group assignment be shown in directory names?
+> **A**: No brackets in directory names. Parallel groups are indicated by the master prompt file, which lists execution order by phase. Directories are numbered sequentially for reading order; the master prompt defines execution semantics.
+
+> **Q**: What is the maximum number of parallel directories?
+> **A**: Cap at 4 parallel directories per phase. This maps to the execution engine constraint of not consuming all 10 process slots. If graph analysis suggests more than 4, the agent groups related tracks together.
+
+> **Q**: Should there be checkpoints between parallel groups?
+> **A**: Yes. The plan is organized in phases, and each phase is a checkpoint. Within a phase, directories are parallel; between phases, all parallel directories must complete before the next phase begins.
+
 ---
 
 ## 3. Master Prompt Plan
@@ -306,6 +334,11 @@
   - Exclude: `contradicts` edges (flag for resolution)
   - Exclude: deprecated and archived specs
 
+#### Design Decisions
+
+> **Q**: Should plan composition — combining multiple smaller plans into a larger execution — be supported?
+> **A**: Yes, via the master prompt. Multiple sub-plans are referenced in a parent plan's master prompt and executed as sequential phases. Sub-plans are linked via `depends-on` edges in the KG, enabling modular planning without complex orchestration.
+
 ---
 
 ## 4. Directory-Level Execution Plans
@@ -348,6 +381,17 @@
   - Within each directory: files execute serially (by sequence number)
   - Cross-directory dependencies within a group: wait for prerequisite completion
   - Model as a DAG and use topological execution
+
+#### Design Decisions
+
+> **Q**: What is the optimal number of plan files per directory?
+> **A**: 3–8 plan files per directory, targeting 5. Fewer than 3 suggests merging directories; more than 8 suggests splitting. Files are numbered for execution order within the directory.
+
+> **Q**: Should plan files within a directory share context or be self-contained?
+> **A**: Shared context via a directory `README.md` providing purpose, relevant spec summaries, and architectural context. Individual plan files reference this shared context, reducing repetition (~200 tokens saved per file) and ensuring consistency.
+
+> **Q**: Should there be a mandatory cleanup file at the end of each directory?
+> **A**: No mandatory per-directory cleanup. The last file in each directory includes cleanup in its steps if needed. The plan's final directory includes a project-level `01-cleanup.md` for linting, import verification, and documentation updates.
 
 ---
 
@@ -394,6 +438,20 @@
     - Structural check: verify file structure matches expected layout
     - Content check: verify key content patterns are present
 
+#### Design Decisions
+
+> **Q**: How detailed should plan steps be?
+> **A**: Medium detail: specific enough to be unambiguous, flexible enough for implementation decisions. Each step specifies what to create, where it goes, what it does, and key constraints — but not exact implementation code.
+
+> **Q**: Should plans include estimated effort per step?
+> **A**: Yes, estimated by the generating agent as `small | medium | large` (not hours). Small = single file; medium = 2–5 files; large = 5+ files or complex logic. Estimates help reviewers prioritize and the execution engine allocate time budgets.
+
+> **Q**: Should plans include risk assessment per step?
+> **A**: Yes, for high-risk steps only — database schema changes, deletions, auth modifications, shared infrastructure changes. These are flagged in frontmatter with a `risk_note`. Low-risk steps are not flagged to avoid clutter.
+
+> **Q**: Should plans include alternative approaches for each step?
+> **A**: No. The plan presents one opinionated approach. Design alternatives belong in specs. If the user disagrees, they provide feedback during review and the agent regenerates with that constraint.
+
 ---
 
 ## 6. Graph Traversal for Plan Generation
@@ -437,6 +495,26 @@
   - Filter by edge strength: optionally exclude weak edges
   - Filter by tags: include only specs matching specific tags
 
+#### Design Decisions
+
+> **Q**: How should traversal handle large knowledge graphs (1000+ specs)?
+> **A**: User curation as an option. The agent performs default traversal, presents a "Plan Scope" summary with spec counts by area, and the user can approve, narrow, or expand scope before generation proceeds.
+
+> **Q**: Should traversal follow all edge types or only `depends-on` and `derived-from`?
+> **A**: `depends-on` and `derived-from` only for the primary traversal. `related-to` edges are excluded from scope but surfaced in the plan README as informational references.
+
+> **Q**: How should traversal handle densely connected spec clusters?
+> **A**: Lightweight cluster detection. If traversal enters a cluster (>10 specs within 2 hops), include entry-point specs directly connected to the root path and summarize the rest. The user can expand coverage during scoping review.
+
+> **Q**: Should plans be scoped to a single project layer or span multiple layers?
+> **A**: Plans span all relevant layers. A feature naturally crosses layers (database → backend → frontend), organized into parallel directories by phase. Single-layer plans would force multiple plan generations for one feature.
+
+> **Q**: Should graph traversal results be cached between plan generation sessions?
+> **A**: Reused with a freshness check. The cached traversal is validated against spec modification timestamps. If specs changed, the traversal is re-run. Cache is per-plan and cleared on finalization or abandonment.
+
+> **Q**: Should graph traversal be done server-side or by the agent via MCP?
+> **A**: Agent-side via MCP tool calls. This gives the agent control over scope — it can adjust depth, filter paths, and make intelligent narrowing decisions. The ~1 second latency per call is acceptable for plan generation.
+
 ---
 
 ## 7. RAG Supplementary Context Retrieval
@@ -463,6 +541,20 @@
   - Or parallelize individual queries for performance
   - Cache RAG results per plan generation session
   - Track which RAG results were actually used in the plan
+
+#### Design Decisions
+
+> **Q**: How should RAG context be balanced against graph context?
+> **A**: RAG supplements graph traversal with cross-cutting semantic context that may not be expressed as edges. Graph traversal defines plan scope; RAG enriches plans with patterns, conventions, and similar implementations discovered semantically.
+
+> **Q**: Should RAG queries be generated from individual spec content or from the plan's overall theme?
+> **A**: Both. One theme-level query at plan start surfaces cross-cutting concerns (security policies, API standards). Per-file queries during generation surface implementation-specific context. Theme results go in the README; per-file results inform individual plan content.
+
+> **Q**: What is the token budget for RAG context per plan file?
+> **A**: 1,500 tokens (3 results × 500 truncated tokens). RAG context informs the agent's reasoning during generation but is not embedded in the plan file itself. Plan files reference source specs by ID, not RAG chunks.
+
+> **Q**: Should RAG results be pre-fetched or fetched on-demand per plan file?
+> **A**: Pre-fetched. All RAG queries run before plan file generation begins, cached in the session context. This adds ~5 seconds upfront but saves ~20 seconds total compared to per-file queries, and results are stable across files.
 
 ---
 
@@ -520,6 +612,20 @@
   - Edge changes: medium impact (relationship structure changed)
   - Aggregate score determines if delta build is warranted
 
+#### Design Decisions
+
+> **Q**: What should the baseline for delta detection be?
+> **A**: The previous plan version's generation timestamp, stored in plan metadata as `generated_at`. This captures all changes since the last plan generation, avoiding coupling to git commits or execution timestamps.
+
+> **Q**: How should cascading changes be handled when a dependency's spec changes?
+> **A**: Directly changed specs get full plan file regeneration. Indirectly affected specs (unchanged content but with a changed ancestor) get a review pass where the agent checks if the existing plan file is still valid.
+
+> **Q**: Should metadata-only changes (tags, summary) trigger delta plan regeneration?
+> **A**: No, only content changes trigger regeneration. Plan steps are derived from spec content (requirements, constraints, acceptance criteria), not metadata. Tag changes affecting scope should trigger a full rebuild instead.
+
+> **Q**: Should edge changes (new/deleted edges) trigger plan regeneration?
+> **A**: Yes. Edge changes that affect plan scope trigger delta regeneration — new `depends-on` edges re-evaluate execution order, deleted edges re-evaluate sequencing, and new edges bringing out-of-scope specs in are flagged for user review.
+
 ---
 
 ## 9. Full Build vs. Delta Build Modes
@@ -571,6 +677,17 @@
   - If > 30% of specs changed: recommend full build
   - User can override heuristic in either direction
 
+#### Design Decisions
+
+> **Q**: Should only affected plan files be regenerated in delta builds, or the entire plan?
+> **A**: Targeted regeneration of affected files only. Unchanged plan files are preserved as-is, maintaining the user's review state. The master prompt and affected directory READMEs are updated. If inconsistencies arise, the agent flags them and recommends a full rebuild.
+
+> **Q**: How should delta builds handle structural changes (new directories, reordering phases)?
+> **A**: Structural changes require a full build. Delta builds handle content changes within existing plan files only. The system detects structural changes (new spec not fitting existing directories, reversed dependency order) and returns a recommendation to rebuild.
+
+> **Q**: Should there be a delta preview mode before committing to generation?
+> **A**: Yes. The `analyze_plan_delta` tool returns a preview: changed specs, affected plan files, structural change detection, and a delta-vs-full-build recommendation. This costs one MCP call (~500ms) and helps the user understand blast radius before committing.
+
 ---
 
 ## 10. Plan-as-Knowledge-Graph
@@ -609,6 +726,20 @@
   - Report stale plans: plans where source specs changed after plan generation
   - Recommend delta builds for stale plans
   - Integrate with inquiry system: create inquiries for stale plans
+
+#### Design Decisions
+
+> **Q**: Should plans be represented as nodes in the knowledge graph?
+> **A**: Yes. Each plan is a node of type `plan` with metadata (root spec, version, status, dates, summary). Plan files are not individual nodes. This enables coverage analysis, navigation, and dashboard queries across all plans.
+
+> **Q**: Should plan-spec edges use a new edge type or reuse `related-to`?
+> **A**: New edge type: `planned-by` (spec → plan). This is semantically distinct from `related-to` and `depends-on`, enabling precise queries like "find all specs with no `planned-by` edges" for unplanned spec identification.
+
+> **Q**: Should spec coverage analysis be a plan system or knowledge graph feature?
+> **A**: Knowledge graph system, using the `planned-by` edge type. The KG MCP server provides a `get_unplanned_specs` convenience tool. The plan UI surfaces this as a "Coverage" view — the data lives in the KG, the visualization lives in the plan UI.
+
+> **Q**: Should the plan system auto-create specs for lessons learned after execution failures?
+> **A**: No automatic spec creation. The agent suggests creating a spec from undocumented requirements discovered during execution, and the user decides. Automatic creation would generate noisy, low-quality specs.
 
 ---
 
@@ -650,6 +781,29 @@
   - Notify relevant users when plan is ready for review
   - Notify users subscribed to root spec changes
   - Include plan summary in notification
+
+#### Design Decisions
+
+> **Q**: Should plan review be mandatory before execution?
+> **A**: Mandatory by default. Plans with ≤5 files and no high-risk flags can use "quick execute" to skip review. Plans with >5 files or any high-risk flags require explicit review and approval. Project admins can enforce review for all plans.
+
+> **Q**: Should the review UI show raw plan files or a rendered view?
+> **A**: Rendered view as primary — phase diagram, dependency graph, effort estimates, and plan files as cards with checklists and highlighted risk flags. Raw Markdown is accessible via an "Edit" button for power users.
+
+> **Q**: Should multiple reviewers be required for large plans?
+> **A**: No. Single reviewer (the requesting user) at launch. Multi-reviewer approval is a future enterprise feature requiring roles, workflows, and notifications. The confirm-before-mutation pattern during execution provides a second safety checkpoint.
+
+> **Q**: Should the agent self-review its plans before presenting to the human?
+> **A**: Yes. After generation, a self-review pass checks spec coverage, dependency ordering consistency, effort estimate reasonableness, and duplicate steps. Issues are auto-fixed when possible or flagged in the plan summary.
+
+> **Q**: When a plan is rejected, should the agent regenerate from scratch or apply feedback incrementally?
+> **A**: Incremental by default. The agent identifies which plan files are affected by the feedback and regenerates only those, saving 60–70% of time. Broad feedback ("completely restructure") triggers full regeneration as a fallback.
+
+> **Q**: Should rejection feedback be structured or free-form?
+> **A**: Free-form text with optional quick-tags ("Wrong approach," "Missing dependency," "Too complex," etc.) prepended to the text. Tags provide structured signal for categorization; full text provides understanding.
+
+> **Q**: Should rejection reasons be tracked over time to improve plan quality?
+> **A**: Yes, logged in the monitoring system. Rejection tags, feedback, and plan metadata are analyzed quarterly to identify common issues, prompt/skill improvements, and structural changes to the generation process.
 
 ---
 
@@ -712,6 +866,41 @@
   - Maximum file changes per step: 50 files
   - Maximum total file changes per plan: 500 files
 
+#### Design Decisions
+
+> **Q**: Should plan execution be fully automated or semi-automated?
+> **A**: Semi-automated with configurable granularity. Default: the agent runs all steps within a plan file, then pauses for confirmation before the next file. Users can toggle to fully automated or step-by-step mode.
+
+> **Q**: Should the execution engine run server-side or on the user's machine?
+> **A**: Server-side. Provides consistent environment, resource management, and audit logging. The code repo is accessed via Git MCP server, which can operate on local or remote repos.
+
+> **Q**: Should execution create one commit per step, per directory, or per plan?
+> **A**: One commit per plan file using convention `[bot:plan-exec] {plan-name} - {file-name}: {summary}`. This gives granular rollback per work unit without excessive commit noise.
+
+> **Q**: How should plans handle non-greenfield projects with existing code?
+> **A**: Plans account for existing code. The plan generation agent uses File System MCP to analyze existing structure. Plan steps reference existing files for modification rather than always creating new files.
+
+> **Q**: Should there be a dry-run execution mode?
+> **A**: Yes, dry run is the default first step. Code is generated into a sandbox without committing. The user previews rendered diffs, then approves for commit. Auto-commit can be enabled in settings.
+
+> **Q**: Should the execution agent have guardrails?
+> **A**: Yes. The agent can only touch files listed in the plan, cannot delete pre-existing files, is limited to whitelisted shell commands (`npm install`, `npm run build`, `npm test`), and cannot modify files outside the repo root. Enforced at the MCP server level.
+
+> **Q**: How should external dependencies (npm packages, database migrations, API services) be handled?
+> **A**: File generation plus whitelisted setup commands. The plan file lists `setup_commands` run after file generation. Database migrations are flagged for manual execution. External service provisioning is never automated.
+
+> **Q**: Should plan execution be interruptible and resumable?
+> **A**: Yes. Execution state is persisted in the database. On restart, completed files are skipped and the in-progress file is re-generated from scratch. The user is notified of the resume point.
+
+> **Q**: What is the interface between plan generation and code generation (execution)?
+> **A**: The plan file is the contract. Plan generation produces "what to do" — structured steps, sequencing, dependencies. Code generation reads the plan file, references source specs via MCP, and generates actual source code accordingly.
+
+> **Q**: Should plans be reusable across different target repositories?
+> **A**: Not directly. Plans reference repo-specific paths, frameworks, and conventions. Users regenerate plans from the same source specs with different project context (different CLAUDE.md, conventions) for a different repo.
+
+> **Q**: Should different execution strategies be used per programming language?
+> **A**: Claude Code for all languages at launch. It adapts to the project's language via CLAUDE.md and existing code context. Language-specific agents would be new agent types integrated through the existing orchestration layer if needed later.
+
 ---
 
 ## 13. Plan Versioning
@@ -747,6 +936,17 @@
   - Delete plan file content (only metadata retained)
   - Log archival events
 
+#### Design Decisions
+
+> **Q**: Should plan versions form a linear sequence or a tree (branching at rejected plans)?
+> **A**: Linear sequence. Each generation increments the version number. Rejected plans are preserved but not branched. The user has one active plan per root spec. This matches git's linear model and avoids "which branch am I on?" confusion.
+
+> **Q**: How long should plan history be retained?
+> **A**: Last 10 versions per plan, each with spec summary snapshots (not full content) for comprehension. Executed plans (status: completed) are retained indefinitely. Versions beyond 10 are auto-purged.
+
+> **Q**: Should plan versions be git-versioned or stored separately?
+> **A**: Both. Plan files in the KG repo (under `plans/{plan-id}/v{N}/`) provide free diffs and history via git. Plan metadata in PostgreSQL provides fast querying and indexing. Dual storage leverages each system's strengths.
+
 ---
 
 ## 14. Plan Rollback
@@ -781,6 +981,20 @@
   - Include in plan history for audit trail
   - Generate summary for team notification
   - Link rollback to inquiry if the issue is a knowledge graph problem
+
+#### Design Decisions
+
+> **Q**: Should rollback be automatic on execution failure or always require manual triggering?
+> **A**: Manual triggering with a recommendation. On failure, the system stops, preserves committed work, and presents options: fix and retry, rollback all changes, or keep partial progress. No automatic rollback — the user decides.
+
+> **Q**: If execution partially succeeded, should rollback revert all steps or only the failed step?
+> **A**: User's choice, presented clearly. Options: full rollback (revert all plan commits), partial rollback (revert failed step only), or keep everything. The UI shows exactly which files each option affects.
+
+> **Q**: Should rollback generate a reverse plan that undoes the original step-by-step?
+> **A**: No. Code rollback uses `git revert` — simple, reliable, well-understood. Non-file changes (database migrations, external configs) generate a "Manual Rollback Checklist" presented alongside the git revert.
+
+> **Q**: How should rollback interact with collaborative environments where others have made changes?
+> **A**: Standard git conflict handling. `git revert` creates new commits (not destructive reset). Conflicts with other users' subsequent changes produce conflict markers that are surfaced for manual resolution.
 
 ---
 
@@ -834,6 +1048,20 @@
   - Show: which steps succeeded/failed differently
   - Show: timing differences
   - Help identify flaky steps vs. consistent failures
+
+#### Design Decisions
+
+> **Q**: How long should plan generation take for a moderate plan?
+> **A**: Target 3–5 minutes for 30 specs / 20 plan files. Breakdown: traversal (~5s) + RAG pre-fetch (~5s) + scope analysis (~30s) + file generation (~200s) + self-review (~20s). Progress is streamed with per-file status updates.
+
+> **Q**: Should plan generation stream progress to the user?
+> **A**: Yes. Status updates stream via WebSocket showing current phase and file count. Completed files are immediately visible in the review UI while later files are still generating, so the user can start reviewing early.
+
+> **Q**: Should the system support generating multiple plans concurrently?
+> **A**: Yes, up to 2 concurrent plan generations per user. Each occupies 1 Claude Code process slot. With the 10-process cap, this leaves capacity for other users. The UI shows both generations with their respective streaming updates.
+
+> **Q**: How should very large plans (100+ plan files) be handled?
+> **A**: Plan size cap of 30 files. If scope analysis projects more, the agent recommends splitting into linked sub-plans connected via `depends-on` edges. Each sub-plan is independently reviewable and executable within the 5-minute timeout.
 
 ---
 
@@ -906,6 +1134,23 @@
   - Enable querying: "show me all verification failures for this plan"
   - Track verification pass rates over time
   - Feed verification results back into plan quality scoring
+
+#### Design Decisions
+
+> **Q**: Should test generation be part of plan execution or a separate post-execution phase?
+> **A**: Integrated. Each plan file includes test steps alongside implementation steps, committed together. This ensures tests are always written with fresh implementation context rather than being deferred.
+
+> **Q**: Should generated tests use a standardized framework or match the project's existing framework?
+> **A**: Match the project's existing test framework as specified in CLAUDE.md. The execution agent checks `package.json` for test configuration. Default to Vitest for TypeScript/JavaScript projects without existing tests.
+
+> **Q**: Should there be a minimum code coverage requirement for execution to succeed?
+> **A**: No hard coverage requirement at launch. Coverage is measured and reported in the execution summary but does not block execution. A configurable coverage threshold (default: off) is a future enhancement.
+
+> **Q**: How should flaky tests in generated code be handled?
+> **A**: Retry once. If the test passes on retry, the step is marked "passed with flaky test warning." Two consecutive failures mark the step as failed and pause execution. Flaky tests are flagged in the execution report.
+
+> **Q**: Should verification include static analysis in addition to runtime tests?
+> **A**: Yes. After each plan file's code generation: TypeScript type checking (`tsc --noEmit`), then linting (`eslint`), then test suite. Static analysis runs first (faster, catches obvious issues). This adds ~5–10 seconds per file but produces cleaner committed code.
 
 ---
 

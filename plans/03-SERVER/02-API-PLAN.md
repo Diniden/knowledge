@@ -69,6 +69,23 @@
   - `@ApiVersion('v1')` sets the version prefix
   - Supports multiple versions on same controller for gradual migration
 
+#### Design Decisions
+
+> **Q**: Should nested resources use full paths (`/projects/:projectId/specs/:specId`) or flat paths with query params (`/specs/:specId?projectId=xxx`)?
+> **A**: Nested paths for resource creation and listing (`/projects/:projectId/specs` for listing specs in a project). Flat paths for direct resource access (`GET /specs/:specId`, `PATCH /specs/:specId`) since spec IDs are globally unique. This keeps URLs shallow for single-resource operations while preserving the parent relationship for collection operations.
+
+> **Q**: Should action endpoints use verbs (`/sessions/:id/terminate`) or treat state changes as PATCH operations?
+> **A**: Use `POST` with verb-style endpoints for actions that have side effects beyond a simple field update: `POST /sessions/:id/terminate`, `POST /projects/:id/sync`, `POST /specs/:id/revert`. Use `PATCH` for simple field updates. The distinction is: if it triggers a workflow, it's a POST action. If it just changes data, it's a PATCH.
+
+> **Q**: Should the API use singular or plural resource names?
+> **A**: Plural resource names confirmed. `/specs/`, `/users/`, `/projects/`, `/sessions/`, `/documents/`, `/edges/`. This is the most common REST convention.
+
+> **Q**: Is URL-based versioning the right choice, or should the API use header-based versioning?
+> **A**: URL-based versioning: `/api/v1/`. It's simpler, visible in logs and browser devtools, easier to route at the infrastructure level, and the industry default for internal APIs.
+
+> **Q**: Should the version be required in every request, or should unversioned requests default to the latest version?
+> **A**: Version is required. Requests to `/api/specs` (no version) return 404. This prevents accidental breakage when a new API version is released.
+
 ---
 
 ## 2. Request & Response Standards
@@ -164,6 +181,26 @@
   - `PaginatedResponseDto<T>` — wraps array with pagination meta
   - `TimestampedResponseDto` — adds `createdAt`, `updatedAt`
 
+#### Design Decisions
+
+> **Q**: Should all responses use the `{ data, meta }` envelope, or should simple endpoints return the resource directly?
+> **A**: All responses use the envelope: `{ data, meta }`. Consistency outweighs the minor payload overhead. `meta` is always present (at minimum contains `requestId`). This makes client-side response handling uniform.
+
+> **Q**: Should the `meta` object include server version information for debugging?
+> **A**: No. Do not include server version in `meta`. It leaks deployment information. The `requestId` is sufficient for debugging — server logs correlate the request ID to the server version/instance.
+
+> **Q**: Should list endpoints return `{ data: T[], meta: { pagination } }` or `{ data: { items: T[], pagination } }`?
+> **A**: Use `{ data: T[], meta: { pagination, requestId } }`. The flat structure is simpler, and pagination metadata belongs in `meta` alongside other response metadata.
+
+> **Q**: Should validation errors return the attempted value in the error details?
+> **A**: Omit the attempted value. Reflecting user input in error responses can enable XSS in poorly-secured clients and leaks data in logs. Return the field name and the constraint that failed.
+
+> **Q**: Should the API provide error documentation URLs?
+> **A**: No. Not for the initial release. Error codes and messages should be self-descriptive. The Swagger documentation serves as the API reference.
+
+> **Q**: Should error responses include a `traceId` separate from `requestId` for distributed tracing?
+> **A**: `requestId` only. The system is single-instance for the initial release. Distributed tracing adds complexity for zero benefit. Introduce OpenTelemetry trace propagation when horizontal scaling is added.
+
 ---
 
 ## 3. Pagination, Filtering & Sorting
@@ -222,6 +259,23 @@
 - [ ] **SV-API-022**: Create `SortQueryDto` with validation
   - `sortBy`: string, validated against allowed fields
   - `order`: enum `asc | desc`, default `desc`
+
+#### Design Decisions
+
+> **Q**: Should the API use offset-based or cursor-based pagination as the primary pattern?
+> **A**: Cursor-based pagination as the primary pattern. Use `?cursor=xxx&limit=20` where the cursor is an opaque base64-encoded value. Cursor pagination handles concurrent inserts/deletes correctly and performs well on large datasets (no `OFFSET` scan).
+
+> **Q**: Should the total count be included in every paginated response?
+> **A**: Optional via `?count=true`. Total count is expensive for large tables and usually unnecessary for infinite-scroll UIs. When omitted, `totalCount` is absent. The UI uses `hasMore` (derived from whether `limit + 1` items were returned) for infinite scroll.
+
+> **Q**: Should there be a maximum page depth?
+> **A**: Not applicable with cursor-based pagination — there's no concept of "page depth." Every cursor lookup is an indexed seek, equally fast regardless of position.
+
+> **Q**: What should the default page size be?
+> **A**: Default 20, with per-endpoint overrides. Spec lists: default 50. Agent session messages: default 20. Agent session list: default 10. Edge lists: default 50. Maximum allowed limit: 100 for all endpoints.
+
+> **Q**: Should pagination defaults be configurable per endpoint, or use a single global default?
+> **A**: Per-endpoint defaults, defined as constants in each controller. A global default (20) serves as the fallback.
 
 ---
 
@@ -314,6 +368,29 @@
   - Response: `{ data: UserResponseDto }` (current user info)
   - Include user roles, permissions summary
   - Status: `200 OK`
+
+#### Design Decisions
+
+> **Q**: Should the access token be returned in the response body AND set as a cookie, or cookie only?
+> **A**: Both. The login endpoint sets the access token as an HTTP-only cookie AND returns it in the response body. Browser clients use the cookie automatically. CLI tools extract the token from the response body and send it as a `Bearer` token.
+
+> **Q**: What should the access token TTL be?
+> **A**: 15 minutes. This is the security-first default. The client implements transparent refresh — when a 401 is received, the client calls `/auth/refresh` to get a new access token and retries the original request.
+
+> **Q**: Should the refresh token be rotated on every use or be long-lived?
+> **A**: Rotate on every use. Each call to `/auth/refresh` issues a new refresh token and invalidates the old one. If a stolen refresh token is used after the legitimate user has already refreshed, the server detects the reuse and revokes all sessions for that user (token family).
+
+> **Q**: Should the API support API keys for programmatic access?
+> **A**: Yes, but deferred to phase 2. The initial release supports JWT cookie + Bearer token from login. API keys (long-lived, user-generated, scoped) are a phase 2 feature.
+
+> **Q**: Should email verification be required before the user can log in?
+> **A**: Account is immediately usable. Show a persistent "verify your email" banner in the UI. Require verification before the user can create projects or collaborate.
+
+> **Q**: Should the registration endpoint support social auth providers?
+> **A**: Deferred to phase 2. The initial release supports email/password only. The user schema should include a `providers` JSON column from day one so the schema doesn't need migration when social auth is added.
+
+> **Q**: Should there be an invite-only registration mode?
+> **A**: Yes, as a server configuration option (`REGISTRATION_MODE=open|invite`). Default to `open` for development. In production, the first registered user becomes admin and can toggle the mode.
 
 ---
 
@@ -449,6 +526,17 @@
 - [ ] **SV-API-055**: Create `CloneProjectDto` with validations
   - `@IsString() @MinLength(1) @MaxLength(100)` for name
   - `@IsOptional() @IsString() @MaxLength(500)` for description
+
+#### Design Decisions
+
+> **Q**: Should specs always belong to a document, or can specs exist independently?
+> **A**: Specs must always belong to a document. Every project has a default "Inbox" document for specs that haven't been categorized yet. Agent-created specs go into the Inbox by default unless the agent explicitly assigns them to a document.
+
+> **Q**: Should the spec creation endpoint automatically create a graph node, or should node creation be a separate step?
+> **A**: Auto-create the graph node on spec creation. A spec without a graph node has no purpose in the knowledge graph. The spec creation endpoint writes the spec JSON file AND creates the corresponding node entry in a single commit.
+
+> **Q**: When a document is deleted, what happens to its specs?
+> **A**: Specs are moved to the "Inbox" document. Users must explicitly delete individual specs if they want to remove them. Document deletion is a reorganization operation, not a data destruction operation.
 
 ---
 
@@ -704,6 +792,20 @@
   - `@IsOptional() @IsObject()` for metadata
   - Custom validator: sourceNodeId !== targetNodeId
 
+#### Design Decisions
+
+> **Q**: Should the graph API expose raw file paths or only abstract IDs?
+> **A**: Abstract IDs only. Never expose file paths in the API. The mapping from spec ID to file path is an internal implementation detail. The API returns spec IDs, document IDs, and edge IDs — all globally unique nanoids.
+
+> **Q**: Should graph traversal be a GET request or POST request?
+> **A**: GET for simple traversals with query parameters: `GET /graph/nodes/:id/neighbors?depth=2&edgeType=depends-on&direction=outbound`. POST for complex queries that exceed what query params can express: `POST /graph/query { ... }`. The GET endpoint covers 90% of use cases and benefits from HTTP caching.
+
+> **Q**: Should edge creation validate that both source and target nodes exist, or allow "dangling" edges?
+> **A**: Strict validation: both source and target nodes must exist before an edge can be created. For batch operations, the batch endpoint processes nodes first, then edges. The batch endpoint should accept an ordered array of operations and execute them sequentially within a single commit.
+
+> **Q**: Should the graph stats endpoint be cached aggressively or computed on every request?
+> **A**: Cache aggressively. Maintain a stats object in the in-memory graph index that updates on every mutation. The `GET /graph/stats` endpoint returns the cached stats instantly.
+
 ### 9.3 Graph Traversal & Search
 
 - [ ] **SV-API-095**: Implement `POST /api/v1/projects/:projectId/graph/traverse`
@@ -826,6 +928,20 @@
 - [ ] **SV-API-114**: Create `AgentMessageResponseDto`
   - Role, content, timestamp, structured actions
 
+#### Design Decisions
+
+> **Q**: Should agent sessions be scoped to a project, or can a session span multiple projects?
+> **A**: Scoped to a single project. Each session has one `projectId`. Cross-project operations are not supported — they would require complex permission checking and complicate sandboxing.
+
+> **Q**: Should agent message history be stored server-side permanently, or should there be a retention policy?
+> **A**: Permanent storage with optional cleanup. Dialog history is stored in PostgreSQL indefinitely by default. Add a configurable retention policy (`DIALOG_RETENTION_DAYS=90`) that runs as a daily cron job. Default is 90 days; set to 0 for indefinite retention.
+
+> **Q**: Should the agent session creation endpoint be synchronous or asynchronous?
+> **A**: Asynchronous. `POST /sessions` immediately returns `{ data: { sessionId, status: "starting" } }` with 202 Accepted. The client subscribes to the WebSocket room `session:{sessionId}` and receives a `session:ready` event when initialized.
+
+> **Q**: Should there be a limit on message length sent to the agent?
+> **A**: Yes. Maximum 32,000 characters per user message (approximately 8,000 tokens). Messages exceeding the limit are rejected with a 400 error. Configurable via `MAX_AGENT_MESSAGE_LENGTH=32000`.
+
 ---
 
 ## 11. Generated UI Endpoints
@@ -940,6 +1056,26 @@
   - Cannot delete the main/active branch
   - Return `204 No Content`
 
+#### Design Decisions
+
+> **Q**: Should collaboration endpoints be project-scoped or support file-level granularity?
+> **A**: Project-scoped. `POST /projects/:id/sync/pull` and `POST /projects/:id/sync/push` operate on the entire project repository. Git operates at the repository level.
+
+> **Q**: Should the pull endpoint automatically merge, or pull without merging?
+> **A**: Auto-merge by default (`git pull --ff-only` first, then `git pull --no-edit` if fast-forward fails). The pull endpoint returns the merge result: `{ status: "fast-forward" | "merged" | "conflict", changes: [...] }`.
+
+> **Q**: Should conflict resolution be handled entirely through the API?
+> **A**: Via the API. The server detects conflicts and returns a structured conflict object: `{ file, ours, theirs, base }`. The client renders a diff/merge UI. The user sends the resolution back: `POST /projects/:id/sync/resolve { file, resolution }`.
+
+> **Q**: Should branches be a first-class API concept?
+> **A**: Yes. `GET /projects/:id/branches`, `POST /projects/:id/branches`, `DELETE /projects/:id/branches/:name`, `POST /projects/:id/branches/:name/merge`. Branches are essential for the PRD's experimentation model.
+
+> **Q**: Should the API support pull request-like review workflows for branches?
+> **A**: Direct merge for the initial release. The merge endpoint provides a diff preview (`POST /projects/:id/branches/:name/merge?dryRun=true`) so users can review changes before merging.
+
+> **Q**: Should branch deletion be hard or soft?
+> **A**: Hard delete. `DELETE /projects/:id/branches/:name` removes the branch ref immediately. Commits are still in the git reflog for 90 days. The branch can only be deleted if merged or if `?force=true` is passed.
+
 ---
 
 ## 13. Plans Endpoints
@@ -1021,6 +1157,20 @@
   - Reject files exceeding 10MB
   - Return `413 Payload Too Large` with clear message
   - Include max allowed size in error response
+
+#### Design Decisions
+
+> **Q**: Should uploaded files be stored in the git repository or in a separate storage location?
+> **A**: Separate storage. Store uploaded files on the server's local file system under a project-specific directory (`/data/uploads/{projectId}/`). Reference files in specs by their upload ID. This keeps the git repository lightweight. Uploads are backed up separately.
+
+> **Q**: Should the upload endpoint return a URL that can be embedded in spec content?
+> **A**: Return a URL. `POST /projects/:id/uploads` returns `{ data: { id, url: "/api/v1/uploads/{uploadId}", mimeType, size } }`. The user embeds the URL in spec markdown content.
+
+> **Q**: What media types should be supported?
+> **A**: Images (JPEG, PNG, GIF, WebP, SVG), PDFs, and plain text/markdown attachments. No video, audio, or office documents for the initial release. Total per-project storage quota: 1GB (configurable).
+
+> **Q**: Should there be an image processing step on upload?
+> **A**: Serve originals for the initial release. Add thumbnail generation as a phase 2 optimization. Keep the upload pipeline simple: validate MIME type, check file size (max 50MB), store to disk, return URL.
 
 ---
 
@@ -1141,6 +1291,50 @@
   - After authentication, rate limit by userId (not just IP)
   - Higher limits for authenticated users vs anonymous
   - Admin users exempt from rate limiting
+
+#### Design Decisions
+
+> **Q**: Should rate limits be per-IP, per-user, or both?
+> **A**: Both. Per-IP (100 req/min for unauthenticated, 300 req/min for authenticated) enforced at the middleware level. Per-user (300 req/min global, with stricter limits for expensive endpoints like agent sessions at 20 req/min) enforced at the guard level after authentication.
+
+> **Q**: Should rate limit violations be logged as security events?
+> **A**: Yes. Log every rate limit violation at `warn` level with: IP address, user ID (if authenticated), endpoint, current rate, limit. Repeated violations (>5 in a minute) log at `error` level.
+
+> **Q**: Should certain endpoints have no rate limit?
+> **A**: Health check endpoints (`/health/live`, `/health/ready`) and Prometheus metrics (`/metrics`) are exempt. Swagger docs are rate-limited at a generous 60 req/min per IP.
+
+> **Q**: Should the rate limit store use in-memory storage only, or Redis?
+> **A**: In-memory for the initial release. Rate limits resetting on server restart is acceptable. When horizontal scaling is added, swap to the Redis-backed throttler storage (drop-in replacement).
+
+> **Q**: Should the API support field selection to reduce response size?
+> **A**: No. Field selection adds serialization complexity. If a lighter representation is needed, create a dedicated list endpoint that returns a summary DTO. The `?expand=` parameter is the preferred way to control response size.
+
+> **Q**: Should the API support conditional requests (`If-None-Match` / `ETag`)?
+> **A**: Yes, for key read-heavy endpoints: `GET /graph/stats`, `GET /specs/:id`, `GET /projects/:id`. Use weak ETags based on the resource's `updatedAt` timestamp or content hash.
+
+> **Q**: Should list endpoints support `?expand=relations` to eagerly load related data?
+> **A**: Yes. `GET /specs/:id?expand=edges` returns the spec with its edges inline. Allowed expand values are documented per endpoint in Swagger. Default is no expansion.
+
+> **Q**: What is the maximum batch size for bulk spec operations?
+> **A**: 50 specs per batch. At 50 specs, the server can validate, write files, and commit within a reasonable HTTP timeout. Requests exceeding 50 items are rejected with a 400 error.
+
+> **Q**: Should batch operations be all-or-nothing or best-effort?
+> **A**: All-or-nothing within a single git commit. The batch validates all items first, then writes all files and commits. If any write fails, no commit is made and all changes are rolled back.
+
+> **Q**: Should the text search endpoint use full-text search or simple `LIKE` matching?
+> **A**: PostgreSQL full-text search with `tsvector` for database-backed resources. For knowledge graph content (specs stored as JSON files), use the in-memory index with simple text matching on spec titles and tags.
+
+> **Q**: Should graph search integrate with the RAG layer for semantic search, or keep keyword search and semantic search as separate endpoints?
+> **A**: Separate endpoints. `GET /graph/search?q=authentication` for keyword search. `POST /graph/semantic-search` for RAG-powered semantic search. Semantic search is a phase 2 feature; keyword search is MVP.
+
+> **Q**: Should filters support negation?
+> **A**: No negation in query parameters. Use explicit filter values instead: `?status=draft,active`. This keeps URL parsing simple.
+
+> **Q**: Should the API support complex graph queries or keep queries simple?
+> **A**: Keep the REST API simple. Complex graph traversals are the agent's job. The REST API provides building blocks: neighbors, shortest path, filter by edge type. The agent composes these into complex queries.
+
+> **Q**: Should there be a GraphQL endpoint alongside REST?
+> **A**: No GraphQL. The PRD specifies REST + WebSocket. GraphQL adds a second API paradigm and additional complexity. The REST API with `?expand=` and cursor-based pagination covers the client's needs.
 
 ---
 

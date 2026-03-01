@@ -138,6 +138,53 @@
   - All MCP servers depend on this shared package
   - Publish as internal workspace package
 
+#### Design Decisions
+
+> **Q**: Should each MCP server be a separate process or should multiple servers share a single process?
+> **A**: Each MCP server is a separate process communicating via stdio transport. Lightweight processes (~50MB each) provide isolation—a crash in one doesn't affect others. Claude Code manages spawning and lifecycle natively.
+
+> **Q**: Should MCP servers be stateless or maintain state across sessions?
+> **A**: Stateless per invocation. State is persisted in databases/filesystems and read on demand per tool call. Caching is handled at the storage layer, not in the MCP server process.
+
+> **Q**: Should the KG MCP server access the filesystem directly or go through the storage layer API?
+> **A**: Through the storage layer API via internal function calls (not HTTP). This provides validation, permission checking, and audit logging while avoiding HTTP overhead and abstracting the underlying storage.
+
+> **Q**: Should MCP servers share a database connection pool or maintain separate connections?
+> **A**: Separate connections per server since they're separate processes. Up to 70 connections at peak (7 servers × 10 sessions) is within PostgreSQL limits, with PgBouncer at the database level for connection management.
+
+> **Q**: Should MCP servers be standalone npm packages or monorepo-only?
+> **A**: Monorepo only at launch under `packages/mcp-servers/`, sharing common utilities via internal packages. Standalone npm publishing deferred until third-party tool development becomes a goal.
+
+> **Q**: Should a composite MCP server combine all tools into one for simpler configuration?
+> **A**: No. Each agent type gets a tailored `.mcp.json` with only relevant servers, enforcing least privilege. A composite server would expose all tools to all agents, undermining role-based tool access.
+
+> **Q**: What runtime should MCP servers use—Bun or Node.js?
+> **A**: Bun, matching the rest of the project. The `.mcp.json` specifies the spawn command explicitly. Bun's faster startup, native TypeScript, and codebase consistency justify this choice.
+
+> **Q**: Should tools be fine-grained (one per operation) or coarse-grained (one per domain with action parameter)?
+> **A**: Fine-grained—one tool per operation. LLMs perform better with explicit, well-named tools than multi-purpose tools requiring action parameters. Fine-grained tools also yield better descriptions and simpler schemas.
+
+> **Q**: Should compound tools exist for multi-step atomic operations?
+> **A**: Yes, for a small set (3-4 max) of high-frequency operations like `create_spec_with_edges` and `move_spec`. These save tool calls and prevent partial state in common workflows.
+
+> **Q**: How many tools can Claude Code effectively handle per agent invocation?
+> **A**: Target 15-25 tools per agent type via tailored `.mcp.json` files. Claude handles 20-25 tools well with good descriptions. If any agent type exceeds 30, review for consolidation.
+
+> **Q**: Should tools support batch operations for bulk creation?
+> **A**: No batch tools at launch. Individual calls are sufficient within the 50-call cap. Batch tools can be added later with clear partial-success semantics if profiling reveals bottlenecks.
+
+> **Q**: What naming convention should tool names follow?
+> **A**: Snake_case per MCP standard convention. Tool names appear in JSON schemas and payloads, not as TypeScript symbols. Internal implementation uses camelCase as normal.
+
+> **Q**: Should tool names include a server prefix (e.g., `kg_create_spec`)?
+> **A**: No prefix. Tool names are scoped by MCP server, and each server has a distinct domain avoiding conflicts by design. Shorter names are easier for agents and less token-heavy.
+
+> **Q**: Should tool descriptions be written for AI agents or humans?
+> **A**: For the AI agent: technical, precise, with one-sentence purpose, parameter types/constraints, return value, and one example usage. This gives the agent everything needed for tool selection and invocation.
+
+> **Q**: Should optional tool parameters have sensible defaults or require explicit specification?
+> **A**: Sensible defaults defined in the schema to reduce agent cognitive load and token usage. Defaults are documented in tool descriptions so the agent knows what it gets by omission.
+
 ---
 
 ## 2. Knowledge Graph MCP Server
@@ -530,6 +577,47 @@
   - Set `resolvedAt` and `resolvedBy`
   - Return updated inquiry
 
+#### Design Decisions
+
+> **Q**: Should tools accept natural language parameters, structured parameters, or both?
+> **A**: Both, via separate parameters. Search tools accept a free-text `query` for semantic search and structured filters (`tags`, `created_after`, `author`). The MCP server combines them—structured filters narrow the set, then RAG ranks within it.
+
+> **Q**: How should tool parameters handle spec references—by ID, title, or both?
+> **A**: By ID (`sp_xxx`) for all mutation and retrieval tools. For search tools, the query can include titles or natural language. The workflow is: search by title/description → get spec IDs → use IDs for all subsequent operations.
+
+> **Q**: Should `create_spec` auto-generate a summary or require the agent to provide one?
+> **A**: The agent provides the summary as a required field. Auto-generation would add latency and cost via a separate LLM call, and the agent—having just reasoned about the content—is best positioned to write a concise summary.
+
+> **Q**: Should `delete_spec` require explicit cascade confirmation or always cascade edges?
+> **A**: Always cascade edges, returning deletion details in the response. The confirm-before-mutation layer already requires user confirmation before execution, making a separate cascade confirmation redundant.
+
+> **Q**: Should `update_spec` support content diffing or require full content replacement?
+> **A**: Full content replacement with a `version` parameter for optimistic locking. This avoids diff/merge complexity, prevents conflicts from partial updates, and keeps specs in a consistently valid state.
+
+> **Q**: Should a `bulk_create_specs` tool exist for batch spec creation?
+> **A**: Not at launch. Creating up to ~15 specs with edges in a single turn is feasible within the 50-call cap. A bulk tool can be added later with per-item success/failure reporting if document decomposition workflows demand it.
+
+> **Q**: What should the maximum traversal depth be, and should there be a result size cap?
+> **A**: Maximum depth of 5 (reduced from 10) with a hard cap of 100 result nodes. Defaults of depth 3 / max 50 handle 90% of cases. If the cap is reached, the result includes `truncated: true` for the agent to refine.
+
+> **Q**: Should traversal support weighted edges for path finding?
+> **A**: Not at launch. All edges are unweighted. Edge weights would require defining a weight schema, assigning weights, modifying traversal algorithms, and maintaining weights over time—significant complexity for marginal benefit.
+
+> **Q**: Should `traverse_graph` return a flat list or a tree structure?
+> **A**: Flat list with depth annotations. Each node includes its `depth` from the start spec and the `path` (edge IDs from root). This combines the simplicity of a flat list with the structural information of a tree.
+
+> **Q**: Should traversal results be cached per session?
+> **A**: Yes, within a single Claude Code invocation (one user message). Identical traversals return cached results within the same turn. The cache is invalidated between messages since mutations may have changed the graph.
+
+> **Q**: Can agents resolve their own inquiries, or should only humans resolve them?
+> **A**: Agents can resolve inquiries they created, with a `resolution_note` explaining what was done. Human-created inquiries can only be resolved by humans, preserving human oversight for user-raised issues.
+
+> **Q**: Should the inquiry system support auto-resolve when the underlying issue is fixed?
+> **A**: Yes. The Graph Crawler runs periodic validation checks and auto-resolves inquiries when the flagged condition no longer exists. Auto-resolved inquiries are marked distinctly so users can distinguish them from human resolutions.
+
+> **Q**: How should duplicate inquiries be handled?
+> **A**: Deduplicate on creation. Before creating an inquiry, the tool checks for existing open inquiries with the same `spec_id` and `inquiry_type`. Duplicates update the existing inquiry's `last_seen` timestamp instead of creating a new entry.
+
 ---
 
 ## 3. RAG MCP Server
@@ -639,6 +727,23 @@
   - Check if spec has a current embedding
   - Compare content hash to detect staleness
   - Return: indexed (yes/no), stale (yes/no), chunk count, model used
+
+#### Design Decisions
+
+> **Q**: Should the RAG server use pre-computed embeddings or generate them on-demand per query?
+> **A**: Pre-computed as the primary path, with on-demand fallback. Embeddings are generated async when specs are created/updated. For brand-new unindexed specs (rare race condition), the server falls back to keyword matching.
+
+> **Q**: Should the RAG server support hybrid search (semantic + keyword), and does it overlap with KG search?
+> **A**: Yes, hybrid search (70% semantic + 30% BM25 keyword). KG's `search_specs` handles structured filtering (tags, dates, author), while RAG handles natural language semantic queries. The agent chooses the appropriate tool based on query type.
+
+> **Q**: Which embedding model should be used?
+> **A**: OpenAI's `text-embedding-3-small` (1536 dimensions) for its quality-to-cost ratio and low latency (~100ms). Migrate to Anthropic's embeddings if/when generally available. A local model would eliminate external dependency but adds infrastructure complexity.
+
+> **Q**: Should RAG results include chunk text or only spec IDs and scores?
+> **A**: Include chunk text truncated to 500 tokens per chunk, plus spec ID and relevance score. Five results × 500 tokens = 2,500 tokens of context—enough for relevance assessment without requiring a separate `get_spec` call per result.
+
+> **Q**: Should the RAG server support cross-project search?
+> **A**: No. RAG search is scoped to the current project. Cross-project search introduces permission and index management complexity that isn't needed for the knowledge management use case. It can be explored later as a premium feature.
 
 ---
 
@@ -763,6 +868,23 @@
   - Include package name, version, and brief description
   - Agents use this to know which packages they can include
 
+#### Design Decisions
+
+> **Q**: Should generated UI projects have a maximum complexity limit?
+> **A**: Yes. Max 20 files, max 500 lines per file, max 5,000 total lines. Enforced at the MCP tool level—`create_ui_file` rejects oversized files, `finalize_ui` rejects oversized projects. These limits are generous for the intended use cases (dashboards, diagrams, visualizations).
+
+> **Q**: Should the gen-UI server support hot reload for iterative development?
+> **A**: No. Generated UIs are built once (ESM bundle) and served statically. The agent workflow is: generate files → build → preview URL. Iteration happens at the conversation level, not via dev server. Build is fast (<5 seconds with Bun).
+
+> **Q**: Should generated code be validated for security issues (XSS, data exfiltration)?
+> **A**: Yes, lightweight static analysis at finalization: no `fetch()`/`XMLHttpRequest` to non-whitelisted domains, no `eval()`/`Function()`, no `document.cookie`/`localStorage` access. The iframe sandbox attribute provides the runtime safety net.
+
+> **Q**: Should there be a gallery of pre-built UI components for composition rather than generating from scratch?
+> **A**: Yes. A library of 15-20 pre-built components (charts, data tables, tree visualizations, relationship diagrams) importable via `@botnet/ui-components`. Agents customize props and compose from tested building blocks, dramatically improving quality and reducing generation time.
+
+> **Q**: Should generated UIs access a real-time data API or use static data snapshots?
+> **A**: Static snapshots at launch. Relevant spec data is embedded as `data.json` within the generated project. This keeps UIs self-contained and avoids API endpoint generation (which requires auth, CORS, lifecycle management). Real-time APIs are a future enhancement.
+
 ---
 
 ## 5. Plan Generation MCP Server
@@ -883,6 +1005,20 @@
   - Return execution status for each plan step
   - Include: step name, status (pending/executing/completed/failed), duration
   - Include any error details for failed steps
+
+#### Design Decisions
+
+> **Q**: Should plan generation be a single tool call or a series of calls?
+> **A**: A series: (1) `analyze_plan_scope` returns proposed structure, (2) `generate_plan_file` called per file, (3) `finalize_plan` validates consistency. This stays within token limits, enables streaming progress, and lets the agent adjust later files based on earlier ones.
+
+> **Q**: How should plan versioning work—overwrite or create new versions?
+> **A**: Each generation creates a new version at `plans/{plan-id}/v{N}/`. Previous versions are retained (last 10) for comparison and rollback. This supports the review workflow where the user rejects v1 and the agent generates v2 with feedback.
+
+> **Q**: Should plan generation support pre-defined templates for common project types?
+> **A**: Yes, 3-5 templates at launch (API service, frontend feature, full-stack feature, database migration, refactor). Templates provide directory structure and file skeletons stored as JSON schemas; the agent fills in the content.
+
+> **Q**: How should plans reference source specs—by ID, embedded content, or path?
+> **A**: By ID with inline summary in frontmatter: `source_specs: [{id: "sp_xxx", title: "...", summary: "..."}]`. IDs provide stable references for programmatic use; inline summaries provide human-readable context. Full spec content is not embedded to avoid bloat and staleness.
 
 ---
 
@@ -1005,6 +1141,20 @@
   - Find and replace text within a file
   - Support single replacement or replace-all
   - Return: number of replacements made
+
+#### Design Decisions
+
+> **Q**: Should the file system MCP server support binary files or only text files?
+> **A**: Text files only at launch (TypeScript, JavaScript, JSON, CSS, HTML, Markdown, SVG). Generated UI projects use CDN-hosted images and inline SVG. Binary support deferred to avoid base64 encoding overhead in MCP tool call payloads.
+
+> **Q**: Should file writes be atomic (temp file → rename) or direct?
+> **A**: Atomic writes. Write to a temp file in the same directory, then rename. This prevents corruption if the process is killed mid-write and is standard best practice, especially for generated code files served to users.
+
+> **Q**: Should the file system server support file watching for reactive behaviors?
+> **A**: No. The MCP protocol is request-response with no mechanism for push notifications. If reactive watching is needed, it belongs at the server application layer, not in the MCP server.
+
+> **Q**: Should there be a `search_in_files` tool (grep-like functionality)?
+> **A**: Yes. Accepts a regex pattern and optional file glob, returning matching lines with file paths and line numbers (capped at 50 matches). Essential for the Plan Execution agent (finding insertion points) and Gen UI agent (verifying references).
 
 ---
 
@@ -1138,6 +1288,23 @@
     ```
   - Push current changes to stash, pop from stash, or list stash entries
   - Return stash operation result
+
+#### Design Decisions
+
+> **Q**: Should the Git MCP server operate on only the KG repository or also the code repository?
+> **A**: Both, scoped per invocation via a `repo_path` parameter. The Plan Execution agent uses it for the code repo, the Graph Crawler for the KG repo. The `repo_path` must be within the sandbox's allowed paths.
+
+> **Q**: Should agents be able to push to remote repositories or only make local commits?
+> **A**: Local commits only by default. The `git_push` tool exists but requires user confirmation and is disabled by default in tool configuration. Users can enable push in project settings for trusted workflows, especially for the internal KG repo.
+
+> **Q**: How should merge conflicts be handled—auto-resolution or raw conflict markers?
+> **A**: Return raw conflict markers. The agent (with full conversation context) reasons about the conflict and resolves via `write_file`, or escalates to the user as an inquiry. Auto-resolution by the MCP server is too risky without sufficient context.
+
+> **Q**: Should the Git MCP server support GPG/SSH commit signing?
+> **A**: Not at launch. Commit signing requires managing GPG/SSH keys for agent identities, adding significant key management complexity. Agent commits are identified by the author field. Signing can be added later for compliance requirements.
+
+> **Q**: Should there be commit message conventions for agent-made commits?
+> **A**: Yes. Format: `[bot:{agent-type}] {action}: {description}`. Author set to `Botnet Agent <agent@botnet.local>` with the requesting user's identity in the commit body. This makes agent commits easily identifiable in git log while attributing them to the user.
 
 ---
 
@@ -1295,6 +1462,20 @@
   - File System server: sandbox root path
   - Git server: repository path
 
+#### Design Decisions
+
+> **Q**: Is stdio the only MCP transport option for Claude Code, or is HTTP/SSE also supported?
+> **A**: Stdio is the primary and recommended transport. Since MCP servers are co-located child processes, stdio provides the lowest latency with no network overhead, port management, or auth needed. Remote MCP servers are not a requirement.
+
+> **Q**: What is the expected latency per MCP tool call, and how does Claude Code handle long calls?
+> **A**: Target <500ms for reads, <1s for writes, <3s for complex operations (traversal, search). Claude Code waits gracefully for responses. If a single tool call exceeds 30 seconds, the MCP server should return an error (likely database timeout or deadlock).
+
+> **Q**: Should MCP servers support request cancellation for long-running operations?
+> **A**: Yes, via the MCP protocol's `notifications/cancelled` notification. Servers check a cancellation flag at loop boundaries during traversal/search. Short operations (<500ms) don't need cancellation—they complete before it propagates.
+
+> **Q**: Should MCP tool results be streamed for large results or returned as a single response?
+> **A**: Single response. Large results are bounded by design: traversal capped at 100 nodes, search at 10 items, file reads at 100KB. These caps ensure no result is too large for a single response, avoiding the need for non-standard streaming extensions.
+
 ---
 
 ## 11. Authentication & Authorization
@@ -1335,6 +1516,20 @@
   - Prevent command injection (for git tools)
   - Prevent path traversal (for file system tools)
   - Truncate oversized inputs
+
+#### Design Decisions
+
+> **Q**: How should MCP servers prevent "confused deputy" attacks from prompt injection in spec content?
+> **A**: Defense in layers: (1) strict input validation against schemas, (2) permission enforcement against the user's access level, (3) confirm-before-mutation for destructive operations giving humans a catch point, (4) the 50 tool calls per message cap prevents mass-operation attacks. No single layer catches all cases, but the combination makes exploitation extremely difficult.
+
+> **Q**: Should destructive operations go through a separate review queue in production?
+> **A**: No separate queue. The confirm-before-mutation pattern already provides real-time human approval in the chat UI, which is faster and more contextual than a decoupled review queue. For enterprise environments, an "admin approval for bulk operations" flag can be added to project settings.
+
+> **Q**: Should MCP tools support a `dry_run` mode for previewing mutation effects?
+> **A**: Yes, for complex mutations. Tools that modify multiple entities support `dry_run: true`, which validates inputs, checks permissions, and returns a preview of changes without executing. Most useful for `delete_spec` (cascade preview) and `move_spec` (edge adjustment preview).
+
+> **Q**: How should the system handle agent attempts to access other users' data?
+> **A**: Per-tool permission checks enforce project-level isolation as the primary defense. The audit log captures every tool call; anomaly detection flags calls targeting resources outside the user's project, unusually high read volumes, and repeated permission-denied errors.
 
 ---
 
@@ -1477,6 +1672,20 @@
   - Auto-generate markdown documentation for each tool
   - Include input schema, output format, examples, and error codes
   - Publish as part of developer documentation
+
+#### Design Decisions
+
+> **Q**: Should there be a mock MCP server framework for testing agent behavior without real servers?
+> **A**: Yes. A mock framework implementing MCP protocol (stdio JSON-RPC) with configurable canned responses and scenario files (JSON tool call → response mappings). Starts in <100ms vs 1-2s for real servers. Used in wrapper unit tests, agent behavior tests, and CI/CD pipelines.
+
+> **Q**: How should MCP tool tests handle external dependencies (vector store, git, filesystem)?
+> **A**: Temporary directories for file/git operations, in-memory SQLite for database tests, lightweight in-process vector store (e.g., hnswlib-node) for RAG tests. No Docker containers required—fresh temporary resources per test suite provide isolation without infrastructure dependencies.
+
+> **Q**: Should there be performance benchmarks for critical MCP tools?
+> **A**: Yes. Key targets: `create_spec` <500ms, `get_spec` <200ms, `search_similar` <2s, `traverse_graph` (depth 3) <1s. Benchmarks run nightly against a test dataset (1000 specs, 5000 edges), tracked over time for regression detection, not blocking in CI.
+
+> **Q**: Should there be chaos testing for MCP servers (randomly injected failures)?
+> **A**: Not at launch. Start with thorough error handling unit tests covering invalid inputs, database timeouts, file permission errors, and concurrent access. Chaos testing (random crashes, delayed responses, partial results) can be added later as a reliability engineering effort.
 
 ---
 

@@ -166,6 +166,32 @@
   type AgentOutputType = 'text' | 'structured' | 'streaming' | 'delegation';
   ```
 
+#### Design Decisions
+
+> **Q**: Should the orchestrator be a Claude Code instance (meta-agent using LLM to classify intent), or a deterministic rules-based router?
+> **A**: Claude Code instance in headless mode (`claude --print --output-format stream-json`). User message variety is too broad for rules-based routing. A short classification-only system prompt keeps latency to 1–2 seconds. Sub-agents are MCP tool groupings routed by the orchestrator, not separate processes.
+
+> **Q**: Should the Knowledge Graph Agent and Dialog Agent be merged into a single "conversational KG agent"?
+> **A**: Keep them separate. The KG Agent has write-capable MCP tools with confirm-before-mutation defaults; the Dialog Agent has read-only tools with a conversational prompt. Separation prevents the Dialog Agent from accidentally mutating the graph. Switching between sub-agents is a prompt reconfiguration, not a process spawn.
+
+> **Q**: Should the Graph Crawler Agent be a persistent background process or an on-demand agent?
+> **A**: On-demand, triggered by events (spec created/updated, edge created/deleted, scheduled cron). Startup latency (2–3s) is acceptable because graph crawling is not user-facing. This avoids wasting a Claude Code process slot on idle background work.
+
+> **Q**: Are there additional agent types needed beyond the proposed six?
+> **A**: No additional agent types at launch. The six types (orchestrator, KG, dialog, gen UI, plan gen, graph crawler) cover all required capabilities. Summarization is handled by the Dialog Agent via RAG. A new agent type can be added as a new MCP tool grouping without architectural changes if a gap emerges post-launch.
+
+> **Q**: Should agents be versioned (e.g., KG Agent v1, v2) to allow rolling out improved behavior without breaking existing sessions?
+> **A**: No explicit agent versioning. Behavior is determined by system prompts, skills files, and CLAUDE.md — all version-controlled via git. Active sessions continue with the prompts they started with; new sessions pick up the latest files. Git history of prompt/skill files provides implicit versioning.
+
+> **Q**: Should all agents have read access to the entire knowledge graph, or should graph access be scoped per-request?
+> **A**: Scoped per-request. Each agent session is sandboxed to a project directory. The context assembled into the prompt contains only the relevant subgraph (RAG similarity + graph traversal). The agent can fetch additional specs on demand via MCP tools but starts with a focused subset. No cross-project access.
+
+> **Q**: Should the Generative UI Agent be allowed to install npm packages dynamically, or must it work with a pre-approved package whitelist?
+> **A**: Pre-approved whitelist only. The Gen UI Agent generates React mini-projects using iframe+ESM loading. A curated whitelist of allowed packages is maintained in project config. The agent cannot run `npm install` — packages resolve from a pre-built shared `node_modules` or CDN imports.
+
+> **Q**: Should agents be able to call external APIs, or are they strictly limited to internal MCP tools?
+> **A**: Strictly limited to the 7 internal MCP servers. Agents have no network access beyond the Anthropic API. Future external integrations would be exposed as new MCP servers with explicit access controls, not as raw network access.
+
 ---
 
 ## 2. Orchestrator Agent
@@ -240,6 +266,29 @@
   - When a sub-agent streams output, relay chunks to client via WebSocket
   - Include agent type labels in stream chunks so frontend knows the source
   - Handle interleaved streams from parallel sub-agents
+
+#### Design Decisions
+
+> **Q**: What is the acceptable latency for intent classification? Would a faster, smaller model be appropriate?
+> **A**: Target latency under 2 seconds. The orchestrator uses Claude Code in `--print` mode with a minimal system prompt (~300 tokens) and constrained JSON output. A smaller model is not needed at launch — volume doesn't justify maintenance cost. A distilled classifier can be substituted later without architectural changes.
+
+> **Q**: How should multi-intent requests be decomposed?
+> **A**: Single classification call identifies the primary intent and up to 2 secondary intents, returned as a ranked list. Intents are executed sequentially — primary completes first, then secondaries if still relevant. This avoids complexity of parallel intent execution.
+
+> **Q**: Should the orchestrator maintain a "routing history" to improve classification over time?
+> **A**: No. Routing history adds complexity with marginal benefit. The orchestrator classifies each request independently using current conversation context. If intent is ambiguous, it routes to the Dialog Agent for clarification. Per-user routing personalization is a future optimization.
+
+> **Q**: What happens when the orchestrator is uncertain between two agent types?
+> **A**: If confidence is above 70%, pick the more likely one. If below 70%, route to the Dialog Agent to ask a clarifying question. Never run both in parallel — it doubles cost and wastes a process slot.
+
+> **Q**: Should the orchestrator support "agent chaining" — automatically routing one agent's output to another?
+> **A**: Yes, but only for predefined chains: (1) KG Agent mutation → Graph Crawler analysis (async, non-blocking), and (2) Plan Generation → Plan Review notification. Chains are defined in server config, not decided at runtime.
+
+> **Q**: Should the orchestrator override the user's implied intent (e.g., detect duplicate specs before creating)?
+> **A**: Yes. The orchestrator performs a lightweight duplicate check via RAG `search_similar` before routing to the KG Agent. If a high-similarity match is found (score > 0.85), the request is rerouted to the Dialog Agent to ask about the existing spec.
+
+> **Q**: How should the orchestrator handle agent-initiated requests (e.g., Graph Crawler notifications)?
+> **A**: Agent-initiated notifications do not go through the orchestrator. They go directly to the inquiry queue via `create_inquiry` MCP tool. The orchestrator only handles user-initiated requests from the WebSocket session.
 
 ---
 
@@ -578,6 +627,29 @@
   - Persist final session states
   - Close database connections
 
+#### Design Decisions
+
+> **Q**: Should agent sessions be tied to a conversation or per-request?
+> **A**: Per-conversation. A session persists until the conversation ends. Claude Code's `--resume` flag maintains continuity across messages. Sessions are lightweight — conversation state is managed by Claude Code's built-in session handling.
+
+> **Q**: How long should an idle agent session be kept alive?
+> **A**: 15 minutes. Session metadata is persisted to the database before termination. When the user returns, `--resume` restores the session. The Claude Code process is killed after 15 min idle to free the process slot. Resume latency is 2–3 seconds.
+
+> **Q**: Should sessions be transferable between server instances for load balancing?
+> **A**: Yes. Session state is stored in PostgreSQL. The Claude Code process is ephemeral and can be respawned on any server using `--resume`. This enables horizontal scaling and failover without Redis.
+
+> **Q**: Should the system support "session forking"?
+> **A**: Not at launch. Session forking adds significant complexity. Users can achieve similar results by starting a new conversation and referencing the same specs. Revisit if user research shows strong demand.
+
+> **Q**: Should Claude Code processes be long-lived or short-lived?
+> **A**: Medium-lived. Spawned on first message, kept warm for up to 15 minutes idle. Subsequent messages reuse via `--resume`. The 10-process concurrency cap applies to active processes only.
+
+> **Q**: Does Claude Code support warm pools?
+> **A**: No native warm pool support. `--resume` provides the closest equivalent: resumed sessions take ~1 second vs. 2–3 seconds for cold starts. Pre-spawning idle processes is not supported and not needed.
+
+> **Q**: Should there be zombie detection and automatic restart for unresponsive processes?
+> **A**: Yes. 60-second heartbeat check during active operations. On unresponsive: SIGTERM, then SIGKILL after 5 seconds, circuit breaker counter increment (5 consecutive failures triggers breaker), error returned to user with retry option.
+
 ---
 
 ## 9. Context Assembly
@@ -663,6 +735,29 @@
   - Replace detailed edge metadata with edge type only
   - Replace conversation history with a single summary paragraph
 
+#### Design Decisions
+
+> **Q**: How should context relevance be determined — RAG similarity, graph distance, recency, or a combination?
+> **A**: Weighted combination: RAG similarity (40%), graph distance (35%), recency (25%). Weights are configurable in server config and can be tuned based on observed agent performance.
+
+> **Q**: Should context assembly be agent-driven (agent requests via MCP) or system-driven (server pre-assembles)?
+> **A**: Hybrid. The server pre-assembles a baseline context (referenced specs + top RAG results + recent conversation specs) into the initial prompt. The agent can fetch additional context on demand via MCP tool calls. The 50 MCP tool calls per message cap prevents runaway fetching.
+
+> **Q**: Should context include "negative examples" — specs the agent should NOT modify?
+> **A**: No. Scope is controlled by the MCP tool set and confirm-before-mutation behavior. Adding negative examples consumes tokens and paradoxically draws the agent's attention to excluded specs.
+
+> **Q**: How should context handle permission boundaries?
+> **A**: The agent sees only what the user is authorized to see. MCP tools enforce permissions before returning data. If the user has summary-only access, the tool returns only the summary.
+
+> **Q**: What is the target Claude model for each agent type?
+> **A**: All agents use Claude Sonnet (200K context window) at launch. Token budget is allocated per agent type: system prompt ~500, CLAUDE.md ~2K, skills ~1K, conversation ~50K, assembled context ~30K, output buffer ~10K. Gen UI and Plan Gen agents get larger output buffers at the expense of conversation history.
+
+> **Q**: Should the system support dynamic model selection — smaller model for simple requests?
+> **A**: Not at launch. All agents use Sonnet. Dynamic model selection (e.g., Haiku for simple Dialog, Opus for complex Plan Gen) is a future optimization to avoid adding a second decision point.
+
+> **Q**: How should the system handle requests requiring more context than the token budget allows?
+> **A**: Chunk with progressive summarization. The agent uses RAG MCP to retrieve specs in batches, summarizes each batch, then synthesizes. The 50 MCP tool calls cap and 5-minute timeout naturally bound this.
+
 ---
 
 ## 10. Agent Memory & Conversation History
@@ -741,6 +836,29 @@
   - Track user's typical intents and routing patterns
   - Use for personalized intent classification thresholds
 
+#### Design Decisions
+
+> **Q**: Should conversation history be shared across agent types within a conversation?
+> **A**: Yes. Since sub-agents are MCP tool groupings (not separate processes), the orchestrating Claude Code instance maintains a single conversation thread. When routing to a different agent type, it reconfigures MCP tools but retains full history.
+
+> **Q**: How should "conversation reset" work?
+> **A**: Start a new session. A "New Conversation" button creates a fresh session ID and Claude Code process. Old history remains persisted and viewable. In-session clearing is not supported — it would break `--resume` semantics.
+
+> **Q**: Should conversation history be searchable across past conversations?
+> **A**: Yes, as a server-side feature. Histories are persisted in PostgreSQL with full-text search indexing. The agent itself operates within the current session only; the UI surfaces relevant past conversations.
+
+> **Q**: Should there be a maximum conversation length?
+> **A**: Yes. 100 messages or 80% of context window budget (~40K tokens). Older messages are compressed (keep recent 20 in full, summarize earlier). If insufficient, the system prompts the user to continue in a new session.
+
+> **Q**: Should working memory persist across sessions?
+> **A**: Partially. On session end, the server generates a ~200 token summary (specs discussed, actions taken, unresolved intents) stored in the database and injected into the next session's CLAUDE.md as "Recent Activity."
+
+> **Q**: Should working memory include inferred facts?
+> **A**: No. Working memory contains only factual references: spec IDs accessed, actions taken, explicit user statements. Inferred facts risk drift across sessions. The agent can re-infer from specs and conversation history in the current session.
+
+> **Q**: Should working memory be visible to the user?
+> **A**: Yes. A "Session Context" panel shows referenced specs (linked), recent actions, and current working context. Users can dismiss irrelevant items.
+
 ---
 
 ## 11. Inter-Agent Communication
@@ -798,6 +916,29 @@
   - Post event to bus, don't wait for completion
   - Crawler runs asynchronously, creates inquiries as needed
   - User notified of new inquiries via WebSocket
+
+#### Design Decisions
+
+> **Q**: Should delegation be synchronous or asynchronous?
+> **A**: Synchronous. Sub-agents are MCP tool groupings within the same Claude Code process, so delegation is simply switching which tool set is active. The only async path is the background Graph Crawler chain, which doesn't return results to the user's session.
+
+> **Q**: Should sub-agents be able to delegate further (recursive delegation)?
+> **A**: No. Only the orchestrator routes to agent types. Delegation tree is flat (depth 1), keeping cost predictable. The 50 MCP tool calls per message cap is sufficient for any single agent's task.
+
+> **Q**: What is the maximum delegation depth?
+> **A**: Depth 1. Orchestrator → agent type (MCP tool grouping). No further nesting.
+
+> **Q**: Should there be a "delegation budget" per user request?
+> **A**: The orchestrator can route to at most 3 agent types per message (primary + 2 secondary). Combined with the 50 MCP tool calls cap and 5-minute timeout, this effectively bounds cost. A separate delegation counter is unnecessary.
+
+> **Q**: Should agent events trigger other agents automatically or go through the orchestrator?
+> **A**: Automatic triggers for predefined chains only (KG mutation → Graph Crawler, Plan Gen → review notification). All other activation goes through the orchestrator.
+
+> **Q**: Should the event bus support event sourcing?
+> **A**: Yes. All agent events are logged to an append-only event table in PostgreSQL with timestamp, session ID, user ID, event type, payload, and agent type. 90-day retention, then archive/purge.
+
+> **Q**: What event delivery semantics — exactly-once, at-least-once, or at-most-once?
+> **A**: At-least-once with idempotency. Event handlers (e.g., Graph Crawler) are designed to be idempotent — processing the same event twice produces the same result since it reads current state rather than applying deltas.
 
 ---
 
@@ -874,6 +1015,20 @@
   - Alert (log level) if error rate exceeds threshold
   - Dashboard-ready error metrics (count, rate, MTTR)
 
+#### Design Decisions
+
+> **Q**: When an agent fails mid-operation, should the system auto-rollback partial changes or leave them in place?
+> **A**: Leave in place and flag. Auto-rollback is fragile. The system logs the partial failure, creates an inquiry describing what succeeded and failed, and returns an error to the user. The confirm-before-mutation pattern reduces the likelihood of this scenario.
+
+> **Q**: Should agent errors be surfaced differently for user errors vs. system failures?
+> **A**: Yes. User errors (invalid input, duplicates) are returned as conversational messages from the Dialog Agent. System errors (crashes, timeouts) are returned as UI error cards with a retry button and error code. The server distinguishes by error source — MCP validation errors vs. infrastructure failures.
+
+> **Q**: Should the system attempt to recover lost context after a process crash?
+> **A**: Yes. On crash: log, spawn new process, use `--resume` to restore. If `--resume` fails, generate a recovery summary from the persisted conversation log and start a new session with that summary in CLAUDE.md.
+
+> **Q**: How should "soft errors" (output doesn't match expected format) be handled?
+> **A**: Parse what's possible with fallback. Extract JSON from text, treat conversational responses as Dialog output. Only retry if completely unparseable (max 1 retry). Always prioritize showing the user something over showing nothing.
+
 ---
 
 ## 13. Concurrency Management
@@ -921,6 +1076,17 @@
   - Sub-agent delegations: medium priority
   - Background crawls: low priority
   - High priority preempts low priority in the queue
+
+#### Design Decisions
+
+> **Q**: Should the system support parallel agent execution within a single user request?
+> **A**: No. Multi-intent requests are executed sequentially. True parallelism would require multiple Claude Code processes per request, consuming process slots and complicating result assembly. Sequential execution with a 5-minute timeout is sufficient.
+
+> **Q**: How should write contention be handled — two agents modifying the same spec simultaneously?
+> **A**: Optimistic locking at the MCP tool level. Each spec has a `version` field. MCP mutation tools require the current version — if it doesn't match, the tool returns a conflict error and the agent retries after re-reading.
+
+> **Q**: Should background agents be automatically suspended under high load?
+> **A**: Yes. When active processes are at 80%+ capacity (8/10), Graph Crawler spawns are queued until capacity drops below 60%. User-initiated requests always take priority. Queue items coalesce if it grows beyond 50.
 
 ---
 
@@ -1011,6 +1177,49 @@
   - Agent type distribution
   - Error log with filtering
   - Token usage trends
+
+#### Design Decisions
+
+> **Q**: What are reasonable per-user daily token limits?
+> **A**: Three tiers: Free (50K input + 20K output/day, ~20 queries), Pro (500K + 200K/day, ~100 queries), Enterprise (configurable per-org). Starting points to be tuned based on observed usage and cost data.
+
+> **Q**: Should token limits be enforced at the agent level or user level?
+> **A**: User-level, tracked per day (UTC midnight reset). Total consumption across all sessions, projects, and agent types counts toward the daily limit. Prevents gaming via session splitting.
+
+> **Q**: How should the system handle users who hit limits mid-conversation?
+> **A**: Allow the current turn to finish (to avoid partial graph state), then block subsequent requests with a clear limit message and upgrade prompt. No degraded mode — cleaner to have a hard boundary.
+
+> **Q**: Should there be separate cost budgets for different agent types?
+> **A**: No. A single daily token budget per user is simpler. The UI shows a cost breakdown by agent type so users can see where tokens go. Separate budgets create confusion.
+
+---
+
+## Additional Design Decisions
+
+### Security
+
+> **Q**: Should agent sessions be auditable with a full audit trail of every tool call?
+> **A**: Yes. Every MCP tool call is logged: timestamp, session ID, user ID, tool name, input parameters (sensitive fields redacted), output summary, and duration. 90-day retention. Essential for debugging, security review, and compliance.
+
+> **Q**: How should the system prevent prompt injection attacks via spec content?
+> **A**: Defense in depth: (1) Spec content wrapped in clear delimiters (`<spec_content id="...">`), (2) system prompts instruct treating spec content as data, (3) MCP tools validate mutation requests against schemas, (4) confirm-before-mutation provides a human checkpoint for destructive operations.
+
+> **Q**: Should agents operate under user permissions or have service-level permissions?
+> **A**: User permissions. Every MCP tool call includes the user's auth context. Agents have no elevated permissions. If an agent tries an operation the user can't do, the MCP tool returns a permission error. No privilege escalation.
+
+> **Q**: Should agent MCP tool calls be validated against user permissions before execution?
+> **A**: Yes. Every MCP tool call passes through the server's permission layer with the user's auth context. The agent having a tool in its list does not grant permission — the tool execution itself is gated by user permissions.
+
+### Performance
+
+> **Q**: What is the target end-to-end latency for a simple agent response?
+> **A**: First token under 3 seconds, full response under 8 seconds. Breakdown: orchestrator classification (1–2s) + prompt assembly (~0.5s) + Claude Code first token (~1s) + streaming response (variable).
+
+> **Q**: Should there be a "fast path" that bypasses the orchestrator for obvious requests?
+> **A**: Yes. Fast-path rules for unambiguous contexts: spec editor + "update" → KG Agent, plan view + "execute" → Plan Gen Agent, "/" slash commands → appropriate agent. All others go through the orchestrator, saving 1–2 seconds on fast paths.
+
+> **Q**: Should the system precompute context for likely follow-up requests?
+> **A**: Yes, lightweight precomputation only. After spec creation, asynchronously preload related specs (via RAG) and the spec's graph neighborhood. Cached in session context, fire-and-forget — if not ready in time, the agent fetches on demand.
 
 ---
 

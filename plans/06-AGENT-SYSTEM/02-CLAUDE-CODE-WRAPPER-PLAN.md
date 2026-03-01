@@ -60,6 +60,20 @@
   - Detect MCP server support capabilities
   - Store capability set for use during process spawning
 
+#### Design Decisions
+
+> **Q**: Should the wrapper support multiple Claude Code binary versions simultaneously?
+> **A**: No. A single binary version is pinned in the dependency manifest and updated via controlled upgrade (staging → production). Side-by-side versions introduce subtle behavioral differences that are hard to debug.
+
+> **Q**: Should the wrapper automatically check for Claude Code updates?
+> **A**: Manual upgrade only. The server operator explicitly upgrades as part of deployment. The wrapper logs the current version at startup and can notify when new versions are available, but never auto-updates.
+
+> **Q**: Should the wrapper support alternative AI runtimes besides Claude Code?
+> **A**: No. The wrapper is purpose-built for Claude Code's specific features (`--resume`, `stream-json`, MCP integration, CLAUDE.md auto-loading). For local testing without API access, a mock mode is provided instead.
+
+> **Q**: Should the wrapper use Claude Code's programmatic API (library mode) instead of CLI subprocess spawning?
+> **A**: CLI subprocess spawning (`claude --print --output-format stream-json`) is the documented integration path. The subprocess model provides natural process isolation and matches the PRD architecture. If Anthropic releases a library mode SDK, migration can be considered.
+
 ### 1.2 CLI Invocation Interface
 
 - [ ] **AG-CC-005**: Define the `ClaudeCodeInvocation` interface
@@ -107,6 +121,17 @@
   - `--mcp-server` flags for each MCP server
   - `--allowedTools` for tool restrictions
   - Escape and quote all arguments properly for shell safety
+
+#### Design Decisions
+
+> **Q**: Should the wrapper use `--print` mode or interactive mode for conversations?
+> **A**: `--print` mode with `--resume` for multi-turn. Each message is a separate `--print` invocation with `--resume <session-id>`, giving per-message process isolation while preserving conversation context. Interactive mode's stdin/stdout pipe management is fragile.
+
+> **Q**: How are MCP server configurations passed to Claude Code — CLI flags or config file?
+> **A**: Via `.mcp.json` generated in the sandbox directory before each invocation. The wrapper writes a per-session `.mcp.json` with only the MCP servers relevant to the current agent type. This is dynamic per invocation, not static.
+
+> **Q**: Should the prompt be passed via CLI argument, stdin pipe, or temporary file?
+> **A**: Stdin pipe. This avoids CLI argument length limits, avoids writing sensitive content to disk, and handles arbitrary prompt sizes cleanly. The wrapper controls the pipe lifecycle.
 
 ### 1.3 Module Structure
 
@@ -181,6 +206,17 @@
   - Close stdin after writing to signal end of input
   - Handle write errors (broken pipe if process exits early)
 
+#### Design Decisions
+
+> **Q**: What is the expected cold-start time for a Claude Code process?
+> **A**: Estimated 2–3 seconds: ~0.5s process spawn, ~1s MCP server initialization, ~0.5–1s CLAUDE.md loading. Subsequent messages use `--resume` which skips MCP re-initialization (~1s). Benchmarking in staging should validate these estimates.
+
+> **Q**: Should long-running agents run as a single process or multiple short invocations?
+> **A**: Single process with a 5-minute hard timeout. Complex agents (Plan Generation, Graph Crawler) can complete within 5 minutes if scope is bounded. Breaking into multiple invocations loses reasoning context. Partial results are returned if timeout is reached.
+
+> **Q**: Should the server use a single-threaded or multi-threaded model for process management?
+> **A**: Node.js single-threaded event loop is sufficient. Child processes via `child_process.spawn()` are non-blocking and event-driven. With a 10-process concurrency cap, overhead is negligible. Horizontal scaling (multiple server instances) is the path for growth, not multi-threading.
+
 ### 2.2 Process Monitoring
 
 - [ ] **AG-CC-015**: Implement `ProcessMonitor` service
@@ -205,6 +241,11 @@
   - Send SIGTERM to zombie processes
   - If still running after 10 seconds: SIGKILL
   - Log zombie events for debugging
+
+#### Design Decisions
+
+> **Q**: Should concurrent process limits be hard or dynamic based on available resources?
+> **A**: Hard limit of 10 concurrent processes per server instance (PRD spec), configurable per deployment. Dynamic scaling based on memory/CPU is over-engineering for launch. Each process uses ~100–200MB, so 10 processes ≈ 1–2GB.
 
 ### 2.3 Process Termination
 
@@ -245,6 +286,17 @@
   - Replace processes that report errors on health check
   - Track pool utilization metrics
 
+#### Design Decisions
+
+> **Q**: Is a warm process pool technically feasible with Claude Code?
+> **A**: No. Claude Code requires a prompt at invocation time and cannot be pre-spawned in a waiting state. The `--resume` flag provides the closest equivalent for subsequent messages without replaying the full conversation.
+
+> **Q**: How can cold-start latency be reduced without a warm pool?
+> **A**: Two mitigations: (1) pre-generate sandbox directories with `.mcp.json`, `CLAUDE.md`, and skills files already in place, and (2) fast-path routing that skips the orchestrator for unambiguous requests, saving 1–2 seconds.
+
+> **Q**: Should the process cap be per agent type or shared across all types?
+> **A**: Shared 10-process cap across all agent types, allocated first-come-first-served with priority given to user-initiated requests over background tasks. Each invocation is configured at spawn time with appropriate `.mcp.json` and `CLAUDE.md`.
+
 ---
 
 ## 3. Working Directory Sandboxing
@@ -279,6 +331,14 @@
   - For plan sessions: keep generated plan files
   - Schedule cleanup of old sandbox directories (> 24 hours, configurable)
 
+#### Design Decisions
+
+> **Q**: Does `--working-directory` enforce a hard sandbox boundary?
+> **A**: Not a hard OS-level sandbox — the process could theoretically access parent directories. This is acceptable because MCP tools are the primary KG interface, the sandbox contains only project-scoped files, and MCP servers enforce access control at the API level. OS-level sandboxing (containers) is a future hardening step.
+
+> **Q**: Should sandbox directories be per-session or reused across sessions?
+> **A**: Per-session. Each session gets a fresh directory under `/tmp/botnet/sessions/{session-id}/`, created at start and cleaned up 15 minutes after termination. This prevents cross-contamination and makes cleanup deterministic.
+
 ### 3.2 Knowledge Graph Access in Sandbox
 
 - [ ] **AG-CC-029**: Implement read-only knowledge graph mounting
@@ -300,6 +360,11 @@
   | Generative UI | Gen-UI project directory (read/write), KG read-only |
   | Plan Generation | Plans directory (read/write), KG read-only |
   | Graph Crawler | KG directory (read-only symlink), temp directory |
+
+#### Design Decisions
+
+> **Q**: Should the sandbox use symlinks or copies for knowledge graph access?
+> **A**: Neither. Agents interact with the KG exclusively through MCP tools (`get_spec`, `create_spec`, `search_specs`, etc.). The sandbox contains only `.mcp.json`, `CLAUDE.md`, skills files, and working files. This eliminates the symlink-vs-copy question entirely.
 
 ### 3.3 File System Security
 
@@ -325,6 +390,23 @@
   - Include session ID, agent type, and timestamp
   - Retain logs for audit trail (30 days)
 
+#### Design Decisions
+
+> **Q**: Should a virtual filesystem layer intercept and log all file operations?
+> **A**: No. Audit is captured at the MCP tool call level (every call logged with inputs/outputs). File operations within the sandbox are ephemeral working files. A virtual filesystem (e.g., FUSE) would add latency, complexity, and a Linux-only dependency.
+
+> **Q**: Should Claude Code processes run as a separate OS user?
+> **A**: Not at launch. Processes run as the same OS user as the server. Sandbox directory isolation, MCP-level access control, and network restrictions provide sufficient isolation. Separate OS user is a hardening step for production environments handling untrusted content.
+
+> **Q**: How are generated files with potentially malicious content handled?
+> **A**: Generated UI files are served in iframes with strict sandboxing (`sandbox="allow-scripts"` without `allow-same-origin`). The Gen UI MCP server also runs a static analysis pass checking for `fetch()` to non-whitelisted domains, `eval()`, and `document.cookie` access before serving.
+
+> **Q**: Should sandbox processes have network access restrictions?
+> **A**: In production, network access is restricted to Anthropic API endpoints and localhost stdio pipes (for MCP). All other outbound access is blocked via firewall rules or network policies. Unrestricted access is acceptable during development.
+
+> **Q**: How are unauthorized tool calls handled (e.g., Dialog Agent calling `create_spec`)?
+> **A**: Each agent type's `.mcp.json` only includes allowed MCP servers. If an unauthorized tool call is attempted, Claude Code receives a tool-not-found error natively. The wrapper logs the attempt as a warning for monitoring.
+
 ---
 
 ## 4. Prompt Construction & Templating
@@ -347,6 +429,20 @@
   - Support template versioning (multiple versions per agent type)
   - Hot-reload templates during development (file watcher)
   - Freeze templates in production (load once at startup)
+
+#### Design Decisions
+
+> **Q**: Should prompt templates be TypeScript files or external template files (Handlebars, Markdown)?
+> **A**: TypeScript files using tagged template literals. Templates are functions accepting typed context objects and returning strings, providing type safety, compile-time validation, and easy unit testing. No template engine dependency needed.
+
+> **Q**: How should template versioning work across ongoing conversations?
+> **A**: Templates are loaded at session start and fixed for the session's lifetime. New sessions pick up the latest templates. This prevents behavioral shifts mid-conversation. Claude Code's `--resume` naturally retains the original system prompt.
+
+> **Q**: Should there be a prompt testing framework for evaluating template changes?
+> **A**: Yes. A suite of ~50 test inputs covering each agent type with structural output criteria (not exact match). Run as part of CI before merging prompt changes. Uses Claude Code in `--print` mode with deterministic seeds if available.
+
+> **Q**: How should prompt template changes be tested end-to-end?
+> **A**: Testing pyramid: (1) unit tests per commit verifying structure and token budget, (2) integration tests weekly in staging against real Claude Code with ~50 test cases, (3) manual review for 5–10 representative queries after major changes. The evaluation suite catches regressions; manual review catches quality degradation.
 
 ### 4.2 System Prompt Templates
 
@@ -391,6 +487,11 @@
   - Inquiry creation format and severity guidelines
   - When to flag vs. when to ignore minor issues
 
+#### Design Decisions
+
+> **Q**: How detailed should system prompts be given the token/context budget tradeoff?
+> **A**: Target 300–500 tokens. System prompts define role, core behavior rules, output format, and 2–3 critical constraints. Detailed operational procedures go in skills files, not the system prompt. MCP tool descriptions come from Claude Code's tool discovery.
+
 ### 4.3 Prompt Composition
 
 - [ ] **AG-CC-045**: Implement system prompt + context + user message assembly
@@ -415,6 +516,17 @@
   - Verify context sections are properly formatted
   - Verify total tokens within budget
   - Log prompt metrics (section sizes, compression applied)
+
+#### Design Decisions
+
+> **Q**: Should prompts include full spec content or summaries with IDs?
+> **A**: Summaries + IDs in initial context (~100 tokens per spec). The agent fetches full content via `get_spec` MCP tool calls on demand. For the KG Agent working on a specific spec, the target spec's full content is included directly.
+
+> **Q**: How should prompt construction handle conversations exceeding the token budget?
+> **A**: Progressive compression in three tiers: recent (last 20 messages, full content), mid-range (messages 21–50, compressed to ~50 tokens per exchange), old (messages 50+, dropped with a summary note). The 100-message session cap prevents unbounded growth.
+
+> **Q**: Should prompts include tool descriptions or rely on Claude Code's built-in discovery?
+> **A**: Rely on built-in tool discovery. Claude Code discovers tools from configured MCP servers automatically. The system prompt may mention tool categories to guide strategy, but doesn't enumerate individual tools. The `.mcp.json` determines availability.
 
 ---
 
@@ -450,6 +562,17 @@
   - Extract spec metadata from formatted text
   - Parse agent-specific output conventions (e.g., `[ACTION: create_spec]`)
 
+#### Design Decisions
+
+> **Q**: Which Claude Code output format should be primary: json, stream-json, or text?
+> **A**: `stream-json` as primary. This provides real-time streaming via WebSocket while each line is parseable JSON for tool call interception, progress indicators, and metadata extraction. `text` is the fallback if stream-json parsing fails for a line.
+
+> **Q**: How should the parser handle output that mixes formats?
+> **A**: The `stream-json` format handles this natively — each event is a distinct JSON line with a `type` field. Mixed content is expected and handled by type-based dispatch. Malformed lines are logged as warnings, treated as text content, and processing continues.
+
+> **Q**: Should the parser attempt to fix malformed JSON or reject strictly?
+> **A**: Lenient for `stream-json` line parsing (skip malformed lines, log warning, continue). Strict for tool call results (invalid JSON means the tool call is treated as failed). This balances resilience with correctness.
+
 ### 5.2 Output Validation
 
 - [ ] **AG-CC-053**: Implement per-agent-type output validation
@@ -470,6 +593,11 @@
   - Log parsing failures with full raw output for debugging
   - Track parsing failure rate per agent type
 
+#### Design Decisions
+
+> **Q**: How should multi-modal output (text + tool results + errors) be ordered and presented?
+> **A**: Chronological order as received from the stream. Text streams directly; tool calls render as collapsible "action cards" (e.g., "Searched for related specs → found 3 results"); errors show as inline indicators. This matches the ChatGPT/Claude.ai UX pattern.
+
 ### 5.3 Agent-Specific Output Processing
 
 - [ ] **AG-CC-056**: Implement Knowledge Graph Agent output processing
@@ -487,6 +615,17 @@
   - Validate plan structure against expected format
   - Build plan metadata (spec references, execution order)
   - Store plan in plan registry
+
+#### Design Decisions
+
+> **Q**: Should the wrapper intercept each MCP tool call individually for monitoring?
+> **A**: Passive interception only — the wrapper reads `tool_use` and `tool_result` events from the stream-json output for logging and monitoring but doesn't inject into the execution path. Claude Code manages MCP calls directly. No timing impact since interception is read-only.
+
+> **Q**: Should destructive MCP tool calls require user confirmation before executing?
+> **A**: Yes (confirm-before-mutation default from PRD). The wrapper detects mutation calls (`create_spec`, `delete_spec`, etc.) in the stream, pauses for destructive operations, sends a confirmation prompt via WebSocket, and waits for approval. Users can toggle "auto-approve" for trusted workflows.
+
+> **Q**: How are tool calls that an agent shouldn't have access to handled?
+> **A**: The `.mcp.json` per agent type only includes allowed MCP servers. Unauthorized tool calls receive a tool-not-found error natively from Claude Code. The wrapper logs such attempts as warnings for monitoring, indicating a potential prompt issue.
 
 ---
 
@@ -532,6 +671,17 @@
   - Inject agent type identifier in each chunk
   - Client uses metadata to update progress indicators
 
+#### Design Decisions
+
+> **Q**: What is the expected client-side rendering approach for streamed text?
+> **A**: Token-by-token, matching the ChatGPT/Claude.ai experience. The WebSocket forwards each token from `stream-json` directly. Tool call events render as action cards. No batching or buffering on the server side.
+
+> **Q**: Should streaming include "thinking" indicators between text chunks?
+> **A**: Yes. The wrapper injects synthetic status events (e.g., `{"type": "status", "message": "Searching knowledge graph..."}`) when tool calls are detected. The frontend renders these as animated indicators between message chunks.
+
+> **Q**: How should streaming handle long tool call execution times?
+> **A**: Show a status indicator. When `tool_use` is detected, a status event is sent to the WebSocket. If the tool call exceeds 30 seconds, an updated "still_working" status is sent. Silent pauses are unacceptable — users need continuous feedback.
+
 ### 6.3 Stream Aggregation
 
 - [ ] **AG-CC-066**: Implement full response aggregation from stream
@@ -544,6 +694,11 @@
   - Buffer remaining chunks in server
   - On client reconnect: send buffered chunks
   - Provide `agent:stream:resume` endpoint for catch-up
+
+#### Design Decisions
+
+> **Q**: Should the server support replay of completed streams on page refresh?
+> **A**: Yes. Completed messages are persisted as full text in the database. On refresh, conversation history loads from REST API. For in-progress streams, the WebSocket reconnects and replays the buffered events already emitted, then continues live. The buffer is cleared when the message completes.
 
 ---
 
@@ -572,6 +727,11 @@
   - Support API key rotation without server restart
   - Support multiple API keys for load distribution
   - Track which API key is used per session (for billing/rate limiting)
+
+#### Design Decisions
+
+> **Q**: Should developers use their own Anthropic API keys or a shared development key?
+> **A**: Own API keys. Each developer sets `ANTHROPIC_API_KEY` in their local `.env`. No shared key — shared keys create contention and prevent cost attribution. For developers without API access, mock mode provides full wrapper functionality.
 
 ### 7.2 Server-Side Configuration
 
@@ -603,6 +763,11 @@
   - Overrides defined in agent type registry
   - Merge order: default config → agent type override → per-request override
 
+#### Design Decisions
+
+> **Q**: Should the wrapper support a "dry run" mode for debugging prompt construction?
+> **A**: Yes. A `DRY_RUN=true` environment variable (or `--dry-run` flag) causes the wrapper to assemble the full prompt, log it to a file, and return a mock response without spawning Claude Code. Invaluable for debugging prompt assembly and verifying MCP configuration. Developer-only, not exposed to users.
+
 ---
 
 ## 8. Cost Tracking & Token Usage
@@ -626,6 +791,11 @@
   - Aggregate per-agent-type usage
   - Store aggregates in database for reporting
 
+#### Design Decisions
+
+> **Q**: Should cost tracking be real-time or post-hoc?
+> **A**: Real-time with per-message granularity. Token usage metadata is read from `stream-json` output at message completion and the user's counter is updated immediately. Budget enforcement is pre-checked before each invocation, not per-token during streaming.
+
 ### 8.2 Cost Calculation
 
 - [ ] **AG-CC-077**: Implement cost calculation from token usage
@@ -645,6 +815,11 @@
   - Support date range filtering
   - Support CSV export for accounting
 
+#### Design Decisions
+
+> **Q**: What is the expected per-request cost range for each agent type?
+> **A**: Estimated per Claude Sonnet pricing: Dialog ~$0.01–0.03, KG ~$0.03–0.08, Gen UI ~$0.10–0.30, Plan Gen ~$0.20–0.50, Graph Crawler ~$0.05–0.15. Actual costs will be tracked and refined after launch.
+
 ### 8.3 Budget Enforcement
 
 - [ ] **AG-CC-080**: Implement per-user budget limits
@@ -661,6 +836,14 @@
   - WebSocket notification to user when approaching personal limit
   - Email/notification to project admin when project approaches limit
   - Include current usage, limit, and projected usage
+
+#### Design Decisions
+
+> **Q**: Should there be different pricing tiers for users?
+> **A**: Yes, three tiers: Free (50K input + 20K output tokens/day), Pro (500K input + 200K output tokens/day), Enterprise (configurable). Tier limits checked before each invocation. Tiers configurable via server config without code changes.
+
+> **Q**: How should cost overruns be handled?
+> **A**: Warn and allow. Warnings appear at 80% and 95% of daily budget. The in-progress request always completes even if it pushes the user over 100%. The next request after exceeding the budget is blocked. This allows graceful completion of the current task.
 
 ---
 
@@ -683,6 +866,14 @@
   - Protects server resource limits
   - Priority-based: interactive requests bypass when under moderate load
 
+#### Design Decisions
+
+> **Q**: Should rate limiting be per-user, per-API-key, or per-server?
+> **A**: Both per-user and per-server. Per-user: max 5 concurrent, 30 requests/minute. Per-server: max 10 concurrent Claude Code processes, 50 requests/minute total. Anthropic API key limits are a third layer handled by Claude Code itself. Per-user limits are enforced first.
+
+> **Q**: Should different agent types have different rate limits?
+> **A**: Yes. Per-user by agent type: Dialog/KG 20 req/min, Gen UI 5 req/min, Plan Generation 2 req/min, Graph Crawler 10 req/min. The different limits reflect cost and resource consumption differences.
+
 ### 9.2 Request Queuing
 
 - [ ] **AG-CC-086**: Implement agent request queue
@@ -701,6 +892,11 @@
   - Track average wait time
   - Track timeout/rejection rate
   - Expose metrics for monitoring dashboard
+
+#### Design Decisions
+
+> **Q**: Should rate-limited requests be queued or rejected?
+> **A**: Rejected with a `Retry-After` header (429 response). The client UI handles 429 by showing "Rate limited — retrying in N seconds" and auto-retrying. For per-server limits (all slots full), requests are queued for up to 30 seconds; if no slot opens, they're rejected with 503.
 
 ---
 
@@ -784,6 +980,14 @@
   - Periodic recheck (every 15 minutes)
   - Alert if all keys are invalid or expired
 
+#### Design Decisions
+
+> **Q**: Should health checks use a dedicated Claude Code process?
+> **A**: No. A lightweight health check verifies: binary exists (`claude --version`), MCP servers respond to ping, process pool has capacity, and database is accessible. A full integration test (actual prompt) runs every 5 minutes on a schedule, not on every health check. This keeps the endpoint fast (<500ms) and cheap.
+
+> **Q**: Should the system track quality metrics beyond operational metrics?
+> **A**: Yes, lightweight at launch: output parse success rate (target >99.5%), tool call success rate (target >95%), session completion rate (target >90%). User satisfaction signals (thumbs up/down) are a frontend feature feeding back to metrics. Full quality evaluation is post-launch.
+
 ### 11.2 Process Health Metrics
 
 - [ ] **AG-CC-101**: Track active process metrics
@@ -802,6 +1006,11 @@
   - Or: write metrics to structured log for log-based monitoring
   - Include all process, queue, and cost metrics
   - Update metrics every 10 seconds
+
+#### Design Decisions
+
+> **Q**: What metrics are most important for monitoring the Claude Code wrapper?
+> **A**: Real-time dashboard: active processes, queue depth, p50/p95/p99 latency per agent type, error rate, WebSocket connections, daily token consumption. On-demand: per-session cost, tool call frequency, parse success rate, circuit breaker status, session duration distribution. Metrics emitted as structured logs for Prometheus/Grafana.
 
 ### 11.3 Alerting
 
@@ -842,6 +1051,11 @@
   - Compare installed version against latest known version
   - Warn admin if more than 2 minor versions behind
   - Include upgrade instructions in log message
+
+#### Design Decisions
+
+> **Q**: How should Claude Code binary updates be handled while sessions are active?
+> **A**: Running processes continue with the old binary until their session ends naturally. New sessions use the new binary. Updates are deployed via rolling restart — existing child processes are not killed, providing zero-downtime updates with no behavioral disruption.
 
 ### 12.2 Wrapper Version Management
 
@@ -903,6 +1117,14 @@
   - Plan Generation: focus on plan format, traversal strategy, delta detection
   - Graph Crawler: focus on issue taxonomy, traversal depth, inquiry format
 
+#### Design Decisions
+
+> **Q**: How large should the CLAUDE.md file be?
+> **A**: Target 1,500–2,500 tokens. Contents: project name/description (~100), agent role (~200), relevant spec summaries with IDs (~500–1000, max 15 specs), skills references (~200), recent session summary (~200), project conventions (~200). The 15-spec cap keeps size bounded.
+
+> **Q**: Does Claude Code read CLAUDE.md automatically or need explicit reference?
+> **A**: Claude Code automatically reads `CLAUDE.md` from the working directory and parent directories, similar to `.gitignore` discovery. The wrapper places the generated file in the sandbox root before spawning the process. No CLI flag is needed.
+
 ### 13.2 Dynamic CLAUDE.md Content
 
 - [ ] **AG-CC-114**: Implement project-specific CLAUDE.md sections
@@ -919,6 +1141,14 @@
   - Invalidate cache on: project config change, spec count change, daily refresh
   - Cache TTL: 1 hour (configurable)
   - Serve from cache to reduce generation overhead
+
+#### Design Decisions
+
+> **Q**: Should CLAUDE.md include dynamic per-request content or semi-static project context?
+> **A**: Semi-static, regenerated per session (not per message). Updated only when agent type changes within a session or session resumes after idle timeout. Per-message dynamic content goes in conversation history, keeping CLAUDE.md cacheable within a session.
+
+> **Q**: Should CLAUDE.md be user-editable for project-specific conventions?
+> **A**: Yes. Project admins can define custom sections (stored as `claude_md_custom` in project config), limited to 500 tokens, appended to the auto-generated CLAUDE.md. Examples: naming conventions, design patterns, sensitivity flags for specific spec tags.
 
 ### 13.3 Skills File Management
 
@@ -938,6 +1168,13 @@
   - Skill files are versioned alongside the wrapper
   - Store skill file content hash in session record
   - Detect skill file changes and invalidate CLAUDE.md cache
+
+---
+
+## Additional Design Decisions
+
+> **Q**: How should the Claude Code wrapper be tested in CI/CD without expensive real API calls?
+> **A**: A mock Claude Code binary — a simple script that reads prompts from stdin and returns pre-defined `stream-json` responses via keyword pattern matching. The mock is fast (<100ms) and free. Wrapper unit tests use the mock; integration tests with real Claude Code run weekly in staging.
 
 ---
 

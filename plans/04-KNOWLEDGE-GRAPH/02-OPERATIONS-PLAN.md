@@ -156,6 +156,44 @@
   - Exclude from default queries but retain for history
   - Hard delete available as a separate operation
 
+#### Design Decisions
+
+> **Q**: When creating a spec, should the system auto-generate an initial summary from the content, or leave it empty until an agent fills it in?
+> **A**: Auto-generate via agent. When a spec is created with content, the agent produces a 1–2 sentence summary asynchronously and writes it to `spec.json.summary`. If the spec is created empty (draft), the summary field is left blank until content is added. The summary generation is a lightweight agent call, not a blocking operation — the spec is immediately available, and the summary populates within seconds.
+
+> **Q**: Should spec creation require a document association, or should standalone (document-less) specs be allowed by default?
+> **A**: Standalone specs are allowed by default. Document association is optional at creation time. Orphan detection (no edges AND no document) will surface truly disconnected specs via the inquiry queue, but a spec with edges and no document is perfectly valid. Forcing document association at creation time would slow down rapid spec authoring and agent-generated specs.
+
+> **Q**: Should the system prevent creation of specs with titles identical to existing specs?
+> **A**: Allow duplicate titles. Titles are descriptive labels, not identifiers. Different specs may legitimately share a title (e.g., "Authentication" in different contexts). The nanoid is the unique identifier. If an agent detects near-duplicate specs, it creates an inquiry suggesting a `contradicts` or `supersedes` edge rather than blocking creation.
+
+> **Q**: When a spec is created via the chat dialog (agent-assisted), should the agent auto-suggest tags and edge connections?
+> **A**: Auto-suggest. The agent proposes tags and edge connections as part of the creation flow, displayed to the user for approval. The user can accept, modify, or dismiss suggestions. Accepted edges are created immediately.
+
+> **Q**: Should spec content updates be tracked as full replacements or as diffs (patches)?
+> **A**: Full replacements. Each save writes the complete `content.md` and `spec.json` files. Git handles diffing and storage efficiency natively via packfiles and delta compression. Application-level diff storage is redundant with git and adds unnecessary complexity.
+
+> **Q**: Should updating a spec's status trigger notifications to users who have edges to that spec?
+> **A**: Yes, for `deprecated` and `archived` status transitions only. When a spec moves to `deprecated` or `archived`, the system creates notifications for all users who own or have permissions on specs with `depends-on` edges targeting the affected spec.
+
+> **Q**: Should the `contributors` list cap at a maximum number, or grow unbounded?
+> **A**: Unbounded. The contributors list is an array of user IDs in `spec.json`. Even with 100 contributors, this is a few KB of JSON. Contributors are append-only and deduplicated.
+
+> **Q**: When updating spec permissions, should existing summary-level users be notified that their access level changed?
+> **A**: No. Permission changes are administrative operations. The user experiences the change organically on next access. Sending notifications about permission changes creates noise and may reveal information about the permission structure.
+
+> **Q**: Should spec deletion be a hard delete (remove files) or always a soft delete (archive) with a separate purge operation?
+> **A**: Hard delete of files with cascade removal of edges and document references. Git history preserves the full content of every deleted spec permanently. The `archived` status serves the "soft delete" use case for specs the user wants to keep but deactivate.
+
+> **Q**: Should deleting a spec require a confirmation step (e.g., "this will remove 12 edges and affect 3 documents")?
+> **A**: Yes, require a confirmation step. Before deletion, the API returns a preview: `{ edgesRemoved: 12, documentsAffected: ['dc_...', 'dc_...'], dependentSpecs: ['sp_...'] }`. The frontend displays this preview and requires explicit confirmation.
+
+> **Q**: Should deleted specs leave behind a tombstone file for historical reference, or rely entirely on git history?
+> **A**: Rely on git history. No tombstone files. The deletion commit message includes the deleted spec's ID, title, and a summary of cascade effects.
+
+> **Q**: How long should soft-deleted (archived) specs be retained before permanent purge?
+> **A**: Never auto-purge archived specs. Archival is an intentional user action to deactivate a spec while preserving it. If a user wants permanent removal, they use the explicit delete operation.
+
 ---
 
 ## 2. Edge CRUD Operations
@@ -233,6 +271,32 @@
   - Delete all edges of a specific type for a spec
   - Useful for bulk cleanup
 
+#### Design Decisions
+
+> **Q**: Should edges have a `proposed` status that requires human confirmation before becoming `active`?
+> **A**: No edge status field. Per the PRD: "No confidence on edges. Issues → inquiry queue for user attention." Agent-created edges are immediately active. If the agent is uncertain, it creates an inquiry alongside the edge.
+
+> **Q**: For agent-created edges, should there be a probation period during which the edge is visible but marked as "unverified"?
+> **A**: No probation period. Agent-created edges are full-class edges from the moment of creation. They are distinguished by `createdByType: 'agent'` metadata, which the UI can use to display a subtle visual indicator.
+
+> **Q**: Should creating a `supersedes` edge automatically change the target spec's status to `deprecated`?
+> **A**: Yes. Creating a `supersedes` edge from spec A to spec B automatically sets spec B's status to `deprecated`. This is the semantic meaning of supersession. If the user disagrees, they can revert the status change or delete the supersedes edge.
+
+> **Q**: Should the system enforce a maximum number of edges per spec to prevent hub nodes?
+> **A**: No hard limit. Some specs are naturally hub-like. The UI paginates edges when displaying a spec with many connections. If a spec accumulates >50 edges, the system creates an inquiry suggesting the spec may need decomposition.
+
+> **Q**: For bidirectional types (`related-to`, `contradicts`), should the system normalize storage or store as-is?
+> **A**: Store as-is, with back-references. The spec that initiates the relationship is the source. A back-reference entry is added to the target spec's edge file with the same `edgeId` and `direction: 'incoming'`.
+
+> **Q**: When deleting a bidirectional edge, does the direction matter for the delete operation?
+> **A**: Either spec ID can be specified. Deletion by `edgeId` removes the edge from both the source and target edge files. The API accepts `DELETE /edges/{edgeId}` — no need to specify source or target.
+
+> **Q**: Should edge `agentAnalysis` metadata be versioned or overwritten each time?
+> **A**: Overwritten. When an agent re-analyzes an edge, the rationale is replaced with the latest analysis. Historical analysis is preserved in git commit history.
+
+> **Q**: Should there be a "last verified" timestamp on edges to track how recently the relationship was confirmed?
+> **A**: No. Edge validity is managed through the inquiry queue and agent crawls, not timestamps. An agent crawl that re-encounters an existing edge implicitly confirms it.
+
 ---
 
 ## 3. Spec Document CRUD Operations
@@ -303,6 +367,29 @@
   - If a spec has no remaining documentIds, it's an orphan
   - Create inquiry items for orphaned specs
 
+#### Design Decisions
+
+> **Q**: Should documents support sections or chapters that group specs within the document, or is a flat ordered list sufficient?
+> **A**: Flat ordered list with optional section dividers. The document's `specOrder` array is a list of entries, each either `{ type: 'spec', specId: '...' }` or `{ type: 'divider', label: 'Section Name' }`. Dividers are purely presentational — they have no semantic meaning for the graph.
+
+> **Q**: Should a single spec's removal from a document trigger reindexing of the document, or batch the reindex?
+> **A**: No reindexing needed. Documents are just ordered references to specs. Removing a spec reference is a JSON array splice — there is no document-level index to rebuild.
+
+> **Q**: Should there be a maximum number of specs per document?
+> **A**: Soft limit of 200 specs per document, enforced as a warning (not a hard block). The UI shows a warning when a document exceeds 200 specs.
+
+> **Q**: Should documents support "pinned" specs that always appear at the top regardless of order?
+> **A**: No. The `specOrder` array is the single source of ordering. Pinning creates an implicit ordering layer that conflicts with the explicit order.
+
+> **Q**: Should publishing a document (draft → published) trigger any validation?
+> **A**: Yes. Publishing validates that all referenced specs exist and are in `active` or `review` status. Specs in `draft`, `deprecated`, or `archived` status generate a warning (not a hard block).
+
+> **Q**: Can an archived document be un-archived, or is archival permanent?
+> **A**: Un-archiving is allowed. Documents can move freely between `draft`, `published`, and `archived` states. The only irreversible operation is deletion.
+
+> **Q**: Should document deletion be restricted if the document contains specs that would become orphans?
+> **A**: No restriction, but a warning. Before deletion, the API returns a preview showing which specs would become orphans. The orphan detection system will also surface these specs in the inquiry queue.
+
 ---
 
 ## 4. Graph Traversal
@@ -360,6 +447,29 @@
 - [ ] **KG-OPS-061**: Implement status-filtered traversal
   - Skip specs with certain statuses (e.g., exclude `archived` specs)
   - Default: include `draft` and `active`, exclude `deprecated` and `archived`
+
+#### Design Decisions
+
+> **Q**: What is the maximum acceptable traversal depth? Should there be a hard limit?
+> **A**: Hard limit of 10 hops. Default depth: 3 hops (immediate neighborhood). The API accepts a `depth` parameter with max value 10. Traversal uses BFS with visited-set deduplication.
+
+> **Q**: Should traversal results be cached?
+> **A**: Yes, cache with 30-second TTL. Traversal results are cached in-memory keyed by `(specId, depth, edgeTypes, direction)`. Cache is invalidated globally when any edge write occurs.
+
+> **Q**: For traversals that visit many nodes (>1000), should results be streamed incrementally or returned all at once?
+> **A**: Return all at once with a result cap of 500 nodes. Traversals that would exceed 500 nodes are truncated with a `truncated: true` flag. Streaming adds WebSocket complexity for a rare edge case.
+
+> **Q**: For `depends-on` edge traversal, should transitive dependencies be resolved?
+> **A**: Yes, transitive resolution is available as an explicit query option: `GET /specs/{id}/dependencies?transitive=true`. Default behavior returns only direct dependencies (depth 1). Transitive resolution uses BFS up to the 10-hop limit.
+
+> **Q**: Should `contradicts` edges be treated as blocking during dependency traversal?
+> **A**: `contradicts` edges do not block traversal. They are informational — the traversal includes them in results with a flag indicating contradiction. Contradictions in a dependency chain should generate an inquiry for human review.
+
+> **Q**: Should traversal results include the full spec data, or just IDs and summaries?
+> **A**: IDs and summaries by default. The API supports a `fields` parameter: `?fields=id,title,summary` (default), or `?fields=full` for complete spec data.
+
+> **Q**: Should the graph support "virtual edges" inferred from transitive relationships?
+> **A**: No virtual edges. All edges are explicitly stored. Transitive relationships are computed on-demand via traversal queries. The traversal API with `transitive=true` serves this use case.
 
 ---
 
@@ -557,6 +667,23 @@
   - Exclude specs the user cannot access (or replace with summary-only results)
   - Apply anti-siloing: restricted specs appear as summary entries
 
+#### Design Decisions
+
+> **Q**: Should full-text search use a dedicated search index or always delegate to RAG?
+> **A**: Delegate to RAG for all search. RAG (pgvector with metadata filtering) handles both semantic similarity and keyword-style queries. Adding a separate full-text search index creates two search paths returning potentially different results. For literal string search, a PostgreSQL `tsvector` column on the spec registry table can supplement pgvector.
+
+> **Q**: Should search support regular expressions for power users?
+> **A**: No. Regex search over file content would require scanning all spec files. The combination of semantic search (RAG), tag filtering, and status filtering covers the vast majority of needs. Power users can use git grep directly.
+
+> **Q**: Should search results include a relevance score explanation?
+> **A**: Yes, include a brief explanation. Each search result includes: `{ specId, title, summary, score, matchReason: 'semantic similarity' | 'tag match' | 'title match' }`.
+
+> **Q**: Should the search API support faceted search?
+> **A**: Not in v1. Faceted search requires aggregation across all results, which conflicts with top-K vector search. If needed later, faceted counts can be computed from the spec registry table in PostgreSQL.
+
+> **Q**: At what graph size does search performance become unacceptable without a dedicated search index?
+> **A**: pgvector with HNSW index handles up to 100K vectors with <50ms query latency. This exceeds the target scale (50K specs). No additional search infrastructure is needed.
+
 ---
 
 ## 9. Batch Operations
@@ -608,6 +735,20 @@
   - Maximum batch size: 100 entities per operation (configurable)
   - Prevent memory issues and excessively long operations
   - Larger imports should use the streaming import pipeline
+
+#### Design Decisions
+
+> **Q**: Should batch operations be atomic (all-or-nothing) or best-effort?
+> **A**: Best-effort with a detailed result report. Each item in the batch is processed independently. The response includes `{ succeeded: [...], failed: [{ id, error }] }`. Atomic all-or-nothing would require a transaction across multiple JSON files and git operations, which is impractical.
+
+> **Q**: Should batch operations be cancellable mid-execution?
+> **A**: Yes, for batches >50 items. The batch operation runs asynchronously and returns a `batchId`. The client can poll for progress and send a cancel request. Items already processed are committed; remaining items are skipped.
+
+> **Q**: Should there be rate limiting on batch operations?
+> **A**: Yes. Maximum batch size: 500 items per request. Maximum concurrent batches per user: 1. Maximum items per minute per user: 1,000. Limits are configurable in `.kg-config.json`.
+
+> **Q**: Should batch create support inter-entity references within the batch?
+> **A**: Yes. Batch items are processed in order. A batch can create a spec in item 1 and create an edge referencing that spec in item 2. Forward references are resolved in a second pass.
 
 ---
 
@@ -662,6 +803,29 @@
 - [ ] **KG-OPS-110**: Implement import progress reporting
   - Report: entities parsed, validated, written
   - Stream progress via WebSocket for UI display
+
+#### Design Decisions
+
+> **Q**: Should the import pipeline support incremental imports or only full replacements?
+> **A**: Incremental by default. Imports add to the existing graph without affecting existing specs. A `--replace` flag enables full replacement for disaster recovery scenarios.
+
+> **Q**: How should ID collisions during import be handled?
+> **A**: Generate new IDs for imported specs. Import always assigns fresh nanoids to prevent collision. An `idMapping` is returned showing `{ originalId → newId }` for each imported entity.
+
+> **Q**: Should imports preserve the original entity IDs or always generate new ones?
+> **A**: Always generate new IDs. Round-tripping is supported through the ID mapping, not through ID preservation. Preserving foreign IDs risks silent collisions.
+
+> **Q**: Should the system support importing from common knowledge management formats (Obsidian, Notion, Roam)?
+> **A**: v1 supports import from Markdown files (directory of `.md` files) and a JSON bulk format. Obsidian/Notion/Roam importers are deferred to future iterations or community plugins.
+
+> **Q**: Should exports include version history or only the current state?
+> **A**: Current state only. Version history lives in git and is not portable via export.
+
+> **Q**: Should exports be filtered by permissions?
+> **A**: Yes. Export respects the requesting user's permissions. Full-access specs are exported with full content. Summary-access specs are exported with summary only.
+
+> **Q**: Should there be a scheduled/automatic export for backup purposes?
+> **A**: No. The git repo IS the backup. Every clone is a full backup of all knowledge graph data. PostgreSQL handles its own backup strategy.
 
 ---
 
@@ -778,6 +942,29 @@
     - Shared neighbors
   - Return suggested edges with confidence and rationale
 
+#### Design Decisions
+
+> **Q**: Should agents have a default crawl strategy, or must every crawl request specify a strategy?
+> **A**: Default strategy: breadth-first traversal from the context spec(s), following all edge types, depth 3. Agents can override with specific strategies: `{ strategy: 'dependency-tree' | 'semantic-expansion' | 'contradiction-check', depth: N, edgeTypes: [...] }`.
+
+> **Q**: How should agents handle cycles during crawling?
+> **A**: Visit each node once (visited-set deduplication). No revisiting. The agent receives the full subgraph structure and can reason about cycles from the topology without revisiting.
+
+> **Q**: Should the semantic crawl strategy use the spec's existing embedding or generate a fresh embedding of the query?
+> **A**: Generate a fresh embedding of the agent's query. The semantic crawl starts by embedding the agent's current question/context, querying pgvector for the top-K nearest specs, then expanding from those specs via graph edges.
+
+> **Q**: Should agents be able to "bookmark" interesting nodes during a crawl?
+> **A**: Yes, via the agent session context. The `bookmarkedSpecIds` array persists within the session and can be used as starting points for subsequent crawls. Bookmarks are session-scoped.
+
+> **Q**: Should agents crawl the entire graph or only specs the requesting user has access to?
+> **A**: Agents crawl all specs the user has access to, using the user's permission level. Per the PRD: "never no-access." Agents always see at least summaries of all specs. Full-access specs provide complete content; summary-access specs provide only the summary.
+
+> **Q**: Should there be a global crawl budget per agent session?
+> **A**: Yes. Maximum 500 unique specs visited per agent session. Maximum 5 crawl operations per session. If more exploration is needed, the user starts a new session.
+
+> **Q**: How should crawl results integrate with the agent's conversation context?
+> **A**: Summaries for breadth, full content for depth. The crawl returns summaries for all visited nodes. The agent selects the most relevant specs and requests full content for those (up to 10 full specs per crawl).
+
 ---
 
 ## 13. Inquiry Queue Management
@@ -834,6 +1021,26 @@
   - Average resolution time
   - Oldest unresolved inquiry
 
+#### Design Decisions
+
+> **Q**: Should only agents create inquiries, or can users create them too?
+> **A**: Both agents and users can create inquiries. Users can flag any spec or edge for review, creating an inquiry with type `user-flagged`. Agent-created inquiries have types like `orphan-detected`, `contradiction-found`, `edge-suggestion`.
+
+> **Q**: Should inquiries be created automatically from validation results, or only when explicitly triggered?
+> **A**: Both. Structural validation failures during write operations auto-create inquiries. Semantic validation runs during agent crawls and periodic integrity checks. Users can also manually create inquiries.
+
+> **Q**: Should there be duplicate inquiry detection?
+> **A**: Yes. Before creating an inquiry, check for existing open inquiries with the same `(type, targetSpecId, targetEdgeId)` tuple. If a match exists, update the existing inquiry's `lastOccurrence` timestamp and increment its `occurrenceCount`.
+
+> **Q**: How should inquiries be prioritized?
+> **A**: Multi-factor priority score: `priority = severity × 10 + age_days + edge_count_of_affected_spec`. Severity levels: `critical` (3), `warning` (2), `info` (1). The UI sorts by computed priority descending, with manual pin-to-top available.
+
+> **Q**: Should the UI show a badge count for open inquiries?
+> **A**: All three locations. Navigation sidebar shows a total open inquiry count badge. The graph visualization marks specs with open inquiries using a small indicator dot. The spec detail view shows a banner: "2 open inquiries for this spec."
+
+> **Q**: Should resolved inquiries be cleaned up or retained indefinitely?
+> **A**: Retained for 90 days after resolution, then auto-purged. The audit log in PostgreSQL captures the resolution event permanently even after the inquiry record is purged.
+
 ---
 
 ## 14. Cascading Operations
@@ -878,6 +1085,20 @@
   - Create inquiries for newly orphaned specs
   - Indexes: update document index and spec-to-document reverse mapping
 
+#### Design Decisions
+
+> **Q**: Should cascading operations be performed synchronously or asynchronously?
+> **A**: Synchronously for immediate cascades (edge deletion on spec delete, status change on supersedes). Asynchronously for agent-triggered analysis (crawl for implications, orphan detection, edge suggestions).
+
+> **Q**: Should the user be shown a preview of cascading effects before confirming the operation?
+> **A**: Yes, for destructive operations (delete, deprecate, archive). The API returns a dry-run preview. Non-destructive operations (create, update content) do not require preview.
+
+> **Q**: Should cascading operations create an audit log entry describing all changes made?
+> **A**: Yes. Every cascading operation creates a single audit log entry in PostgreSQL with `action: 'cascade'`, listing all affected entities. The git commit message also includes structured trailers.
+
+> **Q**: When a spec is deprecated, should its edges' confidence be automatically reduced?
+> **A**: N/A. There is no confidence field on edges (per PRD). When a spec is deprecated, its edges remain as-is. Agent crawls that traverse through deprecated specs can create inquiries suggesting edge review.
+
 ---
 
 ## 15. Orphan Detection & Management
@@ -917,6 +1138,36 @@
   - Archive orphans older than minAge (e.g., 30 days)
   - Or delete if explicitly requested
   - Or create inquiries for human review (default)
+
+#### Design Decisions
+
+> **Q**: What defines an "orphan" — no edges, no document membership, or both?
+> **A**: An orphan is a spec with zero edges AND zero document memberships. A spec with edges but no document is "undocumented" (a milder concern). A spec with a document but no edges is "isolated" (also informational). Only the zero-edges-AND-zero-documents case triggers the full orphan workflow.
+
+> **Q**: Should orphan detection run automatically on a schedule, or only when triggered?
+> **A**: Both. Automatic scan every 10 minutes during active server operation. Also triggered immediately after operations that could create orphans: spec deletion, edge deletion, document deletion.
+
+> **Q**: Should the system suggest document placement for orphans?
+> **A**: Yes. The orphan positioning system uses RAG to find the most semantically similar specs, then checks which documents those specs belong to. The inquiry suggests both edge connections AND document placement.
+
+> **Q**: Should there be an "orphan inbox" view in the UI?
+> **A**: Yes. A dedicated "Orphan Inbox" view in the UI, accessible from the navigation sidebar. It lists all orphan specs with their RAG-suggested placements and edge connections. This is a filtered view of the inquiry queue scoped to orphan-type inquiries.
+
+---
+
+## Additional Design Decisions
+
+> **Q**: Should CRUD operations return the updated entity or just a success acknowledgment?
+> **A**: Return the updated entity. The overhead is minimal (one extra JSON serialization of an object already in memory). Returning the entity eliminates a follow-up GET request from the frontend, reducing total round-trips.
+
+> **Q**: Should read operations support field selection to reduce payload size?
+> **A**: Yes, via a `fields` query parameter. Default returns: `id, title, summary, status, tags, updatedAt`. Full returns: all fields including content. Compact returns: `id, title` only.
+
+> **Q**: At what operation volume does the JSON file-based storage become a bottleneck?
+> **A**: JSON file-based storage handles up to ~100 write operations per second on SSD. The in-memory LRU cache serves most read requests without hitting disk. A PostgreSQL spec registry (lightweight table mirroring spec ID, title, status, tags) is maintained in parallel for fast queries. The JSON files remain the source of truth; PostgreSQL is the query accelerator.
+
+> **Q**: Should frequently-used graph operations (neighborhood queries, statistics) be cached with a TTL?
+> **A**: Yes. Neighborhood traversals: 30-second TTL. Graph statistics (total specs, edge counts, orphan counts): 60-second TTL. Caches are invalidated on any write operation.
 
 ---
 

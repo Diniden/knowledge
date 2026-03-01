@@ -106,6 +106,26 @@
   - `expectForbidden(response)` — assert 403
   - `expectUnauthorized(response)` — assert 401
 
+#### Design Decisions
+
+> **Q**: Does NestJS `Test.createTestingModule()` compilation work correctly under Bun, or are there decorator metadata issues (`reflect-metadata`, `emitDecoratorMetadata`)?
+> **A**: Bun supports `reflect-metadata` and `emitDecoratorMetadata` in its TypeScript transpiler. NestJS `Test.createTestingModule()` works under Bun. Ensure `"experimentalDecorators": true` and `"emitDecoratorMetadata": true` are set in `tsconfig.json`. Validate in the bootstrap PR with a single NestJS controller + service test.
+
+> **Q**: Should each test file compile its own NestJS test module, or should there be a shared compiled module per feature?
+> **A**: **Each test file compiles its own test module.** Per-file compilation is the NestJS-recommended pattern and provides full isolation — each file configures exactly the providers it needs. The compilation overhead (~50–100ms per file) is acceptable. Shared compiled modules create hidden coupling.
+
+> **Q**: How long does test module compilation take under Bun? If it's slow (>500ms per file), should compiled modules be cached?
+> **A**: Measure in the bootstrap PR. Expected: 50–150ms per file, which is acceptable. If compilation exceeds 300ms, create a `TestModuleBuilder` helper that pre-configures common providers and allows per-test overrides. Do not cache compiled modules — invalidation logic would be more complex than the time saved.
+
+> **Q**: Should mock providers be created with `mock()`-style mocking (bun's `mock()`) or as plain objects with implemented methods?
+> **A**: Use **Bun's `mock()` / `spyOn()`** for mock providers. Call tracking (`toHaveBeenCalledWith`, `toHaveBeenCalledTimes`) is essential for verifying service interactions. Create mock providers as objects with `mock()` methods: `{ findAll: mock(() => []), create: mock(() => ({})) }`.
+
+> **Q**: When testing a service that depends on another service, should the dependency be mocked at the provider level (DI replacement) or at the method level (spy on real service)?
+> **A**: **Provider-level DI replacement** for unit tests. Replace dependencies entirely via `overrideProvider().useValue(mockService)`. Use **method-level spying** only in integration tests where you want to verify cross-service behavior with real logic.
+
+> **Q**: Should guards be globally overridden in tests (always allow) or tested with real guard logic?
+> **A**: **Override guards globally** in unit/integration tests for non-auth services. Use `overrideGuard(AuthGuard).useValue({ canActivate: () => true })`. Test guard logic in **dedicated guard test files** (`auth.guard.test.ts`) that exercise the real guard with valid, invalid, and expired tokens.
+
 ---
 
 ## 2. NestJS Module Unit Testing
@@ -625,6 +645,23 @@
   - `notification:count` sent with updated unread count
   - Sent after mark-as-read to update client badge
 
+#### Design Decisions
+
+> **Q**: Should WebSocket tests start a real NestJS server with a real WebSocket gateway, or should the gateway be tested in isolation with a mock socket?
+> **A**: **Both.** Unit-test the gateway class in isolation — inject a mock socket, call handler methods directly, assert emitted events. For integration tests, start a real NestJS server (using `app.listen(0)` for random port) with a real Socket.IO gateway and connect with `socket.io-client`. Keep integration tests to the critical flows.
+
+> **Q**: How should WebSocket client connections be managed in tests? `socket.io-client`, `ws` library, or a custom mock?
+> **A**: **`socket.io-client`** for integration tests (matches the production client). **Mock socket objects** for unit tests (plain objects with `emit`, `on`, `join` methods as `mock()` functions). Do not use raw `ws` — the project uses Socket.IO.
+
+> **Q**: How should WebSocket events be asserted? Wait for specific events with timeout, or collect all events and assert at the end?
+> **A**: **Wait for specific events with timeout.** Create a helper: `await waitForEvent(socket, 'event-name', { timeout: 2000 })` that returns the event data or throws on timeout. For ordering assertions, use `collectEvents(socket, ['event-a', 'event-b'])` that resolves when all expected events arrive in order.
+
+> **Q**: How should tests verify that WebSocket events are NOT sent? (e.g., verify a notification is NOT sent to the wrong user.)
+> **A**: Use a **"no events in N ms" pattern.** Create a helper: `await expectNoEvent(socket, 'event-name', { within: 500 })` that fails if the event is received within the window. Use fake timers where possible to avoid real delays.
+
+> **Q**: Should WebSocket tests verify event ordering? (e.g., `agent:thinking` before `agent:streaming` before `agent:complete`.)
+> **A**: **Yes, for critical sequences.** The agent response lifecycle must be ordered. Use the `collectEvents` helper that asserts events arrive in the specified order. Limit ordering assertions to the 3–4 most critical event sequences.
+
 ---
 
 ## 8. Database Integration Testing
@@ -707,6 +744,32 @@
   - Run migrations up twice (should not error)
   - Second run is a no-op
 
+#### Design Decisions
+
+> **Q**: Should integration tests use a dedicated test PostgreSQL container (separate from dev), or share the dev container with a different database?
+> **A**: **Shared container, separate database.** Use the same Docker PostgreSQL container for dev and test, but create a separate `kg_test` database. In CI, the GitHub Actions service container provides a fresh PostgreSQL instance.
+
+> **Q**: Should test data isolation use transaction rollback or TRUNCATE between tests?
+> **A**: **Transaction rollback by default.** Wrap each test file in a transaction, roll back in `afterAll`. For tests that need real commit behavior, use explicit TRUNCATE cleanup and mark the file as `.integration.test.ts`.
+
+> **Q**: Should the test database schema be verified against the expected schema on test suite startup?
+> **A**: **Yes, verify on startup** but keep it fast. Run `drizzle-kit check` once at suite startup in CI. Locally, skip by default but enable with `VERIFY_SCHEMA=1`.
+
+> **Q**: Should test data factories live in the test directory or in a shared package?
+> **A**: Factories live in a **shared test utilities package** at `packages/test-utils/`. Server tests, E2E tests, and frontend tests all import from here. The factories use `fishery` and produce typed objects matching `@kg/shared` schema types.
+
+> **Q**: Should factories generate deterministic data or random data?
+> **A**: **Deterministic with sequential IDs.** Use `fishery` sequences for IDs and predictable patterns for names. Avoid randomized data — it makes failures hard to reproduce. For fuzz-style testing, add separate fuzz tests with seeded randomness.
+
+> **Q**: Should foreign key relationships be auto-created by factories?
+> **A**: **Yes, auto-create related entities by default** with the ability to override. `createTestProject()` auto-creates an owner user unless one is passed explicitly. `fishery` supports this via `associations`.
+
+> **Q**: Should migrations run before each test file or once per test suite?
+> **A**: **Once per test suite.** Run all Drizzle migrations at suite startup (`globalSetup`). Individual test files use transaction rollback for isolation. This reduces startup from minutes to seconds.
+
+> **Q**: Should the test database be kept in memory (ramdisk) for faster I/O?
+> **A**: **No.** PostgreSQL with `fsync=off` and `synchronous_commit=off` in the test container config provides near-memory-speed performance. Set these in the Docker Compose test configuration.
+
 ---
 
 ## 9. Git Integration Testing
@@ -766,6 +829,26 @@
   - Concurrent operations on different specs don't conflict
   - Lock mechanism prevents concurrent commits from the same user
 
+#### Design Decisions
+
+> **Q**: Should git integration tests use real git (exec `git` commands in temp directories) or a git library (isomorphic-git, simple-git)?
+> **A**: **Real git via `simple-git`** in temp directories. The project uses `simple-git` in production, so tests should use the same library against real git repos. `isomorphic-git` has different semantics.
+
+> **Q**: Should git tests create temp repositories for each test (isolated but slow) or share a test repository?
+> **A**: **Temp repository per test file** (not per test case). Create in `beforeAll`, clean up in `afterAll`. Within a file, tests can share the repo if they build on each other's state. Use `fs.mkdtemp()` for temp directories.
+
+> **Q**: Should git tests verify actual file system state or only verify git command output?
+> **A**: **Verify both.** Check git command output (status, log, diff) and spot-check file system state for critical operations. File system verification catches cases where git reports success but the file system is wrong.
+
+> **Q**: Should git remote operations be tested against a local bare repository, a mock git server, or skipped?
+> **A**: **Local bare repository** (`git init --bare` in a temp directory). The test repo's remote points to this bare repo. This tests push/pull/fetch operations realistically without network dependency.
+
+> **Q**: How should merge conflicts be reliably created in tests?
+> **A**: Use a deterministic helper function: `createConflictScenario(repo, { base, ours, theirs })`. The helper creates a base commit, branches, modifies the same line differently on each branch, and attempts merge. Provide preset scenarios: `LINE_CONFLICT`, `FILE_DELETED_VS_MODIFIED`, `BINARY_CONFLICT`.
+
+> **Q**: Should the test suite include performance tests for git operations with large repos?
+> **A**: **No, not in CI.** Large-repo performance testing is a manual benchmark exercise. Create a script that generates a repo with 1000 files and 500 commits, then measures operation times. Keep it out of CI to respect the 5-minute budget.
+
 ---
 
 ## 10. Authentication Flow Testing
@@ -811,6 +894,23 @@
   - Token is secure (only sent over HTTPS in production)
   - Token has sameSite attribute set
   - Token payload does not contain sensitive data (no password, no email)
+
+#### Design Decisions
+
+> **Q**: Should authentication tests use real JWT signing (with test secret) or mock the JWT verification?
+> **A**: **Real JWT signing with a test secret.** Use a hardcoded test secret (`TEST_JWT_SECRET`). Generate real JWTs with `jsonwebtoken` and verify them through the real auth pipeline. Mocking JWT verification hides real-world auth bugs.
+
+> **Q**: Should there be negative tests for JWT manipulation (modify payload, change signature, truncate token)?
+> **A**: **Yes.** Test: tampered payload, invalid signature, expired token, malformed token string, missing token. These are critical security tests and are stable — write them once in `auth.guard.test.ts`, they'll rarely need updates.
+
+> **Q**: How should token refresh be tested?
+> **A**: Test whatever mechanism the auth module implements. If refresh tokens: valid refresh → new access token, expired refresh → 401, revoked refresh → 401, reuse of consumed refresh → 401. If re-login only: expired access token → 401 → client redirects to login.
+
+> **Q**: Should tests verify http-only cookie attributes (httpOnly, secure, sameSite)?
+> **A**: **Yes.** Use `supertest` to inspect raw `Set-Cookie` headers in integration tests. Assert: `httpOnly` flag present, `secure` flag present (in production config), `sameSite=strict` or `sameSite=lax`. These are one-time tests in `auth.controller.integration.test.ts`.
+
+> **Q**: Should tests verify that password hashes use a sufficiently high bcrypt cost factor?
+> **A**: **Yes, but verify configuration, not execution.** Assert that the bcrypt cost factor constant is ≥ 12 as a unit test. One dedicated test verifies that `hashPassword()` produces a valid bcrypt hash with the correct cost prefix (`$2b$12$`).
 
 ---
 
@@ -862,6 +962,23 @@
   - Page beyond total returns empty array
   - Invalid pagination params return 400
 
+#### Design Decisions
+
+> **Q**: Should the project use contract testing (e.g., Pact) between frontend and backend?
+> **A**: **No formal contract testing (no Pact).** The frontend and backend share TypeScript types via `@kg/shared`. Compile-time type checking catches most contract drift. Adding Pact would be redundant. Revisit if the API is consumed by external clients.
+
+> **Q**: Should API response shapes be validated against OpenAPI/Swagger schemas in tests?
+> **A**: **Yes, if the project generates OpenAPI docs.** If NestJS Swagger decorators are used, add a test that generates the OpenAPI spec and validates a sample response against it. If OpenAPI is not a priority, skip — the shared TypeScript types serve the same purpose.
+
+> **Q**: Should API tests verify response headers (CORS, Cache-Control, Content-Security-Policy)?
+> **A**: **Yes, for security headers.** Test CORS headers, Content-Security-Policy, and X-Frame-Options in a dedicated `security-headers.integration.test.ts`. Cache-Control is tested only for endpoints where caching behavior is explicitly designed.
+
+> **Q**: How should API backward compatibility be tested?
+> **A**: **Not initially.** The API is internal (consumed only by the project's own frontend). Backward compatibility testing is warranted only if versioned APIs are introduced for external consumers.
+
+> **Q**: Should API versioning (`/api/v1/`) be tested by having separate test suites per version?
+> **A**: **Not initially.** Start with a single unversioned API (or `/api/v1/` as the only version). When a second version is introduced, use parameterized tests: `describe.each(['/api/v1', '/api/v2'])`.
+
 ---
 
 ## 12. Agent Orchestration Testing
@@ -905,6 +1022,26 @@
   - Session marked as 'failed' with error message
   - User notified of failure
   - Retry option available
+
+#### Design Decisions
+
+> **Q**: Should the Claude Code wrapper be mocked at the subprocess level or at the wrapper service level for orchestration tests?
+> **A**: **Both levels.** Unit tests of the orchestrator mock the `ClaudeCodeWrapper` service interface via DI replacement — simple, fast, focused on orchestration logic. Integration tests mock at the subprocess level (intercept `Bun.spawn()` to return scripted stdout/stderr streams).
+
+> **Q**: Should mock agent responses be static or configurable per test?
+> **A**: **Configurable per test.** Provide a `MockClaudeCode` class with a `setResponse(scenario)` method. Pre-define common scenarios: `SIMPLE_TEXT_RESPONSE`, `TOOL_USE_RESPONSE`, `STREAMING_CHUNKS`, `ERROR_RESPONSE`, `TIMEOUT`. Each test selects the scenario it needs.
+
+> **Q**: How should agent tool calls be tested? Should the mock agent return tool call instructions that the orchestrator executes against mock tools?
+> **A**: **Mock agent returns tool call instructions; orchestrator executes against mock tools.** This tests the full orchestration loop: agent requests tool → orchestrator parses → orchestrator calls tool → tool returns result → orchestrator feeds result back. Mock the tools themselves, but let the orchestrator's tool dispatch logic run for real.
+
+> **Q**: How should agent timeout be tested? Real timers or fake timers?
+> **A**: **Fake timers.** Set the timeout to the real production value, then advance fake timers past it. The timeout value should be configurable via environment variable so tests can verify different timeout configurations.
+
+> **Q**: Should tests simulate partial agent responses (stream interruption)?
+> **A**: **Yes.** The `MockClaudeCode` subprocess mock should support a `STREAM_INTERRUPTED` scenario: emit 3 chunks, then close the stdout stream without a completion event. Verify the orchestrator handles this gracefully.
+
+> **Q**: How should agent token usage tracking be verified?
+> **A**: **Use actual token estimation** with known input/output strings. The token counter is a pure function — feed it a known string, assert the count is within an expected range. No need to mock it.
 
 ---
 
@@ -1032,6 +1169,28 @@
   - `bun run test:smoke` — runs smoke tests against a target URL
   - Configurable base URL (local, staging, production)
   - Reports pass/fail with timing
+
+---
+
+## Additional Design Decisions
+
+> **Q**: Should the server test suite include performance benchmarks (e.g., "GET /api/v1/projects should respond in < 100ms")?
+> **A**: **Not in CI.** Performance varies by CI runner. Provide a manual benchmark script. Baselines: simple CRUD < 50ms, list with pagination < 100ms, complex Knowledge Graph queries < 300ms. Track results in a markdown file.
+
+> **Q**: Should database query performance be tested?
+> **A**: **Yes, as manual benchmarks.** Create a seeding script that generates 10K specs. Measure query times for: listing user's specs, searching specs by text, traversing Knowledge Graph edges. Assert no N+1 queries via query count logging.
+
+> **Q**: Should memory leak detection be part of the test suite?
+> **A**: **No automated memory leak detection.** If a leak is suspected, use Node.js heap snapshots manually. The WebSocket gateway is the most likely leak source — monitor it in staging with process metrics, not in tests.
+
+> **Q**: How should shared test utilities (TestModuleBuilder, mock factories, seeders) be documented?
+> **A**: **Inline JSDoc + one README.** Each shared utility gets JSDoc with a usage example. The `test/` or `packages/test-utils/` directory gets a single `README.md` listing all available utilities.
+
+> **Q**: Should there be a test helper review process to ensure helpers don't become overly complex?
+> **A**: **Code review is sufficient.** Test helpers are reviewed like any other code in PRs. The rule: a test helper should be understandable without reading its implementation. If a helper requires its own tests, it's too complex — refactor it.
+
+> **Q**: How should test data fixtures be kept in sync with schema changes?
+> **A**: **TypeScript compilation catches most drift.** Factories produce typed objects; when the schema changes, the factory code fails to compile. For database-level fixtures, add a CI step that runs the seed script against a fresh database after migrations.
 
 ---
 

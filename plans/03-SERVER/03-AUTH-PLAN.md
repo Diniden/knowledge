@@ -77,6 +77,26 @@
   - Warn user if password has appeared in known breaches
   - Do not block registration, only warn
 
+#### Design Decisions
+
+> **Q**: Should the project use `bcrypt` (native C++ bindings) or `bcryptjs` (pure JavaScript)?
+> **A**: Use `bcryptjs`. It's pure JavaScript, works reliably under Bun without native addon compilation issues, and is the safer choice for Bun compatibility. The performance difference (~2-3x slower than native `bcrypt`) is irrelevant at login/registration frequency.
+
+> **Q**: Should the project use Argon2 instead of bcrypt?
+> **A**: Stick with bcrypt (via `bcryptjs`). The PRD explicitly specifies bcrypt. Argon2 requires native bindings which may have Bun compatibility issues. Bcrypt is well-understood and sufficient. Switching to Argon2 can be done later by re-hashing on login.
+
+> **Q**: Is 12 bcrypt rounds the right default?
+> **A**: 12 rounds is correct. ~300ms per hash is acceptable for login/registration. Make the round count configurable via `BCRYPT_ROUNDS=12`. Do not go below 10 rounds.
+
+> **Q**: Should the password policy require special characters?
+> **A**: Follow NIST SP 800-63B guidelines: minimum 12 characters, no special character requirement, no forced composition rules. Check against a breach dictionary (top 100,000 common passwords). Maximum length: 72 characters (bcrypt's limit).
+
+> **Q**: Should there be a password history check?
+> **A**: No. Password history checks are not recommended by NIST for most applications. They encourage minimal incremental changes. The breach dictionary check is more effective.
+
+> **Q**: Should the maximum password length be 128 characters or shorter?
+> **A**: Maximum 72 characters, matching bcrypt's internal limit. Accepting longer passwords without disclosing the truncation would be misleading. Reject passwords longer than 72 characters with a clear validation error.
+
 ---
 
 ## 2. JWT Token Management
@@ -143,6 +163,29 @@
   - `exp`: number
   - `jti`: string (token ID for revocation)
 
+#### Design Decisions
+
+> **Q**: Is 15 minutes the right TTL for access tokens?
+> **A**: 15 minutes. This is the industry standard for access tokens. The client handles transparent refresh. Configurable via `JWT_ACCESS_TTL=900` (seconds).
+
+> **Q**: Is 7 days the right TTL for refresh tokens?
+> **A**: 7 days is correct for the default. "Remember me" extends to 30 days. Configurable via `JWT_REFRESH_TTL=604800` (seconds).
+
+> **Q**: Should the JWT use HS256 (symmetric) or RS256 (asymmetric) signing?
+> **A**: HS256 (symmetric). No other services need to verify tokens independently. HS256 is simpler, faster, and produces smaller tokens. The `JWT_SECRET` must be at least 256 bits (32 bytes).
+
+> **Q**: Should the JWT contain user roles, or should roles be fetched from the database on each request?
+> **A**: Embed the system role (`admin` or `user`) in the JWT. Role changes take effect at the next token refresh (within 15 minutes). Do NOT embed project-level roles — those are checked against the database per request.
+
+> **Q**: What claims should the access token include beyond the minimum?
+> **A**: Include: `sub` (user ID), `exp`, `iat`, `role` (system role), `jti` (unique token ID for revocation). Do not include email or username — these change and become stale.
+
+> **Q**: Should the token include the user's active project ID?
+> **A**: No. The project ID is a routing concern, not an identity concern. It belongs in the URL path, not the token.
+
+> **Q**: Should tokens include a `scope` claim?
+> **A**: Not for JWT access tokens. Scoped permissions are relevant for API keys (phase 2). Access tokens represent the full authenticated user.
+
 ---
 
 ## 3. HTTP-Only Cookie Configuration
@@ -193,6 +236,23 @@
   - Fallback: extract from `Authorization: Bearer <token>` header
   - Priority: cookie first, then header
   - Log extraction source at debug level
+
+#### Design Decisions
+
+> **Q**: Should `sameSite` be set to `'strict'` or `'lax'`?
+> **A**: `lax`. This allows the cookie to be sent on top-level navigations while blocking cross-site POST requests. `strict` would break incoming links and future OAuth redirect flows. Combined with the double-submit CSRF pattern, `lax` provides sufficient protection.
+
+> **Q**: Should the cookie `domain` be explicitly set or left unset?
+> **A**: Leave unset (exact origin). The application runs on a single domain. Setting a domain would expand the cookie scope to all subdomains, increasing the attack surface.
+
+> **Q**: Should the refresh token cookie path be restricted to `/api/v1/auth/refresh` or broader?
+> **A**: Restrict to `/api/v1/auth/refresh`. The refresh token cookie should only be sent to the refresh endpoint. The access token cookie has path `/` since it's needed for all API requests.
+
+> **Q**: Should the API support both cookie-based and Bearer token authentication simultaneously?
+> **A**: Yes. The auth guard checks: (1) `Authorization: Bearer <token>` header, (2) `access_token` HTTP-only cookie. The first valid credential found is used.
+
+> **Q**: If both are supported, should there be a priority order?
+> **A**: Bearer token takes priority. If both are present, the Bearer token is used and the cookie is ignored. This allows programmatic clients to override cookie auth when testing or debugging.
 
 ---
 
@@ -327,6 +387,23 @@
   - Avoid repeated database lookups within the same request
   - Invalidate cache when project membership changes
 
+#### Design Decisions
+
+> **Q**: Are two system roles (`admin`, `user`) sufficient?
+> **A**: Two system roles are sufficient: `admin` and `user`. Add `service-account` in phase 2 when API keys are implemented. Moderators are handled via project-level roles. Keep the system role model simple.
+
+> **Q**: Should project roles be configurable per project, or fixed across all projects?
+> **A**: Fixed across all projects. Three project roles: `owner` (full control), `editor` (create/edit/delete specs, edges), `viewer` (read-only access). Fixed roles keep permission checking simple.
+
+> **Q**: Should there be a `super-admin` role that can access all projects and all specs?
+> **A**: Yes, the system `admin` role acts as super-admin. System admins can access all projects and all specs. Limit the number of system admins and log all admin access to the audit trail. The first registered user is automatically `admin`.
+
+> **Q**: Should role checks happen at the guard level or at the service level?
+> **A**: Two-tier approach. Simple role checks (system admin, authenticated user) happen at the guard level via decorators. Complex permission checks (project membership, spec-level access) happen at the service level where the full context is available. Guards handle "who you are"; services handle "what you can do."
+
+> **Q**: Should the system support custom permissions beyond role-based access?
+> **A**: No. The three project roles combined with spec-level privacy provide sufficient granularity. Custom per-action permissions create a combinatorial explosion that's hard to manage.
+
 ---
 
 ## 7. Spec-Level Permission Enforcement
@@ -387,6 +464,32 @@
   - Edge endpoints respect the permissions of connected nodes
   - Restricted nodes appear as summary nodes in traversal results
   - Agent operations respect permissions of the requesting user
+
+#### Design Decisions
+
+> **Q**: When a spec is first created, is it public by default or private by default?
+> **A**: Public by default. All project members with `editor` or higher role can view and edit newly created specs. The spec creator can restrict access afterward. "Public" means "visible to project members," not "visible to the world."
+
+> **Q**: Should the spec owner/creator automatically retain `full` access even if the spec is made private?
+> **A**: The creator automatically retains `full` access and it cannot be removed. The creator can transfer ownership to another user. System admins can also always access any spec.
+
+> **Q**: When a user with `summary` access views a document containing private specs, how should the document appear?
+> **A**: Private specs are replaced with AI-generated summaries inline. The summary includes the spec title, a brief description, and the spec's edge connections. The summary is pre-generated and stored alongside the spec.
+
+> **Q**: How is the spec access token shared between users?
+> **A**: Via the server. `POST /specs/:id/access { userId, level: "full"|"summary" }`. No shareable links. The grant is recorded in PostgreSQL with an audit trail.
+
+> **Q**: Should access tokens be revocable?
+> **A**: Yes, the access grant is revocable for future access. `DELETE /specs/:id/access/:userId` removes future access. Knowledge already seen cannot be "unshared," but revoking prevents future updates.
+
+> **Q**: Should there be an expiration on spec access grants?
+> **A**: Indefinite until explicitly revoked. Time-based expiration adds complexity without clear benefit.
+
+> **Q**: When an agent operates on behalf of a user, does it inherit that user's spec permissions?
+> **A**: The agent inherits the user's exact permissions. It cannot see specs the user cannot see. The agent operates with the user's identity for all permission checks.
+
+> **Q**: Should agents be able to create private specs?
+> **A**: Agents can create specs (public by default). If the user explicitly asks the agent to create a private spec, the agent sets the privacy flag and grants full access to the requesting user.
 
 ---
 
@@ -634,6 +737,23 @@
   - Update on every authenticated API request (debounced, not every request)
   - Use for session listing and inactivity detection
 
+#### Design Decisions
+
+> **Q**: Should sessions be tracked via refresh tokens or via a separate session table?
+> **A**: Use refresh tokens as session identifiers. The `refresh_tokens` table serves as the session table. Active sessions = non-expired, non-revoked refresh tokens.
+
+> **Q**: What should happen when a user's role changes?
+> **A**: Existing sessions continue with old permissions until the next access token refresh (within 15 minutes). For critical demotions, an admin can force-revoke all of the user's refresh tokens.
+
+> **Q**: Should there be a "remember me" option?
+> **A**: Yes. Default refresh token TTL: 7 days. "Remember me" TTL: 30 days. The login endpoint accepts a `rememberMe: boolean` field.
+
+> **Q**: Is 10 concurrent sessions per user the right limit?
+> **A**: 10 is sufficient. Covers 2-3 browsers, 1-2 mobile devices, and several API clients. Configurable via `MAX_SESSIONS_PER_USER=10`.
+
+> **Q**: When the session limit is reached, should the oldest session be automatically revoked?
+> **A**: Automatically revoke the oldest session. This is the least friction for the user. Log the automatic revocation. Rejecting login is a poor UX that punishes multi-device users.
+
 ---
 
 ## 14. CSRF Protection
@@ -667,6 +787,23 @@
   - Metadata flag to bypass CSRF validation
   - Apply to: login, register, token refresh, health checks
   - Document reasoning for each skip
+
+#### Design Decisions
+
+> **Q**: Is the double-submit cookie pattern sufficient, or should the server use the synchronizer token pattern?
+> **A**: Double-submit cookie is sufficient. It's stateless, works well with JWT cookie auth, and provides adequate CSRF protection.
+
+> **Q**: Should CSRF protection apply to all state-changing requests, or only to cookie-authenticated requests?
+> **A**: Only cookie-authenticated requests. Bearer token requests are immune to CSRF. This keeps CLI and API client usage simple.
+
+> **Q**: Should the CSRF token be rotated on every request, on every session refresh, or have a fixed TTL?
+> **A**: Rotate on every session refresh (when the access token is refreshed). This provides a reasonable rotation frequency (every 15 minutes).
+
+> **Q**: Should CSRF protection be implemented as NestJS middleware or as a guard?
+> **A**: Middleware. CSRF validation should run for all state-changing requests that use cookie authentication. Middleware runs before guards and controllers.
+
+> **Q**: What should the CSRF token cookie name be?
+> **A**: `XSRF-TOKEN`. This is the convention used by Angular and Axios (both automatically read this cookie and send it as a header). Zero CSRF configuration needed in the frontend HTTP client.
 
 ---
 
@@ -755,6 +892,47 @@
   - Each event includes: userId (if known), IP, userAgent, timestamp
   - Auth events stored in audit log table
   - Critical events (lockout, token theft) trigger alerts
+
+#### Design Decisions
+
+> **Q**: How many layers of brute force protection are needed?
+> **A**: Three layers for initial release: (1) per-IP rate limiting on login endpoint (10 attempts/minute), (2) progressive delay (add 1 second per failed attempt per account, reset on success), (3) account lockout after 10 consecutive failures (15-minute lockout). Skip IP blocking for initial release.
+
+> **Q**: Should the server implement device fingerprinting for suspicious login detection?
+> **A**: IP + user agent is sufficient. Device fingerprinting adds privacy concerns and is unreliable. Log IP + user agent on login for audit purposes.
+
+> **Q**: Should there be mandatory 2FA support in the initial release?
+> **A**: No 2FA in the initial release. Defer to phase 2. Design the user schema with `twoFactorEnabled` boolean and `twoFactorSecret` column from day one.
+
+> **Q**: Is refresh token rotation with reuse detection worth the implementation complexity?
+> **A**: Yes. Each refresh token has a `familyId`. On rotation, issue a new token with the same `familyId` and invalidate the old one. If an invalidated token is reused, revoke ALL tokens in the family. The complexity is modest (~50 lines of logic).
+
+> **Q**: Should the access token be bound to the client's IP address?
+> **A**: No. IP binding breaks for mobile users, VPN users, and users behind load-balanced corporate proxies. The 15-minute access token TTL already limits the theft window.
+
+> **Q**: Should the system track and display "last login" information?
+> **A**: Yes. Store `lastLoginAt`, `lastLoginIp`, and `lastLoginUserAgent` on the user record. Display on the dashboard and expose `GET /auth/sessions` for all active sessions.
+
+> **Q**: Should the architecture be designed to support OAuth 2.0 / OIDC integration in a future phase?
+> **A**: Yes, design for it now. The user table should include `passwordHash` (nullable) and a related `user_auth_providers` table. A user can have multiple auth providers linked. Schema created from day one.
+
+> **Q**: Should the API be designed as an OAuth 2.0 authorization server itself?
+> **A**: Resource server only. Building an OAuth 2.0 authorization server is unnecessary. The API keys feature (phase 2) covers programmatic access.
+
+> **Q**: Should the system support API keys for programmatic access?
+> **A**: Yes, in phase 2. API keys are generated by users, stored hashed in an `api_keys` table, and sent as `Bearer` tokens.
+
+> **Q**: Should API keys have scoped permissions?
+> **A**: Yes. Scopes: `read`, `write`, `project:{projectId}`. Scopes stored as a JSON array on the key record.
+
+> **Q**: Should the server implement email sending for registration verification and password reset?
+> **A**: Yes, implement email for the initial release. Registration verification and password reset are baseline auth features.
+
+> **Q**: Which email provider should be used?
+> **A**: Abstract with a provider interface (`EmailService` with `sendEmail(to, subject, html)` method). Default implementation: SMTP via `nodemailer`. Configuration: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`.
+
+> **Q**: In development mode, should emails be logged to console, written to files, or sent to a local mail server?
+> **A**: Logged to console with the full HTML body. Also support `SMTP_HOST=localhost:1025` for MailHog. The console approach requires zero setup.
 
 ---
 

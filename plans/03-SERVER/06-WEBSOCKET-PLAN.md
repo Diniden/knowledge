@@ -67,6 +67,23 @@
   - Rate limiting middleware on `/ws` namespace
   - Logging middleware for all namespaces
 
+#### Design Decisions
+
+> **Q**: Should the project use Socket.IO or plain WebSocket via `ws`?
+> **A**: Use Socket.IO. The built-in features (rooms, acknowledgments, automatic reconnection, namespace support) would need to be reimplemented with raw `ws`. The ~20KB client bundle cost is negligible. Socket.IO's room abstraction maps directly to the project/document/session room hierarchy. NestJS has first-class Socket.IO support via `@nestjs/platform-socket.io`.
+
+> **Q**: Should the transport be restricted to WebSocket only, or should polling be allowed as a fallback?
+> **A**: WebSocket only, no polling fallback. Configure Socket.IO with `transports: ['websocket']`. HTTP long-polling adds server overhead and is unnecessary for a modern application where users control their network environment.
+
+> **Q**: Does the chosen WebSocket library work correctly with Bun's HTTP server?
+> **A**: Socket.IO works with Bun when using `@nestjs/platform-express` (Express under Bun). Socket.IO attaches to the HTTP server instance, which Express provides. Test the WebSocket handshake, message delivery, and room operations under Bun during setup. Known working combination: NestJS 10+ / Socket.IO 4.7+ / Bun 1.1+.
+
+> **Q**: Should the WebSocket protocol use JSON for all events, or a binary protocol for high-frequency events?
+> **A**: JSON for all events. Agent streaming generates ~500 chars/second, which is well within WebSocket bandwidth capacity. Binary protocols add serialization complexity and make debugging harder. JSON is human-readable, self-describing, and sufficient.
+
+> **Q**: Should events use a flat structure or a nested structure with metadata?
+> **A**: Nested structure with metadata. Every event includes: `{ data, meta: { timestamp, requestId } }`. The event name is the Socket.IO event name. `timestamp` enables client-side ordering and latency calculation. `requestId` enables correlation with REST API requests. The metadata overhead is ~50 bytes per event — negligible.
+
 ---
 
 ## 2. Event Types & Schemas
@@ -204,6 +221,38 @@
   - Support handling multiple event versions during migration
   - Document breaking changes in event schemas
 
+#### Design Decisions
+
+> **Q**: Should spec change events include the full updated spec, or just a change notification?
+> **A**: Include the full updated spec for small changes (title, status, metadata). For large content changes (full markdown body rewrite), send a notification with `{ specId, changedFields, summary }` and let the client fetch via REST if needed. Threshold: if the spec JSON is < 10KB, include it inline. If > 10KB, send notification only.
+
+> **Q**: Should agent streaming events send raw text chunks or structured JSON objects?
+> **A**: Structured JSON objects: `{ type: "text"|"tool_call"|"tool_result"|"thinking"|"error", content: "..." }`. Text chunks contain raw text that the client appends. Tool call events show progress indicators. This gives the frontend enough information to render progressively with appropriate formatting.
+
+> **Q**: Should presence events be sent to all project members, or only to users who have opted in?
+> **A**: Send to all project members who are connected to the project room. Presence tracking is on by default. Users who want privacy can set their status to "invisible". Presence events are throttled to 1 per 5 seconds per user.
+
+> **Q**: Should event names use a hierarchical namespace or flat names?
+> **A**: Hierarchical with colon separators: `agent:message:chunk`, `spec:updated`, `graph:edge:created`, `session:ready`, `presence:update`. This is Socket.IO's conventional style, enables logical grouping, and makes the event catalog self-documenting.
+
+> **Q**: Should client-to-server and server-to-client events use the same names or distinct names?
+> **A**: Distinct names. Client-to-server events use verb prefixes: `subscribe:project`, `send:message`, `context:navigate`. Server-to-client events use noun prefixes: `spec:updated`, `agent:message:chunk`, `session:ready`. The naming convention makes event direction unambiguous.
+
+> **Q**: What events are absolutely essential for MVP vs nice-to-have?
+> **A**: MVP events (phase 1): `agent:message:chunk`, `agent:message:complete`, `agent:message:error`, `session:ready`, `session:terminated`, `spec:created`, `spec:updated`, `spec:deleted`, `graph:edge:created`, `graph:edge:deleted`, `sync:changes-available`. Phase 2 events: `presence:update`, `presence:editing`, `graph:analysis:complete`, `agent:thinking`, `system:capacity`.
+
+> **Q**: Should there be a "catch-all" event subscription?
+> **A**: Room-based subscription covers this. Joining the `project:{projectId}` room subscribes the client to all project-level events. The client receives everything and filters client-side. No per-event-type subscription mechanism — the event volume per project is low enough that receiving all events is not a performance concern.
+
+> **Q**: Should agent response streaming use WebSocket events or Server-Sent Events (SSE)?
+> **A**: WebSocket events. The WebSocket connection is already established. Adding SSE would require a separate HTTP connection and a second real-time transport. Agent streaming events flow through the same Socket.IO connection: `agent:message:chunk`, `agent:message:complete`.
+
+> **Q**: How should agent streaming chunks be delimited?
+> **A**: As they arrive from Claude Code's stdout stream. Claude Code's `stream-json` output emits events as they're generated. The server forwards each text chunk event to the WebSocket. No artificial batching — the natural streaming cadence from the LLM provides good UX. Each chunk is typically 5-20 characters.
+
+> **Q**: Should the client receive raw text chunks or already-formatted chunks?
+> **A**: Raw text chunks for streaming content. The client accumulates text and renders markdown progressively. Tool call events are structured JSON (type, tool name, arguments). The server does not pre-format — it streams Claude Code's output as-is.
+
 ---
 
 ## 3. Room & Channel Management
@@ -244,6 +293,23 @@
   - Spec events → project room (all members)
   - Sync events → project room (all members)
   - System events → broadcast to all connected clients
+
+#### Design Decisions
+
+> **Q**: Should there be a room per spec, or is document-level granularity sufficient?
+> **A**: Document-level rooms for the initial release. Rooms: `project:{projectId}` (project-wide events), `document:{documentId}` (document and spec events), `session:{sessionId}` (agent session events). Per-spec rooms are deferred to phase 2 when presence/editing indicators are implemented.
+
+> **Q**: Should rooms be created on demand or pre-created for all projects?
+> **A**: On demand. Rooms are created when the first user joins. Events emitted to an empty room are discarded (no queuing). Spec changes are persisted in git, agent messages in PostgreSQL, and presence is transient — so missed WebSocket events don't cause inconsistency.
+
+> **Q**: Should there be nested rooms?
+> **A**: Independent subscriptions, no nesting. The client explicitly joins each room it needs. The server does NOT auto-join sub-rooms. This gives the client fine-grained control over which events it receives.
+
+> **Q**: What is the expected maximum number of concurrent rooms?
+> **A**: With document-level granularity: 1 project room + N document rooms + M session rooms per project. For a project with 100 documents and 5 active sessions: 106 rooms. Across 10 active projects: ~1,060 rooms. Socket.IO handles thousands of rooms efficiently.
+
+> **Q**: Should inactive rooms be automatically cleaned up?
+> **A**: Socket.IO automatically removes empty rooms. For custom room metadata, clean up when the last user leaves. No timer-based cleanup needed.
 
 ---
 
@@ -289,6 +355,32 @@
   - Extract projectId from event payload
   - Verify user is a member of the project
   - Return error event if unauthorized
+
+#### Design Decisions
+
+> **Q**: Should WebSocket authentication use the same JWT from the HTTP-only cookie, or a separate token?
+> **A**: Use the JWT from the HTTP-only cookie, which is automatically sent during the WebSocket handshake. For non-browser clients, support a `token` query parameter. The auth middleware checks the cookie first, then the query parameter.
+
+> **Q**: How should token expiration be handled for long-lived WebSocket connections?
+> **A**: Periodic re-authentication check. The server checks JWT validity on a 5-minute interval. If expired, the server emits `auth:token-expired`. The client refreshes via REST `/auth/refresh` and sends `auth:refresh { token }` over WebSocket. If the client doesn't refresh within 30 seconds, the connection is terminated.
+
+> **Q**: Should the WebSocket connection be terminated immediately when the user's JWT is revoked?
+> **A**: Terminate at the next periodic check (within 5 minutes). Immediate termination would require a real-time token revocation channel (Redis pub/sub), which is unnecessary for single-instance deployment.
+
+> **Q**: Should authorization be checked on every incoming event, or only on room join?
+> **A**: Per-room checking on join, plus re-check on periodic auth interval. The 5-minute auth check also verifies room membership. Per-event checking is unnecessary overhead.
+
+> **Q**: If a user's project role changes, should their WebSocket rooms be updated in real-time?
+> **A**: Updated at the next periodic auth check (within 5 minutes). The auth check re-validates room membership and role. The 5-minute delay is acceptable.
+
+> **Q**: Should the server validate the `Origin` header on WebSocket handshake?
+> **A**: Yes. Validate against a whitelist of allowed origins (configurable via `ALLOWED_ORIGINS`). Reject connections from unknown origins. This prevents cross-site WebSocket hijacking.
+
+> **Q**: Should there be payload size limits on client-to-server WebSocket messages?
+> **A**: Client-to-server: 64KB maximum. Server-to-client: 1MB maximum. Configure via Socket.IO's `maxHttpBufferSize` option.
+
+> **Q**: Should the system implement WebSocket-specific logging for security audit?
+> **A**: Yes. Log at `info` level: connections, disconnections, room joins/leaves. Log at `warn` level: auth failures, rate limit violations. Log at `error` level: unexpected disconnections, protocol errors. Use the same structured JSON logging as the REST API.
 
 ---
 
@@ -383,6 +475,26 @@
   - Beyond 30 minutes: treat as new connection (no event catch-up)
   - Log reconnection timing for reliability metrics
 
+#### Design Decisions
+
+> **Q**: Should the server maintain a message buffer for reconnecting clients, or should clients re-fetch state via REST?
+> **A**: REST re-fetch after reconnection. When the client reconnects, it re-joins rooms and fetches current state via REST. Transient events missed during disconnection are unimportant. Persistent changes are fetched via REST. This is simpler and avoids server-side message buffering complexity.
+
+> **Q**: What is the appropriate reconnection window?
+> **A**: Since we're using REST re-fetch (no message buffer), configure Socket.IO client: reconnection attempts every 2 seconds, exponential backoff up to 30 seconds, max 20 attempts (~5 minutes total). After 20 failed attempts, show a "Connection lost. Click to reconnect." banner. No server-side memory for disconnected clients.
+
+> **Q**: Should the reconnection protocol use Socket.IO's built-in recovery feature?
+> **A**: Skip Socket.IO's connection recovery. The REST re-fetch approach is simpler and more reliable. Socket.IO's recovery requires server-side message buffering and has edge cases around buffer overflow.
+
+> **Q**: Should the WebSocket guarantee ordered delivery of events?
+> **A**: Socket.IO guarantees in-order delivery over a single connection, which is sufficient. After reconnection, the client re-fetches state via REST. The `meta.timestamp` on events allows the client to detect stale events.
+
+> **Q**: Should events include a sequence number?
+> **A**: No sequence numbers. The REST re-fetch approach eliminates the need for gap detection and re-delivery. Events include `meta.timestamp` for ordering within the current session.
+
+> **Q**: Should the client acknowledge receipt of critical events?
+> **A**: Yes, for two critical event types: `agent:proposal` and `sync:conflict`. Use Socket.IO's built-in acknowledgment callback. If the server doesn't receive an ack within 10 seconds, retry up to 3 times. All other events are fire-and-forget.
+
 ---
 
 ## 7. Message Queuing
@@ -424,6 +536,11 @@
   - Keep only the latest version
   - Example: multiple `spec:updated` for same specId → keep last
   - Apply deduplication rules per event type
+
+#### Design Decisions
+
+> **Q**: Should disconnected user messages be queued in-memory or in a persistent store?
+> **A**: No queuing for disconnected users. When a user disconnects, their events are discarded. On reconnection, the client re-fetches state via REST. This eliminates the entire queuing subsystem and its complexity. The REST API is the source of truth; WebSocket events are real-time notifications, not a durable message queue.
 
 ---
 
@@ -489,6 +606,29 @@
   - Max 100 client events per minute per connection
   - Reject excess events with `error:rate_limited`
   - Prevent abuse from malicious or buggy clients
+
+#### Design Decisions
+
+> **Q**: For events that go to all project members, should the server send one message to the room or individual messages per client?
+> **A**: Room-level broadcasting for most events. For events that require per-user customization (e.g., spec updates where some users have summary-only access), the server does per-user filtering: iterate over room members, check permissions, send customized payloads.
+
+> **Q**: Should broadcast events be filtered based on spec permissions?
+> **A**: Yes. When a private spec is updated: users with `full` access receive full data, users with `summary` access receive only the summary, users with no access receive nothing. For public specs, a single room broadcast suffices.
+
+> **Q**: Should the `excludeUserId` pattern be the default or opt-in?
+> **A**: Default exclusion (don't echo back to sender). The sender has already applied the change optimistically via the REST API response. Use Socket.IO's `socket.to(room).emit()` (excludes sender) as the default pattern.
+
+> **Q**: What are the right throttle rates for different event types?
+> **A**: Presence: 1 event per 5 seconds. Agent thinking indicators: 1 per 2 seconds. Agent streaming chunks: no throttle (deliver as they arrive). Spec change events: 1 per second (debounce rapid saves). Graph change events: no throttle.
+
+> **Q**: Should throttling be server-side, client-side, or both?
+> **A**: Server-side throttling for presence and thinking indicators. No throttling for agent streaming and spec changes. The server implements throttling as a per-room debounce: rapid events of the same type are coalesced.
+
+> **Q**: Should WebSocket connections be rate-limited per client?
+> **A**: Yes. Rate limit client-to-server events at 20 events/second per connection. If a client exceeds the limit, events are dropped with a `rate:limit` warning event. Repeated violations (>5 in a minute) disconnect the client.
+
+> **Q**: Should WebSocket event payloads for private specs contain the spec ID or be completely omitted?
+> **A**: Completely omitted for users with no access. Users with `summary` access receive events with summary content. Users with `full` access receive full events. This prevents enumeration attacks and information leakage.
 
 ---
 
@@ -678,6 +818,32 @@
   - Events published on one instance delivered to clients on another
   - Room memberships synchronized across instances
   - Fall back to single-instance if Redis unavailable
+
+#### Design Decisions
+
+> **Q**: Is multi-instance WebSocket needed for the initial release?
+> **A**: Single instance for the initial release. Expected: 20-50 concurrent users, each with 1-2 WebSocket connections = 40-100 connections. Multi-instance is not needed until concurrent users exceed ~500.
+
+> **Q**: Should the project use Socket.IO's Redis adapter from the start?
+> **A**: Add later. The Socket.IO Redis adapter is a drop-in addition that requires no application code changes. Starting with Redis for <50 users is unnecessary complexity.
+
+> **Q**: Should the architecture use sticky sessions or stateless WebSocket with shared state in Redis?
+> **A**: Defer until scaling is needed. When scaling, use the Socket.IO Redis adapter (shared state) over sticky sessions. The Redis adapter handles cross-instance message delivery transparently.
+
+> **Q**: What are the latency targets for WebSocket event delivery?
+> **A**: Agent streaming: <50ms from Claude Code stdout to client. Spec change notifications: <200ms from commit completion to client. Presence updates: <500ms. Easily achievable on a single instance.
+
+> **Q**: What is the expected maximum number of concurrent WebSocket connections?
+> **A**: 200 concurrent connections for the initial deployment (50 users × 2-4 rooms each). Each Socket.IO connection uses ~10KB of memory. Total: ~2MB for connection state. Bun handles 10,000+ concurrent connections — 50x headroom.
+
+> **Q**: What is the expected throughput of agent streaming events?
+> **A**: ~500 chars/second. At ~10-20 events/second (each carrying 25-50 chars), the WebSocket overhead is minimal (~2KB/second). Keep chunks small for responsive UI. No batching or buffering needed.
+
+> **Q**: Should there be backpressure handling if the client can't process events fast enough?
+> **A**: The client catches up. WebSocket and Socket.IO buffer outgoing messages at the TCP level. At ~2KB/second, even a very slow client keeps up. No application-level backpressure needed. Socket.IO's ping timeout will disconnect dead connections after 20 seconds.
+
+> **Q**: Should the system support thousands of connections with minimal events, or fewer connections with high event throughput?
+> **A**: Fewer connections with moderate event throughput. Expected: 50-200 connections, with burst throughput during agent streaming (~20 events/second per active session) and low baseline. Optimize for streaming latency rather than connection count.
 
 ---
 

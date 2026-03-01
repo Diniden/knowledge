@@ -84,6 +84,11 @@
   - `expectRoute(path)` — asserts current route
   - `getRouteParams()` — returns current route parameters
 
+#### Design Decisions
+
+> **Q**: Should the custom render wrapper (`renderWithProviders`) always include all providers (Router, Store, Theme), or should tests explicitly opt-in to the providers they need?
+> **A**: **Always include all providers** in `renderWithProviders`. The providers are lightweight (MobX RootStore with domain/session/UI stores via React Context, router memory history, theme context), and including all of them avoids boilerplate in every test. If a test needs a specific store state or route, pass it as an option: `renderWithProviders(<Component />, { rootStore: customRootStore, route: '/specs/1' })`.
+
 ---
 
 ## 2. Component Unit Testing
@@ -117,6 +122,23 @@
   - `MockSpecEditor` — simplified editor for parent tests
   - `MockChatPanel` — simplified chat for layout tests
   - Each mock accepts same props as real component, renders minimal DOM
+
+#### Design Decisions
+
+> **Q**: Should the project exclusively use `@testing-library/react` for component tests, or are there cases where direct DOM manipulation (`container.querySelector`) is acceptable?
+> **A**: Default to `@testing-library/react` with accessible queries (`getByRole`, `getByLabelText`, `getByText`). Allow `container.querySelector` only for components that genuinely lack accessible handles. Document the exception in a comment when used. The goal is > 95% Testing Library queries across the test suite.
+
+> **Q**: Should component tests verify CSS class names (BEM classes), or only behavior and content?
+> **A**: Do **not** assert on BEM class names in component tests. Test behavior and content only. BEM class correctness is a visual concern — catch it via visual regression screenshots in E2E. Asserting class names couples tests to CSS implementation details and breaks on every refactor.
+
+> **Q**: How should heavy third-party components (Markdown editor, graph visualization library) be handled in tests? Mock entirely, shallow render, or full render?
+> **A**: **Mock heavy third-party components** in unit tests. Create lightweight mock components that expose the same props interface but render a simple `<div data-testid="mock-tiptap-editor">` placeholder. The graph tree view is DOM-based and lightweight enough to render directly in unit tests. Full render of heavy components happens only in E2E tests.
+
+> **Q**: How should components that fetch data on mount be tested? Mock the API layer or pre-populate the store?
+> **A**: **Both, depending on what's being tested.** For testing loading/error/success states: mock the API layer (via MSW) and verify the full flow. For testing rendered output with specific data: pre-populate the MobX store via `runInAction()` and skip the fetch. Most tests should use store pre-population since it's faster.
+
+> **Q**: For components with debounced input, should tests use real timers or fake timers?
+> **A**: **Fake timers** via `bun:test` `useFakeTimers()`. Advance time explicitly with `advanceTimersByTime(debounceMs)`. This keeps tests fast and deterministic. The debounce delay value should be imported from a shared constant so tests advance by the correct amount.
 
 ---
 
@@ -243,6 +265,23 @@
   - Stores hydrate from storage on app init
   - Handles corrupted storage data gracefully
 
+#### Design Decisions
+
+> **Q**: Should MobX stores be tested directly (instantiate store, call actions, assert state) or indirectly through component tests?
+> **A**: **Both.** Test complex store logic directly — instantiate the store class, call actions, assert state transitions. Simple stores that are mostly getters/setters are tested indirectly through the components that consume them. Rule of thumb: if a store action has branching logic or side effects, it gets a direct unit test.
+
+> **Q**: Should stores be reset between tests? Should each test get a fresh store instance?
+> **A**: **Yes, create fresh store instances per test.** Each test (or `beforeEach`) simply creates a `new RootStore()` which instantiates fresh domain, session, and UI stores. The `renderWithProviders` wrapper accepts an optional `rootStore` parameter; if none is provided, it creates a new `RootStore()` automatically.
+
+> **Q**: For cross-store effects (e.g., logout clears all stores), should tests verify the effect through all stores, or should each store test its own cleanup independently?
+> **A**: **Each store tests its own cleanup independently** (unit tests verify that calling `authStore.logout()` triggers `specsStore.reset()`, etc.). Add **one integration-level component test** that verifies the full logout flow clears all visible UI state.
+
+> **Q**: How should localStorage/sessionStorage be tested? Use a real in-memory implementation or mock Storage?
+> **A**: Use **happy-dom's built-in Storage implementation**. It provides a working in-memory `localStorage` and `sessionStorage`. No need for a custom mock. Clear storage in `beforeEach` to prevent cross-test leakage.
+
+> **Q**: Should tests verify that specific keys are written to localStorage (implementation detail), or only that state persists across store re-instantiation (behavior)?
+> **A**: Test **behavior**: verify that state persists across store re-instantiation and that clearing storage resets state. Do not assert on specific localStorage key names. Exception: if the key name is part of a cross-system contract, test the key name explicitly.
+
 ---
 
 ## 5. API Client & Service Testing
@@ -318,6 +357,23 @@
   - `markAsRead(id)` sends PATCH
   - `dismissAll()` sends POST
 
+#### Design Decisions
+
+> **Q**: Should the project use Mock Service Worker (MSW) for network mocking or mock `fetch` directly?
+> **A**: **MSW.** It intercepts at the network level, works with any HTTP client abstraction, and handlers can be shared between tests and development mode. Define baseline handlers in `test/mocks/handlers.ts` and override per-test with `server.use()`.
+
+> **Q**: Should mock API responses be defined inline in tests, or in centralized mock response files?
+> **A**: **Hybrid.** Define default/happy-path MSW handlers in centralized `test/mocks/handlers/` files (one per API domain: `specs.handlers.ts`, `auth.handlers.ts`). Override specific responses inline in tests when testing error states or edge cases.
+
+> **Q**: Should API mocking verify request parameters, or only provide canned responses?
+> **A**: **Verify request parameters** for critical operations (create, update, delete) — assert that the correct body/params were sent. For read operations (GET requests), canned responses are sufficient.
+
+> **Q**: How comprehensively should API error scenarios be tested?
+> **A**: Test the **common error codes per service area**, not per endpoint. Each service area (auth, specs, knowledge graph, agent) should have tests for: 400 (validation error), 401 (unauthenticated), 403 (forbidden), 404 (not found), 500 (server error). Endpoint-specific errors (e.g., 409 conflict) are tested only where meaningful.
+
+> **Q**: Should tests simulate network timeouts and connection failures?
+> **A**: Yes, but minimally. Add **one test per service area** that verifies the UI handles a network timeout gracefully (shows error message, allows retry). Use MSW's `delay('infinite')` combined with fake timer advancement to simulate timeouts deterministically.
+
 ---
 
 ## 6. WebSocket Mock Testing
@@ -362,6 +418,17 @@
   - Exposes connection state: connecting, connected, disconnected, reconnecting
   - UI responds to connection state changes
   - Shows connection status indicator
+
+#### Design Decisions
+
+> **Q**: Should WebSocket tests use a real WebSocket server (in-memory) or mock the WebSocket constructor entirely?
+> **A**: **Mock the Socket.IO client** in component unit tests. For integration-level frontend tests, use a lightweight in-memory Socket.IO server. E2E tests use the real WebSocket connection through the full stack.
+
+> **Q**: How should streaming agent responses be tested?
+> **A**: **Chunk-by-chunk streaming** — simulate 3–5 chunks arriving with short delays. This verifies that the UI progressively renders content without testing at the character level (too granular) or only the final state (misses streaming bugs).
+
+> **Q**: Should reconnection logic be tested with real disconnect scenarios or simulated?
+> **A**: **Simulated** — trigger the `disconnect` event on the mock client and verify the UI shows a reconnection indicator. Then trigger `connect` and verify recovery. Real disconnection scenarios are reserved for E2E tests.
 
 ---
 
@@ -594,6 +661,17 @@
   - Headings are sequential (no skipped levels)
   - Each section has appropriate heading level
 
+#### Design Decisions
+
+> **Q**: Should accessibility testing be automated-only (axe-core scans), or also include manual testing checklists?
+> **A**: **Automated axe-core scans** in component tests as the baseline. Supplement with a manual accessibility checklist for quarterly reviews or before major releases.
+
+> **Q**: Should every component have an individual axe-core scan, or should axe-core run once per page in E2E tests?
+> **A**: **Per-page in E2E tests** for the critical 10–15 flows. Additionally, add axe-core scans to component tests for complex, custom-built components (not trivial wrappers).
+
+> **Q**: Should the project block PRs that introduce accessibility violations?
+> **A**: **Soft warning initially**, upgrading to hard block once existing violations are resolved (within the first 2 months). Start by logging violations in CI without blocking. Once the baseline is clean, enable blocking for new violations with severity "critical" and "serious".
+
 ---
 
 ## 12. Generative UI Sandbox Testing
@@ -628,6 +706,17 @@
   - Parameters from registry are passed to iframe
   - Iframe receives and applies parameters
   - Parameter changes trigger iframe reload
+
+#### Design Decisions
+
+> **Q**: How should iframe-sandboxed generative UIs be tested? Should gen-UI tests be E2E-only?
+> **A**: The **iframe host wrapper** is tested in unit tests (verify sandbox attributes, communication via `postMessage`, loading states, error handling). The **iframe content** (generated UI) is tested in E2E with Playwright via `page.frameLocator()`. Unit tests for the host, E2E tests for the full gen-UI rendering.
+
+> **Q**: Should the gen-UI host wrapper be tested independently of the iframe content?
+> **A**: Yes. Unit-test the host wrapper with a mocked iframe. Verify: correct `src` attribute, sandbox policy attributes, `postMessage` sends correct data, `message` event handler processes responses correctly.
+
+> **Q**: Should generated UI code be tested as part of the main test suite, or does it have its own test infrastructure?
+> **A**: Generated UI code is **not** part of the main test suite. It runs in a sandboxed iframe and has its own lifecycle. The main test suite verifies that the gen-UI system works (host wrapper tests, E2E iframe interaction tests). Testing the quality of the generated code itself is the agent's responsibility.
 
 ---
 
@@ -664,6 +753,20 @@
   - All critical pages in dark mode
   - All component states in dark mode
   - Compare light mode vs dark mode for consistency
+
+#### Design Decisions
+
+> **Q**: Should the project invest in visual regression testing from the start, or defer until the design system stabilizes?
+> **A**: **Defer until post-MVP.** The UI will change rapidly during initial development, making screenshot baselines a constant maintenance burden. Introduce visual regression testing once the core design system and component library stabilize (estimated: 3–4 months in).
+
+> **Q**: Which visual regression tool should be used?
+> **A**: **Playwright screenshots** when the time comes. It's free, already in the stack, and handles baseline management through `toHaveScreenshot()`. No additional tooling or cloud costs.
+
+> **Q**: How should visual diffs be reviewed?
+> **A**: **Locally by the developer** during development; **in CI artifacts** during PR review. Playwright generates diff images as test artifacts that reviewers can download and inspect.
+
+> **Q**: Should visual regression tests cover all themes (light + dark) and all viewport sizes?
+> **A**: When implemented, cover **light theme only at 1440×900**. Dark theme is a stretch goal. This keeps the screenshot count manageable.
 
 ---
 
@@ -872,6 +975,17 @@
   - Select edge, press Delete or use context menu
   - Confirmation dialog before deletion
   - Edge removed from graph after confirmation
+
+#### Design Decisions
+
+> **Q**: The knowledge graph uses a canvas-based visualization library. Canvas content cannot be tested with DOM assertions. What is the testing strategy?
+> **A**: The graph tree view is DOM-based (React + @tanstack/virtual), so the Canvas testing concern does not apply. Unit-test the data model, BFS layout algorithm, row merging logic, interaction handlers (card click, expand, breadcrumb navigation), and state management. Use Playwright screenshot comparison in E2E for visual correctness. Standard @testing-library/react queries work for all tree view components.
+
+> **Q**: How should graph layout algorithms be tested? Verify exact node positions or only verify constraints?
+> **A**: **Verify constraints**, not exact positions. Assert: correct number of nodes rendered, edges connect the right source/target pairs, no overlapping node bounding boxes for small graphs, selected node has the correct ID. Exact pixel positions are algorithm-dependent and change with library updates.
+
+> **Q**: Should drag-and-drop graph interactions be tested in E2E only, or also in unit tests with synthetic events?
+> **A**: **E2E only for drag-and-drop.** Test the drag handlers in unit tests (call the handler with mock coordinates), but verify the actual drag-and-drop UX in Playwright E2E tests using `page.mouse.move()` and `page.mouse.down()/up()`.
 
 ---
 
@@ -1100,6 +1214,39 @@
   - Confirm revert
   - Verify content matches old version
   - Verify new revert commit in history
+
+#### Design Decisions
+
+> **Q**: Should E2E tests cover every user flow, or only the critical 10–15 flows?
+> **A**: **Critical flows only — target 10–15 flows.** Cover: login/logout, create/edit/delete spec, navigate knowledge graph, search specs, agent chat interaction, plan generation view, generative UI rendering, spec linking/unlinking, real-time collaboration indicators, and settings. Edge cases are caught by unit and integration tests.
+
+> **Q**: Should E2E tests run against a mocked backend or a real backend with a test database?
+> **A**: **Real backend with a test database.** Use Docker Compose to spin up the full stack (NestJS server + PostgreSQL + frontend dev server). Seed the database with known test data before the E2E suite runs.
+
+> **Q**: Should E2E tests handle their own test data setup, or assume pre-seeded data?
+> **A**: **Both.** Pre-seed common reference data (test users, base project) via a seed script that runs once before the E2E suite. Each test creates its own test-specific data via API calls in `beforeEach` (using Playwright's `request` context).
+
+> **Q**: How should E2E test flakiness be handled?
+> **A**: **Auto-retry once** (Playwright `retries: 1` in CI config). Tests that fail intermittently more than twice in a week are flagged for investigation. If not fixable within one sprint, quarantine with `test.skip` + a linked issue.
+
+> **Q**: Should E2E tests use fixed viewport sizes or test multiple sizes?
+> **A**: **Single fixed viewport: 1440×900** (desktop-first professional tool per PRD). Responsive behavior (if any) is tested at the component level, not full E2E.
+
+> **Q**: Should E2E tests run in parallel or serial?
+> **A**: **Parallel with isolated data.** Use Playwright's built-in parallel workers (default: half the CPU cores). Each test creates its own data. Limit workers to 4 in CI to avoid resource exhaustion.
+
+---
+
+## Additional Design Decisions
+
+> **Q**: Should the project measure frontend performance metrics (First Contentful Paint, Largest Contentful Paint, Time to Interactive) in automated tests?
+> **A**: **Manual performance audits only.** The app is a desktop-first professional tool. FCP/LCP/TTI are less critical here than functional correctness. Run Lighthouse manually before major releases.
+
+> **Q**: Should the project test component render performance (e.g., "rendering 1000 spec list items should take < 100ms")?
+> **A**: Add **targeted render benchmarks** for the two heaviest components: spec list (target: 500 items in < 200ms) and graph visualization (target: 200 nodes in < 500ms). These are not CI-blocking — run as manual benchmarks.
+
+> **Q**: Should the graph visualization have performance tests? Large graphs (500+ nodes) may cause rendering issues.
+> **A**: Yes, but as **manual benchmarks**, not CI tests. Create a test fixture with 500 nodes and 1000 edges. Measure: initial render time, pan/zoom responsiveness, node selection latency. Track results manually across releases.
 
 ---
 
