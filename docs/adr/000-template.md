@@ -1,29 +1,15 @@
 # ADR-000: Template
 
-**Status:** [Proposed | Accepted | Deprecated | Superseded by ADR-XXX]
-**Date:** YYYY-MM-DD
-**Authors:** [Name(s)]
+**Status**: Draft
 
 ## Context
 
-What is the issue that motivates this decision? What is the background?
+What is the issue that we're seeing that is motivating this decision or change?
 
 ## Decision
 
-What is the change being proposed or decided?
-
-## Alternatives Considered
-
-1. **Alternative A** — description and reason rejected
-2. **Alternative B** — description and reason rejected
+What is the change that we're proposing and/or doing?
 
 ## Consequences
 
-**Positive:**
-- ...
-
-**Negative:**
-- ...
-
-**Neutral:**
-- ...
+What becomes easier or more difficult to do because of this change?

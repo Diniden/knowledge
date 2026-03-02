@@ -1,48 +1,41 @@
-const BASE = '/api/v1';
+const API_PREFIX = '/api/v1';
 
-export const API_ROUTES = {
-  AUTH: {
-    REGISTER: `${BASE}/auth/register`,
-    LOGIN: `${BASE}/auth/login`,
-    LOGOUT: `${BASE}/auth/logout`,
-    ME: `${BASE}/auth/me`,
-    REFRESH: `${BASE}/auth/refresh`,
-  },
-  USERS: {
-    BASE: `${BASE}/users`,
-    BY_ID: (id: string) => `${BASE}/users/${id}`,
-  },
-  SPECS: {
-    BASE: `${BASE}/specs`,
-    BY_ID: (id: string) => `${BASE}/specs/${id}`,
-    VERSIONS: (id: string) => `${BASE}/specs/${id}/versions`,
-    DIFF: (id: string) => `${BASE}/specs/${id}/diff`,
-    REVERT: (id: string) => `${BASE}/specs/${id}/revert`,
-    PERMISSIONS: (id: string) => `${BASE}/specs/${id}/permissions`,
-  },
-  DOCUMENTS: {
-    BASE: `${BASE}/documents`,
-    BY_ID: (id: string) => `${BASE}/documents/${id}`,
-    SPECS: (id: string) => `${BASE}/documents/${id}/specs`,
-  },
-  GRAPH: {
-    QUERY: `${BASE}/graph/query`,
-    EDGES: `${BASE}/graph/edges`,
-    EDGE_BY_ID: (id: string) => `${BASE}/graph/edges/${id}`,
-    INQUIRY: `${BASE}/graph/inquiry`,
-  },
-  AGENT: {
-    SESSIONS: `${BASE}/agent/sessions`,
-    SESSION_BY_ID: (id: string) => `${BASE}/agent/sessions/${id}`,
-    MESSAGES: (sessionId: string) => `${BASE}/agent/sessions/${sessionId}/messages`,
-  },
-  RAG: {
-    SEARCH: `${BASE}/rag/search`,
-    EMBED: `${BASE}/rag/embed`,
-  },
-  GIT: {
-    HISTORY: `${BASE}/git/history`,
-    BRANCHES: `${BASE}/git/branches`,
-    MERGE: `${BASE}/git/merge`,
-  },
+export const AUTH_ROUTES = {
+  LOGIN: `${API_PREFIX}/auth/login`,
+  REGISTER: `${API_PREFIX}/auth/register`,
+  LOGOUT: `${API_PREFIX}/auth/logout`,
+  ME: `${API_PREFIX}/auth/me`,
+  REFRESH: `${API_PREFIX}/auth/refresh`,
+} as const;
+
+export const SPEC_ROUTES = {
+  BASE: `${API_PREFIX}/specs`,
+  BY_ID: (id: string) => `${API_PREFIX}/specs/${id}`,
+  DOCUMENTS: `${API_PREFIX}/specs/documents`,
+  DOCUMENT_BY_ID: (id: string) => `${API_PREFIX}/specs/documents/${id}`,
+} as const;
+
+export const GRAPH_ROUTES = {
+  BASE: `${API_PREFIX}/graph`,
+  NODES: `${API_PREFIX}/graph/nodes`,
+  EDGES: `${API_PREFIX}/graph/edges`,
+  QUERY: `${API_PREFIX}/graph/query`,
+} as const;
+
+export const AGENT_ROUTES = {
+  SESSIONS: `${API_PREFIX}/agent/sessions`,
+  SESSION_BY_ID: (id: string) => `${API_PREFIX}/agent/sessions/${id}`,
+  MESSAGES: (sessionId: string) =>
+    `${API_PREFIX}/agent/sessions/${sessionId}/messages`,
+} as const;
+
+export const RAG_ROUTES = {
+  SEARCH: `${API_PREFIX}/rag/search`,
+  EMBED: `${API_PREFIX}/rag/embed`,
+} as const;
+
+export const GIT_ROUTES = {
+  COMMIT: `${API_PREFIX}/git/commit`,
+  BRANCH: `${API_PREFIX}/git/branch`,
+  DIFF: `${API_PREFIX}/git/diff`,
 } as const;

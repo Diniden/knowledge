@@ -1,10 +1,10 @@
 pre-commit:
-  parallel: true
   commands:
     lint-staged:
-      run: bun run lint-staged
+      glob: "*.{ts,tsx,scss,css,json,md}"
+      run: bunx lint-staged
 
 commit-msg:
   commands:
     commitlint:
-      run: bunx --bun commitlint --edit {1}
+      run: bunx commitlint --edit {1}

@@ -10,6 +10,13 @@
 > **Dependencies**: `06-AGENT-SYSTEM/01-ARCHITECTURE-PLAN.md`
 > **Estimated tasks**: 125+
 >
+> **ARCHITECTURAL DECISION**: This system uses **Claude Code (the terminal CLI
+> application)** as the agent runtime. The server **never** calls the Anthropic
+> model API directly. Instead, it wraps the `claude` CLI binary as a subprocess,
+> injecting prompts via stdin and reading structured output from stdout. Claude
+> Code manages its own model API calls, MCP tool execution, and conversation
+> state internally. Our server is a process orchestrator, not an LLM client.
+>
 > **SANDBOXING NOTE**: This plan covers the **APPLICATION-RUNTIME** Claude Code
 > wrapper — the server-side process that spawns Claude Code to serve end users.
 > This is SEPARATE from DEVELOPMENT-TIME AI configuration
@@ -69,7 +76,7 @@
 > **A**: Manual upgrade only. The server operator explicitly upgrades as part of deployment. The wrapper logs the current version at startup and can notify when new versions are available, but never auto-updates.
 
 > **Q**: Should the wrapper support alternative AI runtimes besides Claude Code?
-> **A**: No. The wrapper is purpose-built for Claude Code's specific features (`--resume`, `stream-json`, MCP integration, CLAUDE.md auto-loading). For local testing without API access, a mock mode is provided instead.
+> **A**: No. The wrapper is purpose-built for Claude Code's specific features (`--resume`, `stream-json`, MCP integration, CLAUDE.md auto-loading). The server never calls an LLM API directly — Claude Code is the sole agent runtime. For local testing without API access, a mock mode is provided (a script that mimics Claude Code's stdin/stdout protocol).
 
 > **Q**: Should the wrapper use Claude Code's programmatic API (library mode) instead of CLI subprocess spawning?
 > **A**: CLI subprocess spawning (`claude --print --output-format stream-json`) is the documented integration path. The subprocess model provides natural process isolation and matches the PRD architecture. If Anthropic releases a library mode SDK, migration can be considered.
@@ -707,16 +714,21 @@
 ### 7.1 Claude Code Environment
 
 - [ ] **AG-CC-068**: Define environment variables passed to Claude Code processes
-  | Variable | Purpose | Example |
-  |---|---|---|
-  | `ANTHROPIC_API_KEY` | API authentication | `sk-ant-...` |
-  | `CLAUDE_CODE_SESSION_ID` | Session tracking | `sess_abc123` |
-  | `CLAUDE_CODE_AGENT_TYPE` | Agent type identifier | `knowledge-graph` |
-  | `CLAUDE_CODE_PROJECT_ID` | Project context | `proj_xyz789` |
-  | `CLAUDE_CODE_USER_ID` | User context | `user_def456` |
-  | `CLAUDE_CODE_SANDBOX_ROOT` | Sandbox directory | `/data/sandboxes/proj_xyz/` |
-  | `CLAUDE_CODE_MAX_TOKENS` | Output token limit | `10000` |
-  | `CLAUDE_CODE_TIMEOUT_MS` | Execution timeout | `120000` |
+  The server reads its configuration from its own env vars (see `.env`) and
+  selectively forwards a controlled subset to each Claude Code subprocess:
+  | Variable | Purpose | Source | Example |
+  |---|---|---|---|
+  | `ANTHROPIC_API_KEY` | API auth for Claude Code | Server env `ANTHROPIC_API_KEY` | `sk-ant-...` |
+  | `CLAUDE_CODE_SESSION_ID` | Session tracking | Generated per session | `sess_abc123` |
+  | `CLAUDE_CODE_AGENT_TYPE` | Agent type identifier | From invocation | `knowledge-graph` |
+  | `CLAUDE_CODE_PROJECT_ID` | Project context | From invocation | `proj_xyz789` |
+  | `CLAUDE_CODE_USER_ID` | User context | From invocation | `user_def456` |
+  | `CLAUDE_CODE_SANDBOX_ROOT` | Sandbox directory | Generated per session | `/data/sandboxes/proj_xyz/` |
+  | `CLAUDE_CODE_MAX_TOKENS` | Output token limit | From config | `10000` |
+  | `CLAUDE_CODE_TIMEOUT_MS` | Execution timeout | From config | `120000` |
+  The server NEVER passes its own internal secrets (DB credentials, JWT secret,
+  etc.) to the subprocess. The subprocess's only external API access is through
+  `ANTHROPIC_API_KEY`, which Claude Code uses internally for its model calls.
 - [ ] **AG-CC-069**: Implement environment variable injection
   - Merge base environment (from server config) with per-invocation overrides
   - Never pass server-internal variables (database URLs, internal secrets)
@@ -736,15 +748,16 @@
 ### 7.2 Server-Side Configuration
 
 - [ ] **AG-CC-071**: Define server-side Claude Code configuration schema
+  The server's `AppConfig.claudeCode` section provides the primary settings
+  (loaded from env vars in `configuration.ts`). Extended runtime config:
   ```typescript
   interface ClaudeCodeConfig {
-    binaryPath: string;
+    binaryPath: string;          // CLAUDE_CODE_BINARY_PATH (auto-discover if empty)
+    anthropicApiKey: string;     // ANTHROPIC_API_KEY (forwarded to subprocess)
+    maxConcurrent: number;       // CLAUDE_CODE_MAX_CONCURRENT (default 10)
+    timeoutMs: number;           // CLAUDE_CODE_TIMEOUT_MS (default 300000)
     minVersion: string;
-    defaultModel: string;
     defaultMaxTokens: number;
-    defaultTimeout: number;
-    maxConcurrentProcesses: number;
-    processPoolSize: number;
     sandboxRootPath: string;
     sandboxMaxSizeMb: number;
     streamBufferMaxBytes: number;
@@ -754,10 +767,11 @@
   }
   ```
 - [ ] **AG-CC-072**: Implement configuration loading from NestJS ConfigModule
-  - Load from environment variables with `CLAUDE_` prefix
-  - Validate all required configuration present at startup
-  - Apply defaults for optional configuration
-  - Log effective configuration at startup (mask sensitive values)
+  - Core settings from `AppConfig.claudeCode` (already loaded by `configuration()`)
+  - Extended settings from additional `CLAUDE_CODE_*` env vars
+  - Validate `ANTHROPIC_API_KEY` is present — if missing, disable agent system with warning
+  - Auto-discover `claude` binary from `$PATH` if `binaryPath` is empty
+  - Log effective configuration at startup (mask `ANTHROPIC_API_KEY`)
 - [ ] **AG-CC-073**: Implement per-agent-type configuration overrides
   - Allow each agent type to override default model, timeout, max tokens
   - Overrides defined in agent type registry

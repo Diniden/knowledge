@@ -2,9 +2,9 @@
   "files": [],
   "references": [
     { "path": "./shared" },
-    { "path": "./packages/mcp-servers" },
-    { "path": "./packages/claude-code-wrapper" },
+    { "path": "./client" },
     { "path": "./server" },
-    { "path": "./client" }
+    { "path": "./packages/mcp-servers" },
+    { "path": "./packages/claude-code-wrapper" }
   ]
 }

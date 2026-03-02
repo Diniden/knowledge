@@ -1,18 +1,5 @@
-# Normalize line endings to LF on checkout
 * text=auto eol=lf
-
-# TypeScript / JavaScript
-*.ts   linguist-language=TypeScript
-*.tsx  linguist-language=TypeScript
-*.js   linguist-language=JavaScript
-*.jsx  linguist-language=JavaScript
-
-# Styles
+*.ts linguist-language=TypeScript
+*.tsx linguist-language=TypeScript
 *.scss linguist-language=SCSS
-*.css  linguist-language=CSS
-
-# Lockfile — treat as binary so diffs don't show noise
 bun.lock binary
-
-# Knowledge graph JSON — use union merge to reduce conflicts
-knowledge-graph/**/*.json merge=union

@@ -1,34 +1,14 @@
-export interface VersionInfo {
-  commitHash: string;
-  commitMessage: string;
-  author: string;
-  authorEmail: string;
-  timestamp: string;
-  version: number;
-}
-
 export interface SpecDiff {
   specId: string;
-  fromCommit: string;
-  toCommit: string;
-  changes: DiffHunk[];
-  summary: string;
+  fromVersion: number;
+  toVersion: number;
+  changes: Array<{ field: string; oldValue: unknown; newValue: unknown }>;
 }
 
-export interface DiffHunk {
-  type: 'added' | 'removed' | 'unchanged';
-  content: string;
-  lineStart: number;
-  lineEnd: number;
-}
-
-export interface VersionHistory {
+export interface VersionInfo {
   specId: string;
-  versions: VersionInfo[];
-}
-
-export interface RevertSpecDto {
-  specId: string;
-  targetCommitHash: string;
-  message?: string;
+  version: number;
+  commitHash: string;
+  committedAt: string;
+  authorId: string;
 }

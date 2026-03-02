@@ -1,44 +1,30 @@
-# ADR-001: Bun Workspaces Monorepo
+# ADR-001: Monorepo Structure
 
-**Status:** Accepted
-**Date:** 2026-03-01
-**Authors:** Initial project team
+**Status**: Accepted
 
 ## Context
 
-The Knowledge Graph Agent System consists of multiple distinct but tightly coupled packages: a React frontend, a NestJS backend, a shared types package, MCP server implementations, and a Claude Code wrapper. These packages need to share types, import each other's code, and be developed and tested together.
+We need a project structure that supports a React frontend, NestJS backend, shared types, knowledge graph data, and internal packages (MCP servers, Claude wrapper). The codebase will grow significantly across multiple domains.
 
 ## Decision
 
-Use a **Bun workspace monorepo** with the following top-level packages:
-- `client` (`@kg/client`) — React + Vite frontend
-- `server` (`@kg/server`) — NestJS backend
-- `shared` (`@kg/shared`) — shared types and utilities
-- `packages/mcp-servers` (`@kg/mcp-servers`) — MCP tool implementations
-- `packages/claude-code-wrapper` (`@kg/claude-code-wrapper`) — Claude Code integration
+Use a **Bun workspace monorepo** with the following layout:
 
-## Alternatives Considered
+- `client/` — React + Vite (ui + gen)
+- `server/` — NestJS
+- `shared/` — @kg/shared package (types, constants, utils, errors)
+- `packages/*` — Internal packages
+- `knowledge-graph/` — Git-tracked JSON data
+- `plans/` — Design documents
+- `scripts/` — Build and dev scripts
 
-1. **Polyrepo** — separate repositories per package. Rejected because shared type changes would require coordinating across multiple repos and PRs.
-
-2. **Nx Monorepo** — feature-rich build orchestration. Rejected because it adds significant complexity and Bun workspaces is sufficient for this project's needs.
-
-3. **Turborepo** — fast, incremental builds. Rejected in favor of Bun's native workspace support, which avoids adding another dependency.
-
-4. **npm/yarn workspaces** — industry standard. Rejected in favor of Bun for runtime speed, ESM-native support, and built-in test runner.
+**Alternatives considered**:
+- **Polyrepo**: Too much overhead for this team size; shared types would require npm publishing.
+- **Nx/Turborepo**: Additional tooling; Bun workspaces are sufficient for current scale.
 
 ## Consequences
 
-**Positive:**
-- Single `bun install` at the root installs all dependencies
-- TypeScript project references enable cross-package go-to-definition
-- `@kg/shared` types are available to both client and server with zero build overhead in development (via path aliases)
-- Unified `bun test` runs all tests across packages
-
-**Negative:**
-- Bun workspace ecosystem is less mature than npm/yarn
-- Some npm packages may have compatibility issues with Bun (low risk, fallback documented)
-- All code lives in one repo — requires disciplined separation of concerns between packages
-
-**Neutral:**
-- Bun lockfile (`bun.lock`) is binary — diffs are not human-readable
+- Single `bun install` at root
+- Shared types via `@kg/shared` workspace dependency
+- Build order: shared → server → client
+- Dev script orchestrates parallel servers

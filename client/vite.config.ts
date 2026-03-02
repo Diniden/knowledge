@@ -1,44 +1,25 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { resolve } from 'path';
-
-const stylesDir = resolve(__dirname, 'ui/src/styles');
+import path from 'path';
 
 export default defineConfig({
-  root: 'ui',
   plugins: [react()],
+  root: 'ui',
   resolve: {
     alias: {
-      '@ui': resolve(__dirname, 'ui/src'),
-      '@shared': resolve(__dirname, '../shared/src'),
-    },
-  },
-  css: {
-    preprocessorOptions: {
-      scss: {
-        // Make the styles dir available so components can @use 'variables' as v;
-        loadPaths: [stylesDir],
-        // Use the modern Sass API
-        api: 'modern-compiler' as const,
-      },
+      '@ui': path.resolve(__dirname, 'ui/src'),
+      '@shared': path.resolve(__dirname, '../shared/src'),
     },
   },
   server: {
     port: 3000,
     proxy: {
-      '/api': {
-        target: 'http://localhost:4000',
-        changeOrigin: true,
-      },
-      '/ws': {
-        target: 'ws://localhost:4000',
-        ws: true,
-        changeOrigin: true,
-      },
+      '/api': { target: 'http://localhost:4000', changeOrigin: true },
+      '/ws': { target: 'ws://localhost:4000', ws: true },
     },
   },
   build: {
-    outDir: '../dist',
+    outDir: 'dist',
     sourcemap: true,
     rollupOptions: {
       output: {
@@ -48,7 +29,14 @@ export default defineConfig({
       },
     },
   },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        loadPaths: [path.resolve(__dirname, 'ui/src')],
+      },
+    },
+  },
   optimizeDeps: {
-    include: [],
+    include: ['@kg/shared'],
   },
 });

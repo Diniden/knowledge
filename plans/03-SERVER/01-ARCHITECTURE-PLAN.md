@@ -577,8 +577,8 @@
   - `JWT_REFRESH_EXPIRATION` — refresh token TTL (default: 7d)
   - `BCRYPT_ROUNDS` — bcrypt salt rounds (default: 12)
   - `CORS_ORIGINS` — allowed origins (comma-separated)
-  - `CLAUDE_CODE_PATH` — path to Claude Code executable
-  - `CLAUDE_API_KEY` — Claude API key for agent calls
+  - `CLAUDE_CODE_BINARY_PATH` — path to Claude Code CLI executable
+  - `ANTHROPIC_API_KEY` — API key passed to Claude Code subprocess (not used by server directly)
   - `KNOWLEDGE_GRAPH_ROOT` — root path for knowledge graph files
   - `GIT_REMOTE_URL` — default remote URL for git operations
   - `MAX_AGENT_SESSIONS` — max concurrent agent sessions (default: 5)

@@ -1,13 +1,8 @@
 import { PermissionLevel } from '../types/permissions.js';
 
+export const PERMISSION_LEVELS = Object.values(PermissionLevel);
+
 export const PERMISSION_LEVEL_LABELS: Record<PermissionLevel, string> = {
   [PermissionLevel.FULL_ACCESS]: 'Full Access',
-  [PermissionLevel.SUMMARY_ACCESS]: 'Summary Access',
+  [PermissionLevel.SUMMARY_ACCESS]: 'Summary Only',
 };
-
-export const PERMISSION_LEVEL_DESCRIPTIONS: Record<PermissionLevel, string> = {
-  [PermissionLevel.FULL_ACCESS]: 'Can read and edit the full spec content.',
-  [PermissionLevel.SUMMARY_ACCESS]: 'Can only read the AI-generated summary of the spec.',
-};
-
-export const DEFAULT_PERMISSION_LEVEL = PermissionLevel.SUMMARY_ACCESS;

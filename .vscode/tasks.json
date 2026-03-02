@@ -2,54 +2,25 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Dev: Start All Services",
+      "label": "Dev Servers",
       "type": "shell",
       "command": "bun dev",
-      "group": "build",
-      "presentation": {
-        "reveal": "always",
-        "panel": "new"
-      }
+      "group": { "kind": "build", "isDefault": true },
+      "isBackground": true,
+      "problemMatcher": []
     },
     {
-      "label": "Dev: Run Tests",
+      "label": "Run Tests",
       "type": "shell",
       "command": "bun test",
       "group": "test",
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared"
-      }
+      "problemMatcher": []
     },
     {
-      "label": "Dev: Run Migrations",
-      "type": "shell",
-      "command": "bun run migrate",
-      "group": "build",
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared"
-      }
-    },
-    {
-      "label": "Dev: Lint All",
+      "label": "Lint",
       "type": "shell",
       "command": "bun lint",
-      "group": "build",
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared"
-      }
-    },
-    {
-      "label": "Docker: Start PostgreSQL",
-      "type": "shell",
-      "command": "docker compose up -d postgres",
-      "group": "build",
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared"
-      }
+      "problemMatcher": ["$eslint-stylish"]
     }
   ]
 }

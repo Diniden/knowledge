@@ -1,64 +1,50 @@
-#!/usr/bin/env bun
-/**
- * Compares .env against .env.example and reports missing/extra variables.
- */
+import { readFileSync, existsSync } from 'fs';
 
-import { readFile } from 'fs/promises';
-import { resolve } from 'path';
-
-const ROOT = resolve(import.meta.dir, '..');
-
-function parseEnvFile(content: string): Set<string> {
+function parseEnvFile(path: string): Set<string> {
+  if (!existsSync(path)) return new Set();
+  const content = readFileSync(path, 'utf-8');
   const keys = new Set<string>();
   for (const line of content.split('\n')) {
     const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-    const eqIdx = trimmed.indexOf('=');
-    if (eqIdx !== -1) {
-      keys.add(trimmed.slice(0, eqIdx).trim());
+    if (trimmed && !trimmed.startsWith('#')) {
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx > 0) {
+        keys.add(trimmed.slice(0, eqIdx).trim());
+      }
     }
   }
   return keys;
 }
 
-async function main(): Promise<void> {
-  const exampleContent = await readFile(resolve(ROOT, '.env.example'), 'utf-8');
-  let envContent: string;
-  try {
-    envContent = await readFile(resolve(ROOT, '.env'), 'utf-8');
-  } catch {
-    console.error('\x1b[31m✗ .env not found. Run: cp .env.example .env\x1b[0m');
+async function main() {
+  console.info('Environment Variable Validation\n');
+
+  const exampleKeys = parseEnvFile('.env.example');
+  const envKeys = parseEnvFile('.env');
+
+  if (envKeys.size === 0) {
+    console.error('  .env file not found. Run: cp .env.example .env');
     process.exit(1);
   }
 
-  const exampleKeys = parseEnvFile(exampleContent);
-  const envKeys = parseEnvFile(envContent);
-
-  const missing = [...exampleKeys].filter(k => !envKeys.has(k));
-  const extra = [...envKeys].filter(k => !exampleKeys.has(k));
+  const missing = [...exampleKeys].filter((k) => !envKeys.has(k));
+  const extra = [...envKeys].filter((k) => !exampleKeys.has(k));
 
   if (missing.length > 0) {
-    console.warn('\x1b[33mMissing variables (defined in .env.example but not in .env):\x1b[0m');
-    for (const key of missing) {
-      console.warn(`  - ${key}`);
-    }
+    console.warn('  Missing in .env (present in .env.example):');
+    for (const k of missing) console.warn(`    - ${k}`);
   }
 
   if (extra.length > 0) {
-    console.info('\x1b[36mExtra variables (in .env but not in .env.example):\x1b[0m');
-    for (const key of extra) {
-      console.info(`  + ${key}`);
-    }
+    console.info('  Extra in .env (not in .env.example):');
+    for (const k of extra) console.info(`    + ${k}`);
   }
 
   if (missing.length === 0 && extra.length === 0) {
-    console.info('\x1b[32m✓ .env is in sync with .env.example\x1b[0m');
-  } else if (missing.length > 0) {
-    process.exit(1);
+    console.info('  .env matches .env.example perfectly.');
   }
+
+  process.exit(missing.length > 0 ? 1 : 0);
 }
 
-main().catch((err: unknown) => {
-  console.error('Validation failed:', err);
-  process.exit(1);
-});
+main();

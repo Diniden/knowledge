@@ -1,76 +1,44 @@
-# Contributing Guide
+# Contributing to Knowledge Graph Agent System
+
+## Development Standards
+
+- **ESM**: All TypeScript uses `"type": "module"`.
+- **BEM CSS**: Components use PascalCase blocks, `__` for elements, `--` for modifiers.
+- **Shared types**: Use `@kg/shared` for types used across client and server.
 
 ## Branching Strategy
 
-| Branch | Purpose |
-|--------|---------|
-| `main` | Production-ready code. Protected — requires PR review + passing CI. |
-| `develop` | Integration branch for features. Requires passing CI. |
-| `feature/*` | New features (e.g., `feature/spec-editor`) |
-| `fix/*` | Bug fixes (e.g., `fix/auth-token-expiry`) |
-| `release/*` | Release preparation branches |
+- `main` — production-ready code
+- `develop` — integration branch for features
+- `feature/*` — feature branches (e.g., `feature/spec-editor`)
+- `fix/*` — bug fix branches
+- `release/*` — release preparation branches
 
-**Workflow:**
-1. Branch from `develop`
-2. Develop and test locally
-3. Open PR targeting `develop`
-4. After review + CI green → merge
-5. Periodically `develop` is merged to `main` for releases
+## Commit Message Format
 
-## Commit Message Convention
-
-This project follows [Conventional Commits](https://conventionalcommits.org):
+We use [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```
 type(scope): description
-
-[optional body]
-
-[optional footer]
 ```
 
-**Types:**
-- `feat` — new feature
-- `fix` — bug fix
-- `docs` — documentation only
-- `style` — formatting, no logic change
-- `refactor` — code change that neither fixes a bug nor adds a feature
-- `test` — adding or updating tests
-- `chore` — maintenance (deps, build, etc.)
-- `ci` — CI/CD changes
-- `perf` — performance improvement
-- `revert` — revert a previous commit
+**Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `ci`
 
-**Examples:**
-```
-feat(spec-editor): add inline agent assistance panel
-fix(auth): prevent JWT reuse after logout
-docs(readme): update setup instructions
-chore(deps): update react to 18.3.1
-```
-
-## Code Style
-
-- **TypeScript** — strict mode, no `any`, prefer `type` imports
-- **React** — functional components, hooks, no class components
-- **CSS** — BEM with PascalCase blocks (see [`docs/STYLING.md`](docs/STYLING.md))
-- **ESM** — `import/export` throughout, no CommonJS
-- **Formatting** — Prettier enforced via pre-commit hook
+**Examples**:
+- `feat(client): add spec editor component`
+- `fix(server): correct auth token validation`
+- `chore(deps): update NestJS to 11.x`
 
 ## PR Process
 
-1. Ensure all CI checks pass
-2. Self-review the diff before requesting review
-3. Add a clear description with the motivation for the change
-4. Link any related issues or plan tasks
-5. Squash commits when merging if the history is noisy
+1. Create a branch from `develop`.
+2. Make changes with conventional commits.
+3. Ensure `bun lint` and `bun test` pass.
+4. Open a PR against `develop`.
+5. Address review feedback.
+6. Merge when CI passes and reviewed.
 
-## Testing
+## Code Style
 
-- Test files colocated with source: `Component.test.tsx`, `service.test.ts`
-- Run tests: `bun test`
-- Coverage goal: maintain or improve coverage on each PR
-
-## Setting Up Development Environment
-
-See [`README.md`](README.md) for setup instructions.
+- ESLint and Prettier are enforced. Run `bun lint` and `bun format` before committing.
+- Use `type` imports for types: `import type { Spec } from '@kg/shared'`.

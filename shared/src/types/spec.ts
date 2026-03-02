@@ -33,19 +33,3 @@ export interface SpecDocument {
   updatedAt: string;
   commitHash: string;
 }
-
-export interface CreateSpecDto {
-  title: string;
-  content: string;
-  tags?: string[];
-  documentId: string;
-  permissionLevel?: PermissionLevel;
-}
-
-export interface UpdateSpecDto {
-  title?: string;
-  content?: string;
-  tags?: string[];
-  permissionLevel?: PermissionLevel;
-  summary?: string;
-}

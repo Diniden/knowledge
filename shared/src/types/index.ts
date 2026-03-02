@@ -1,4 +1,3 @@
-export * from './agent.js';
 export * from './api.js';
 export * from './auth.js';
 export * from './edge.js';
@@ -9,3 +8,4 @@ export * from './spec.js';
 export * from './user.js';
 export * from './version.js';
 export * from './websocket.js';
+export * from './agent.js';

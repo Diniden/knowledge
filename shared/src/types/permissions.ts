@@ -1,3 +1,8 @@
+/**
+ * Permission levels for spec access.
+ * FULL_ACCESS: user can read full spec content.
+ * SUMMARY_ACCESS: user can only read summary field.
+ */
 export enum PermissionLevel {
   FULL_ACCESS = 'FULL_ACCESS',
   SUMMARY_ACCESS = 'SUMMARY_ACCESS',
@@ -10,15 +15,4 @@ export interface PermissionGrant {
   grantedBy: string;
   grantedAt: string;
   token: string;
-}
-
-export interface GrantPermissionDto {
-  specId: string;
-  targetUserId: string;
-  level: PermissionLevel;
-}
-
-export interface RevokePermissionDto {
-  specId: string;
-  targetUserId: string;
 }

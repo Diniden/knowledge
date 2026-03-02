@@ -7,43 +7,26 @@ export enum AgentType {
 }
 
 export enum AgentSessionStatus {
+  ACTIVE = 'ACTIVE',
   IDLE = 'IDLE',
-  THINKING = 'THINKING',
-  RUNNING = 'RUNNING',
-  WAITING_FOR_INPUT = 'WAITING_FOR_INPUT',
-  COMPLETED = 'COMPLETED',
-  FAILED = 'FAILED',
+  PROCESSING = 'PROCESSING',
+  ERROR = 'ERROR',
 }
 
 export interface AgentContext {
-  currentSpecId?: string;
-  currentDocumentId?: string;
-  recentSpecIds?: string[];
-  userQuery?: string;
-  additionalContext?: Record<string, unknown>;
+  specIds?: string[];
+  documentIds?: string[];
+  query?: string;
+}
+
+export interface InteractiveElement {
+  type: string;
+  data: Record<string, unknown>;
 }
 
 export interface GraphLink {
   specId: string;
-  title: string;
   label?: string;
-}
-
-export interface InteractiveElement {
-  id: string;
-  type: 'button' | 'choice' | 'input' | 'confirm';
-  label: string;
-  payload?: unknown;
-}
-
-export interface AgentMessage {
-  id: string;
-  sessionId: string;
-  role: 'user' | 'agent';
-  content: string;
-  interactiveElements?: InteractiveElement[];
-  graphLinks?: GraphLink[];
-  timestamp: string;
 }
 
 export interface AgentSession {
@@ -55,13 +38,12 @@ export interface AgentSession {
   context: AgentContext;
 }
 
-export interface StartAgentSessionDto {
-  agentType: AgentType;
-  context?: AgentContext;
-}
-
-export interface SendAgentMessageDto {
+export interface AgentMessage {
+  id: string;
+  sessionId: string;
+  role: 'user' | 'agent';
   content: string;
-  interactiveElementId?: string;
-  payload?: unknown;
+  interactiveElements?: InteractiveElement[];
+  graphLinks?: GraphLink[];
+  timestamp: string;
 }

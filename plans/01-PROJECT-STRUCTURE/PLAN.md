@@ -766,9 +766,16 @@ Define the complete directory tree with purpose annotations for every directory.
   - `PORT` — server port (default 4000)
   - `CORS_ORIGIN` — allowed CORS origins
   - `NODE_ENV` — environment (development, production, test)
-  - `CLAUDE_API_KEY` — Claude API key (for agent)
-  - `EMBEDDING_API_KEY` — API key for embedding model
-  - `EMBEDDING_MODEL` — model identifier for embeddings
+  - `CLAUDE_CODE_BINARY_PATH` — path to Claude Code CLI executable
+  - `ANTHROPIC_API_KEY` — API key passed to Claude Code subprocess (not used by server directly)
+  - `CLAUDE_CODE_MAX_CONCURRENT` — max concurrent Claude Code processes
+  - `CLAUDE_CODE_TIMEOUT_MS` — execution timeout per invocation (ms)
+  - `EMBEDDING_PROVIDER` — "local" (default) or "openai"
+  - `LOCAL_EMBEDDING_MODEL_PATH` — path to local ONNX/GGUF model
+  - `LOCAL_EMBEDDING_MODEL_NAME` — local model identifier for provenance
+  - `EMBEDDING_API_KEY` — OpenAI API key (only when provider=openai)
+  - `EMBEDDING_MODEL` — OpenAI model identifier (only when provider=openai)
+  - `EMBEDDING_DIMENSIONS` — vector dimensions (must match model output)
   - `GIT_USER_NAME` — git committer name
   - `GIT_USER_EMAIL` — git committer email
   - `LOG_LEVEL` — logging verbosity (debug, info, warn, error)
@@ -811,7 +818,7 @@ Define the complete directory tree with purpose annotations for every directory.
 > **A**: Separate files: `.env.example` (template), `.env` (local development, gitignored), `.env.test` (test overrides, committed with safe values). Staging and production environments use their hosting platform's env var mechanism (CI secrets, cloud config), not committed files. The server loads `.env` by default and `.env.test` when `NODE_ENV=test`.
 
 > **Q**: Should the server crash on startup if a required environment variable is missing, or should it log a warning and use a default?
-> **A**: Crash on startup for required variables (DATABASE_URL, JWT_SECRET, CLAUDE_API_KEY). Log a warning and use defaults for optional variables (LOG_LEVEL defaults to "info", PORT defaults to 4000). Crashing fast is better than running in a broken state. The error message should clearly list which variables are missing and reference `.env.example`.
+> **A**: Crash on startup for required variables (DATABASE_URL, JWT_SECRET). Log a warning and use defaults for optional variables (LOG_LEVEL defaults to "info", PORT defaults to 4000, EMBEDDING_PROVIDER defaults to "local"). ANTHROPIC_API_KEY is only required if agent features are used — the server can start without it and disable the agent system. Crashing fast is better than running in a broken state. The error message should clearly list which variables are missing and reference `.env.example`.
 
 > **Q**: Should configuration be validated using Zod, class-validator (NestJS convention), or a simpler approach?
 > **A**: Use Zod for env validation. It's simpler than class-validator for this use case (no decorators needed, better TypeScript inference), works identically in server and shared packages, and produces clear error messages. NestJS's ConfigModule supports custom validation functions — pass a Zod schema's `.parse()` as the validator. Keep class-validator for DTO validation in NestJS controllers.

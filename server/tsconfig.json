@@ -1,16 +1,15 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
-    "composite": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "outDir": "dist",
+    "baseUrl": ".",
     "paths": {
-      "@modules/*": ["./src/modules/*"],
-      "@common/*": ["./src/common/*"],
-      "@config/*": ["./src/config/*"],
-      "@shared": ["../shared/src"],
-      "@shared/*": ["../shared/src/*"]
+      "@modules/*": ["src/modules/*"],
+      "@common/*": ["src/common/*"],
+      "@config/*": ["src/config/*"],
+      "@shared": ["../shared/src"]
     }
   },
   "include": ["src/**/*"],

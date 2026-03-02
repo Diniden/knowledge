@@ -1,31 +1,22 @@
-import type { Spec } from './spec.js';
 import type { Edge } from './edge.js';
-
-export interface GraphNodePosition {
-  x: number;
-  y: number;
-}
+import type { Spec } from './spec.js';
 
 export interface GraphNode {
   spec: Spec;
-  position?: GraphNodePosition;
-  isExpanded?: boolean;
-  isHighlighted?: boolean;
+  positionHints?: { x: number; y: number };
+  displayState?: 'expanded' | 'collapsed';
 }
 
 export interface GraphQuery {
-  rootSpecId?: string;
-  depth?: number;
+  specIds?: string[];
   edgeTypes?: string[];
-  tags?: string[];
-  limit?: number;
+  depth?: number;
+  includeOrphans?: boolean;
 }
 
 export interface GraphResponse {
   nodes: GraphNode[];
   edges: Edge[];
-  totalNodes: number;
-  totalEdges: number;
 }
 
 export interface InquiryQueueItem {

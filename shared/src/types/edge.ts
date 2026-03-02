@@ -16,10 +16,3 @@ export interface Edge {
   createdBy: string;
   commitHash: string;
 }
-
-export interface CreateEdgeDto {
-  sourceSpecId: string;
-  targetSpecId: string;
-  type: EdgeType;
-  metadata?: Record<string, unknown>;
-}

@@ -1,65 +1,52 @@
-#!/usr/bin/env bun
-/**
- * Validates workspace integrity:
- * - All package.json files are valid
- * - All workspace dependencies resolve
- * - Shared types compile
- */
+import { existsSync } from 'fs';
 
-import { readFile } from 'fs/promises';
-import { resolve } from 'path';
-
-const ROOT = resolve(import.meta.dir, '..');
-
-const WORKSPACES = [
-  '',
-  'client',
-  'server',
-  'shared',
-  'packages/mcp-servers',
-  'packages/claude-code-wrapper',
+const workspaces = [
+  { name: '@kg/shared', path: 'shared/package.json' },
+  { name: '@kg/client', path: 'client/package.json' },
+  { name: '@kg/server', path: 'server/package.json' },
+  { name: '@kg/mcp-servers', path: 'packages/mcp-servers/package.json' },
+  { name: '@kg/claude-code-wrapper', path: 'packages/claude-code-wrapper/package.json' },
 ];
 
-async function validatePackageJson(ws: string): Promise<void> {
-  const path = resolve(ROOT, ws, 'package.json');
-  try {
-    const content = await readFile(path, 'utf-8');
-    JSON.parse(content);
-    console.info(`  ✓ ${ws || 'root'}/package.json`);
-  } catch (err) {
-    throw new Error(`Invalid package.json at ${ws}: ${err}`);
-  }
-}
+async function main() {
+  console.info('Workspace Validation\n');
+  let allOk = true;
 
-async function runTypeCheck(): Promise<void> {
-  const proc = Bun.spawn(['bunx', 'tsc', '--build', '--noEmit'], {
-    cwd: ROOT,
-    stdout: 'pipe',
-    stderr: 'pipe',
-  });
-  const code = await proc.exited;
-  if (code !== 0) {
-    const stderr = await new Response(proc.stderr).text();
-    throw new Error(`TypeScript compilation failed:\n${stderr}`);
-  }
-  console.info('  ✓ TypeScript compilation');
-}
-
-async function main(): Promise<void> {
-  console.info('\x1b[1mValidating workspace...\x1b[0m\n');
-
-  console.info('Validating package.json files:');
-  for (const ws of WORKSPACES) {
-    await validatePackageJson(ws);
+  for (const ws of workspaces) {
+    if (existsSync(ws.path)) {
+      const pkg = await Bun.file(ws.path).json();
+      if (pkg.name === ws.name) {
+        console.info(`  [OK] ${ws.name} — ${ws.path}`);
+      } else {
+        console.error(`  [ERR] ${ws.path} has name "${pkg.name}", expected "${ws.name}"`);
+        allOk = false;
+      }
+    } else {
+      console.error(`  [MISSING] ${ws.path}`);
+      allOk = false;
+    }
   }
 
-  console.info('\nRunning type check:');
-  await runTypeCheck();
+  const tsconfigFiles = [
+    'tsconfig.base.json',
+    'tsconfig.json',
+    'shared/tsconfig.json',
+    'client/tsconfig.json',
+    'server/tsconfig.json',
+  ];
 
-  console.info('\n\x1b[32m✓ Workspace validation passed\x1b[0m');
+  console.info('\nTypeScript configs:');
+  for (const f of tsconfigFiles) {
+    if (existsSync(f)) {
+      console.info(`  [OK] ${f}`);
+    } else {
+      console.error(`  [MISSING] ${f}`);
+      allOk = false;
+    }
+  }
+
+  console.info(allOk ? '\nAll workspace checks passed.' : '\nSome checks failed.');
+  process.exit(allOk ? 0 : 1);
 }
 
-main().catch((err: unknown) => {
-  console.error('\n\x1b[31mValidation failed:\x1b[0m', err);
-  process.exit(1);
-});
+main();

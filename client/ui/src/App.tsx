@@ -1,11 +1,8 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
-
-export function App() {
+export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<div className="App">Knowledge Graph Agent System</div>} />
-      </Routes>
-    </BrowserRouter>
+    <div className="App">
+      <h1>Knowledge Graph Agent System</h1>
+      <p>Development environment running.</p>
+    </div>
   );
 }

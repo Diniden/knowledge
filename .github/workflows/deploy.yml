@@ -1,21 +1,21 @@
-name: Deploy (Scaffold)
+name: Deploy
 
 on:
   push:
     tags:
       - 'v*'
 
-# TODO: Implement deployment pipeline in Phase 5
-# See plans/11-DEPLOYMENT/PLAN.md for the full deployment plan
-
 jobs:
   deploy:
-    name: Deploy
+    name: Build & Deploy
     runs-on: ubuntu-latest
-    environment: production
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Placeholder
-        run: echo "Deployment pipeline not yet implemented (Phase 5)"
+      - name: Build Docker images
+        run: |
+          docker build -f server/Dockerfile -t kg-server:${{ github.ref_name }} .
+          docker build -f client/Dockerfile -t kg-client:${{ github.ref_name }} .
+
+      # TODO: Push to container registry and deploy
+      # Details deferred to 11-DEPLOYMENT/PLAN.md

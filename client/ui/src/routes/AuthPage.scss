@@ -1,0 +1,111 @@
+.AuthPage {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg);
+  padding: var(--space-6);
+
+  &__Card {
+    background-color: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: var(--space-8);
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 4px 24px rgb(0 0 0 / 0.08);
+  }
+
+  &__Title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: var(--space-1);
+  }
+
+  &__Subtitle {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-6);
+  }
+
+  &__Error {
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    padding: var(--space-3);
+    margin-bottom: var(--space-4);
+    font-size: 0.875rem;
+    color: #b91c1c;
+  }
+
+  &__Form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  &__Field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  &__Label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text);
+  }
+
+  &__Input {
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-size: 0.875rem;
+    transition: border-color 150ms ease;
+
+    &:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgb(99 102 241 / 0.15);
+    }
+  }
+
+  &__Submit {
+    padding: var(--space-2) var(--space-4);
+    background-color: var(--color-primary);
+    color: white;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background-color 150ms ease;
+    margin-top: var(--space-2);
+
+    &:hover:not(:disabled) {
+      background-color: var(--color-primary-hover);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  &__Footer {
+    margin-top: var(--space-6);
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+  }
+
+  &__Link {
+    color: var(--color-primary);
+    font-weight: 500;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}

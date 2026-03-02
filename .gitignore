@@ -1,36 +1,30 @@
-# Node / Bun
+# Node/Bun
 node_modules/
 .bun/
+*.tsbuildinfo
 
 # Build artifacts
 dist/
 build/
 *.tsbuildinfo
 
-# Environment — NEVER commit secrets
+# Environment
 .env
 .env.local
 .env.*.local
+!.env.example
 
-# IDE
+# IDE (keep extensions.json)
 .vscode/settings.json
 .idea/
-*.swp
-*.swo
 
 # OS
 .DS_Store
 Thumbs.db
-ehthumbs.db
-Desktop.ini
 
 # Logs
 *.log
 logs/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-bun-error.log*
 
 # Testing
 coverage/
@@ -39,7 +33,7 @@ coverage/
 # Docker
 .docker/
 
-# Generative UI build outputs (source is tracked, builds are not)
+# Generated
 client/gen/*/dist/
 
 # Database
@@ -49,6 +43,3 @@ client/gen/*/dist/
 # Temp
 tmp/
 temp/
-
-# TypeScript incremental builds (already covered by *.tsbuildinfo above)
-*.d.ts.map

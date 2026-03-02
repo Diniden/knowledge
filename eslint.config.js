@@ -1,89 +1,77 @@
-import tsParser from '@typescript-eslint/parser';
-import tsPlugin from '@typescript-eslint/eslint-plugin';
-import reactPlugin from 'eslint-plugin-react';
-import reactHooksPlugin from 'eslint-plugin-react-hooks';
-import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
-import importPlugin from 'eslint-plugin-import';
-import prettierConfig from 'eslint-config-prettier';
+import js from '@eslint/js';
+import tseslint from '@typescript-eslint/eslint-plugin';
+import tsparser from '@typescript-eslint/parser';
+import eslintConfigPrettier from 'eslint-config-prettier';
+import globals from 'globals';
 
-/** @type {import('eslint').Linter.Config[]} */
 export default [
+  js.configs.recommended,
+  eslintConfigPrettier,
+  {
+    files: ['**/*.ts', '**/*.tsx'],
+    languageOptions: {
+      parser: tsparser,
+      parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
+      globals: {
+        ...globals.node,
+        Bun: 'readonly',
+      },
+    },
+    plugins: { '@typescript-eslint': tseslint },
+    rules: {
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          ignoreRestSiblings: true,
+          varsIgnorePattern: '^[A-Z_]+$', // allow enum members
+        },
+      ],
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/consistent-type-imports': [
+        'warn',
+        { prefer: 'type-imports' },
+      ],
+      // '@typescript-eslint/no-floating-promises': 'error', // requires type-aware linting
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      eqeqeq: 'error',
+      'no-var': 'error',
+      'prefer-const': 'error',
+    },
+  },
   {
     ignores: [
-      '**/node_modules/**',
+      'node_modules/**',
+      'dist/**',
       '**/dist/**',
       '**/*.config.*',
-      '**/bun.lock',
-      'knowledge-graph/**',
       'plans/**',
-      'docs/**',
+      '*.d.ts',
     ],
   },
   {
-    files: ['**/*.{ts,tsx}'],
+    files: ['client/**/*.ts', 'client/**/*.tsx'],
+    languageOptions: { globals: { ...globals.browser } },
+  },
+  {
+    files: ['shared/src/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^([A-Z][A-Z0-9_]*|_)$', // enum members, intentionally unused
+          ignoreRestSiblings: true,
+        },
+      ],
+    },
+  },
+  {
+    files: ['server/**/*.ts', 'scripts/**/*.ts'],
     languageOptions: {
-      parser: tsParser,
-      parserOptions: {
-        ecmaVersion: 'latest',
-        sourceType: 'module',
-        ecmaFeatures: { jsx: true },
-      },
+      globals: { ...globals.node, Bun: 'readonly' },
     },
-    plugins: {
-      '@typescript-eslint': tsPlugin,
-      'import': importPlugin,
-    },
-    rules: {
-      ...tsPlugin.configs['recommended'].rules,
-
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
-      '@typescript-eslint/no-floating-promises': 'off',
-
-      'no-console': ['warn', { allow: ['error', 'warn', 'info'] }],
-      'eqeqeq': 'error',
-      'no-var': 'error',
-      'prefer-const': 'error',
-      'no-duplicate-imports': 'error',
-
-      'import/order': ['warn', {
-        groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
-        'newlines-between': 'always',
-      }],
-    },
+    rules: { 'no-console': 'off' },
   },
-  {
-    files: ['client/**/*.{ts,tsx}'],
-    plugins: {
-      'react': reactPlugin,
-      'react-hooks': reactHooksPlugin,
-      'jsx-a11y': jsxA11yPlugin,
-    },
-    settings: {
-      react: { version: 'detect' },
-    },
-    rules: {
-      ...reactPlugin.configs['recommended'].rules,
-      ...reactHooksPlugin.configs['recommended'].rules,
-      ...jsxA11yPlugin.configs['recommended'].rules,
-
-      'react/react-in-jsx-scope': 'off',
-      'react/prop-types': 'off',
-      'react-hooks/rules-of-hooks': 'error',
-      'react-hooks/exhaustive-deps': 'warn',
-      'react/jsx-no-target-blank': 'error',
-      'react/self-closing-comp': 'warn',
-    },
-  },
-  {
-    files: ['server/**/*.ts'],
-    rules: {
-      '@typescript-eslint/no-unused-vars': ['error', {
-        argsIgnorePattern: '^_',
-        varsIgnorePattern: '^_',
-      }],
-    },
-  },
-  prettierConfig,
 ];

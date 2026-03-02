@@ -1,148 +1,18 @@
-@use './variables' as v;
-@use './reset';
-@use './animations';
-@use './utilities';
-
-// =============================================================================
-// CSS Custom Properties (runtime theming)
-// =============================================================================
-
-:root {
-  // Typography
-  --font-family-sans: #{v.$font-family-sans};
-  --font-family-mono: #{v.$font-family-mono};
-  --font-size-base:   #{v.$font-size-base};
-  --line-height-normal: #{v.$line-height-normal};
-
-  // Colors — light theme (default)
-  --color-primary:        #{v.$color-primary-600};
-  --color-primary-hover:  #{v.$color-primary-700};
-  --color-primary-light:  #{v.$color-primary-50};
-  --color-primary-500:    #{v.$color-primary-500};
-
-  --color-secondary:      #{v.$color-secondary-600};
-
-  --color-background:     #{v.$color-neutral-50};
-  --color-surface:        #{v.$color-neutral-0};
-  --color-surface-raised: #{v.$color-neutral-100};
-  --color-surface-overlay: #{v.$color-neutral-0};
-
-  --color-border:         #{v.$color-neutral-200};
-  --color-border-strong:  #{v.$color-neutral-300};
-
-  --color-text-primary:   #{v.$color-neutral-900};
-  --color-text-secondary: #{v.$color-neutral-600};
-  --color-text-tertiary:  #{v.$color-neutral-400};
-  --color-text-disabled:  #{v.$color-neutral-300};
-  --color-text-inverse:   #{v.$color-neutral-0};
-
-  --color-success:        #{v.$color-success};
-  --color-warning:        #{v.$color-warning};
-  --color-error:          #{v.$color-error};
-  --color-info:           #{v.$color-info};
-
-  // Spacing
-  --spacing-1: #{v.$spacing-1};
-  --spacing-2: #{v.$spacing-2};
-  --spacing-3: #{v.$spacing-3};
-  --spacing-4: #{v.$spacing-4};
-  --spacing-6: #{v.$spacing-6};
-  --spacing-8: #{v.$spacing-8};
-
-  // Layout
-  --sidebar-width:     #{v.$sidebar-width};
-  --chat-panel-width:  #{v.$chat-panel-width};
-  --header-height:     #{v.$header-height};
-  --toolbar-height:    #{v.$toolbar-height};
-
-  // Radius
-  --radius-sm:   #{v.$radius-sm};
-  --radius-base: #{v.$radius-base};
-  --radius-md:   #{v.$radius-md};
-  --radius-lg:   #{v.$radius-lg};
-}
-
-// Dark theme
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-background:       #{v.$color-neutral-950};
-    --color-surface:          #{v.$color-neutral-900};
-    --color-surface-raised:   #{v.$color-neutral-800};
-    --color-surface-overlay:  #{v.$color-neutral-800};
-
-    --color-border:           #{v.$color-neutral-800};
-    --color-border-strong:    #{v.$color-neutral-700};
-
-    --color-text-primary:     #{v.$color-neutral-50};
-    --color-text-secondary:   #{v.$color-neutral-400};
-    --color-text-tertiary:    #{v.$color-neutral-500};
-    --color-text-disabled:    #{v.$color-neutral-700};
-    --color-text-inverse:     #{v.$color-neutral-900};
-
-    --color-primary-light:    #{v.$color-primary-900};
-  }
-}
-
-// =============================================================================
-// Base HTML / Body
-// =============================================================================
+@use 'reset';
+@use 'variables' as *;
+@use 'mixins';
 
 html {
-  height: 100%;
+  font-size: 16px;
 }
 
 body {
-  height: 100%;
-  font-family: var(--font-family-sans);
-  font-size: var(--font-size-base);
-  line-height: var(--line-height-normal);
-  color: var(--color-text-primary);
-  background-color: var(--color-background);
+  background-color: $color-neutral-50;
+  color: $color-neutral-900;
 }
 
-#root {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-// =============================================================================
-// Typography
-// =============================================================================
-
-h1, h2, h3, h4, h5, h6 {
-  font-weight: #{v.$font-weight-semibold};
-  line-height: #{v.$line-height-tight};
-  color: var(--color-text-primary);
-}
-
-p {
-  line-height: #{v.$line-height-relaxed};
-}
-
-code {
-  font-family: var(--font-family-mono);
-  font-size: 0.875em;
-  background-color: var(--color-surface-raised);
-  padding: 0.1em 0.3em;
-  border-radius: #{v.$radius-sm};
-}
-
-pre {
-  font-family: var(--font-family-mono);
-  font-size: #{v.$font-size-sm};
-  background-color: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
-  border-radius: #{v.$radius-md};
-  padding: #{v.$spacing-4};
-  overflow-x: auto;
-}
-
-// =============================================================================
-// Selection
-// =============================================================================
-
-::selection {
-  background-color: #{v.$color-primary-200};
-  color: #{v.$color-primary-900};
+.App {
+  padding: $spacing-6;
+  max-width: 1200px;
+  margin: 0 auto;
 }

@@ -1,11 +1,8 @@
-import type { AgentMessage, AgentSessionStatus } from './agent.js';
-import type { Spec } from './spec.js';
+import type { AgentMessage } from './agent.js';
 
 export interface AgentStatusUpdate {
   sessionId: string;
-  userId: string;
-  status: AgentSessionStatus;
-  timestamp: string;
+  status: string;
 }
 
 export interface AgentMessageEvent {
@@ -15,16 +12,9 @@ export interface AgentMessageEvent {
 
 export interface SpecChangeEvent {
   specId: string;
-  documentId: string;
-  changeType: 'created' | 'updated' | 'deleted';
-  changedBy: string;
-  timestamp: string;
-  spec?: Spec;
+  action: 'created' | 'updated' | 'deleted';
 }
 
 export interface SyncEvent {
-  type: 'graph-sync' | 'document-sync' | 'full-sync';
-  userId: string;
-  timestamp: string;
-  affectedIds?: string[];
+  type: 'full' | 'delta';
 }

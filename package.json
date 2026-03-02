@@ -10,34 +10,29 @@
   ],
   "scripts": {
     "dev": "bun run scripts/dev.ts",
-    "build": "bun run --filter @kg/shared build && bun run --filter @kg/server build && bun run --filter @kg/client build",
+    "build": "bun run scripts/build.ts",
     "test": "bun test",
-    "lint": "eslint . && prettier --check .",
-    "format": "prettier --write . && eslint --fix .",
+    "lint": "bun run lint:eslint && bun run lint:prettier",
+    "lint:eslint": "eslint . --max-warnings 0",
+    "lint:prettier": "prettier --check .",
+    "format": "prettier --write .",
     "clean": "bun run scripts/clean.ts",
     "setup": "bun run scripts/setup.ts",
-    "migrate": "bun run --filter @kg/server migrate",
-    "migrate:rollback": "bun run --filter @kg/server migrate:rollback",
-    "seed": "bun run --filter @kg/server seed",
-    "validate": "bun run scripts/validate-workspace.ts"
+    "migrate": "bun run server/scripts/migrate.ts"
   },
   "devDependencies": {
-    "@commitlint/cli": "^19.0.0",
-    "@commitlint/config-conventional": "^19.0.0",
+    "@eslint/js": "^9.15.0",
     "@types/bun": "latest",
-    "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
-    "eslint": "^9.0.0",
-    "eslint-config-prettier": "^9.0.0",
-    "eslint-plugin-import": "^2.29.0",
-    "eslint-plugin-jsx-a11y": "^6.8.0",
-    "eslint-plugin-react": "^7.34.0",
-    "eslint-plugin-react-hooks": "^4.6.0",
-    "lefthook": "^1.6.0",
-    "lint-staged": "^15.0.0",
-    "prettier": "^3.0.0",
-    "stylelint": "^16.0.0",
-    "stylelint-config-standard-scss": "^13.0.0",
-    "typescript": "^5.4.0"
+    "@typescript-eslint/eslint-plugin": "^8.15.0",
+    "@typescript-eslint/parser": "^8.15.0",
+    "eslint": "^9.15.0",
+    "eslint-config-prettier": "^10.1.0",
+    "globals": "^17.4.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "bun": ">=1.1.0"
   }
 }
