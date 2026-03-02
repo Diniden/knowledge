@@ -31,12 +31,14 @@ and produce step-by-step execution plans to build products.
 | Frontend | React, Vite, BEM CSS (SCSS, PascalCase__Item, PascalCase--prop) |
 | Backend | NestJS, ESM |
 | Runtime | Bun |
-| Database | PostgreSQL |
+| Database | PostgreSQL (native install, no Docker) |
 | Knowledge Store | JSON + folders (git-backed) |
 | Auth | bcrypt, JWT (http-only cookies) |
-| Agent Runtime | Claude Code (wrapper) |
+| Agent Runtime | Claude Code CLI (terminal app, stdio-wrapped via `execa`) |
+| Embeddings | Local model (`nomic-embed-text` or configurable local path) |
 | Agent Tools | MCP servers |
 | Version Control | git |
+| Process Management | mprocs (multi-process orchestration for dev) |
 | Testing | bun test |
 
 ### Monorepo Structure (High Level)
@@ -64,7 +66,7 @@ project-root/
 #### Design Decisions
 
 > **Q**: For the RAG layer, should we build a custom embedding pipeline or use an existing service (e.g., OpenAI embeddings, Cohere, local model)?
-> **A**: Use OpenAI `text-embedding-3-small` as the primary embedding model. It's cheap, fast, and high quality. Store embeddings in PostgreSQL via `pgvector` to avoid a separate vector database. The pipeline is straightforward: chunk spec content → embed via API → store in pgvector → query with cosine similarity. A local model fallback (e.g., `nomic-embed-text`) can be added later for air-gapped scenarios.
+> **A**: Use a **local embedding model** as the primary provider to minimize external infrastructure dependencies. The default model is `nomic-embed-text` (768 dimensions, high quality for knowledge retrieval, runs locally via ONNX or `@huggingface/transformers`). The embedding model path is configurable via environment variable (`EMBEDDING_MODEL_PATH`) so users can point to any local model. Store embeddings in PostgreSQL via `pgvector` to avoid a separate vector database. The pipeline is straightforward: chunk spec content → embed locally → store in pgvector → query with cosine similarity. An API-based provider (e.g., OpenAI) can be configured as an alternative but is not the default.
 
 > **Q**: For graph visualization, should we use an existing library or build a custom layout?
 > **A**: Use a **custom vertical tree layout algorithm** with a React DOM rendering layer and `@tanstack/virtual` for virtual scrolling. The layout performs a BFS from a primary node (leaf-based primary selection) and arranges specs into depth-level rows. Each spec is rendered as a compressed rectangular card with an agent-generated summary. No third-party graph library (D3, Cytoscape, Sigma) is needed — the custom algorithm is simpler, DOM-based, and gives full control over styling, interaction, and BEM compliance.
@@ -229,7 +231,7 @@ Every plan document and its companion questions file, organized by domain.
 | 1.10 | WebSocket infrastructure | `03-SERVER/06-WEBSOCKET-PLAN.md` |
 | 1.11 | Testing harness (bun test) | `08-TESTING/01-STRATEGY-PLAN.md` |
 | 1.12 | Security baseline (CSP, sanitization) | `09-SECURITY/PLAN.md` |
-| 1.13 | Docker dev environment | `11-DEPLOYMENT/PLAN.md` |
+| 1.13 | mprocs dev environment (process orchestration) | `01-PROJECT-STRUCTURE/PLAN.md`, `11-DEPLOYMENT/PLAN.md` |
 | 1.14 | AI dev configuration bootstrap (CLAUDE.md, .cursor/rules/, core skills) | `13-AI-DEV-CONFIGURATION/PLAN.md` |
 
 **Exit criteria**: `bun dev` launches client + server + database; a user can
@@ -321,7 +323,7 @@ conflicts.
 | 5.3 | Security audit and hardening | `09-SECURITY/PLAN.md` |
 | 5.4 | Full E2E test suite | `08-TESTING/01-STRATEGY-PLAN.md` |
 | 5.5 | CI/CD pipeline finalization | `11-DEPLOYMENT/PLAN.md` |
-| 5.6 | Production Docker images | `11-DEPLOYMENT/PLAN.md` |
+| 5.6 | Production packaging and deployment | `11-DEPLOYMENT/PLAN.md` |
 | 5.7 | Monitoring and logging | `11-DEPLOYMENT/PLAN.md` |
 | 5.8 | Documentation and onboarding | All plans |
 | 5.9 | Load testing and stress testing | `08-TESTING/01-STRATEGY-PLAN.md` |
@@ -514,7 +516,7 @@ These work streams can proceed in parallel once their dependencies are met:
 > **A**: Developers handle UI design. Establish a design system early (Phase 1 component library, BEM SCSS tokens) and use it consistently. Reference existing productivity tools (Notion, Obsidian, Linear) for UX patterns. A dedicated designer is a Phase 4/5 luxury for polish, not a Phase 1–3 necessity.
 
 > **Q**: Is there a dedicated DevOps/infrastructure person, or is that shared with development?
-> **A**: Shared with development. Docker Compose handles local dev, GitHub Actions handles CI. There's no complex infrastructure until Phase 5 production deployment. One developer takes ownership of the CI pipeline and Docker configs as a secondary responsibility.
+> **A**: Shared with development. mprocs handles local dev process orchestration, GitHub Actions handles CI. There's no complex infrastructure — no Docker required. PostgreSQL is installed natively, and all processes run in their correct working directories via mprocs. One developer takes ownership of the CI pipeline and mprocs configuration as a secondary responsibility.
 
 > **Q**: Does the team have existing experience with NestJS, or will there be a ramp-up period?
 > **A**: Assume a 1-week ramp-up for NestJS if the team has Express/Fastify experience. NestJS's decorator-based DI pattern has a learning curve, but it's well-documented. Allocate the first week of Phase 1 for the server developer to build the skeleton while learning. The module/provider/guard structure pays dividends in maintainability.
@@ -582,7 +584,7 @@ Features explicitly **deferred** past MVP:
 > **A**: Target 8 weeks for a functional MVP. If needed, strip: version control UI (keep git commits happening server-side, defer the diff/revert UI), permissions system (single-user makes this moot), and advanced graph visualization features. The irreducible core is: spec editor, knowledge graph storage + basic visualization, and RAG retrieval.
 
 > **Q**: Should the MVP be deployable (even if just to a staging environment), or is local-only acceptable?
-> **A**: Local-only is acceptable for MVP. Docker Compose should make `bun dev` a one-command startup. A staging deployment is a nice-to-have for demo purposes but not required. Production deployment is explicitly Phase 5.
+> **A**: Local-only is acceptable for MVP. `bun run dev` should be a one-command startup via mprocs that launches all services (client, server, database). No Docker required — PostgreSQL is installed natively, and all processes run in their correct working directories. A staging deployment is a nice-to-have for demo purposes but not required. Production deployment is explicitly Phase 5.
 
 > **Q**: If resource constraints force cutting, what is the priority order among these features? (1) Spec editor + knowledge graph, (2) Agent chat integration, (3) Version control (git-backed), (4) RAG retrieval, (5) Generative UI, (6) Plan generation + code output, (7) Multi-user collaboration, (8) Permissions / anti-siloing
 > **A**: The listed order is correct. Spec editor + knowledge graph is the irreducible core. Agent chat integration is second because it validates the human-input/agent-output vision. Version control (git-backed) is third because it's architecturally foundational (specs must be versioned). RAG is fourth as a key enabler for agent quality. Items 5–8 are Phase 4+ and can be deferred or cut.
@@ -648,7 +650,7 @@ These topics span multiple plans and must be coordinated:
 > **A**: Both. Primary strategy: minimize conflicts via one-file-per-spec granularity (two users rarely edit the same spec simultaneously). Secondary strategy: a custom merge driver for the adjacency index file (which aggregates edges). The server should detect conflicts, present them in the UI, and let the user resolve. Auto-merge is acceptable for non-overlapping additions.
 
 > **Q**: Should Claude Code be spawned as a child process per agent session, or should there be a pool of long-running processes?
-> **A**: Spawn a child process per agent session. Claude Code sessions are stateful and tied to a specific user context/project directory. A pool would require complex state management and session affinity. Process-per-session is simpler, provides natural isolation, and the overhead is acceptable since agent sessions are user-initiated (not high-throughput).
+> **A**: Spawn a child process per agent session using a proper stdio management library (`execa`). Claude Code is the actual terminal CLI app — the server wraps its execution by injecting prompts via stdin and parsing responses from stdout. Sessions are stateful and tied to a specific user context/project working directory. A pool would require complex state management and session affinity. Process-per-session is simpler, provides natural isolation, and the overhead is acceptable since agent sessions are user-initiated (not high-throughput). The `execa` library handles the complex stdio piping, signal management, and process lifecycle needed for robust Claude Code terminal integration.
 
 > **Q**: What is the expected latency budget for an agent response? Is the user willing to wait 30+ seconds for complex operations?
 > **A**: Yes, users will wait 30+ seconds for complex operations (graph crawling, plan generation). For simple queries (RAG-assisted Q&A), target under 10 seconds. Use WebSocket streaming to show progress — partial responses, "thinking" indicators, and step-by-step updates. The key is perceived responsiveness, not raw latency. The chat dialog should show real-time status.
@@ -657,10 +659,10 @@ These topics span multiple plans and must be coordinated:
 > **A**: Yes. The user must be able to cancel any in-flight agent operation. Implementation: send a cancel signal via WebSocket, which triggers `SIGTERM` on the Claude Code child process. The agent orchestration service handles cleanup (rollback any partial spec changes). A "Stop" button in the chat dialog is essential UX.
 
 > **Q**: Which embedding model should be used for RAG? OpenAI `text-embedding-3-small`? A local model (e.g., `nomic-embed-text`)? Both?
-> **A**: OpenAI `text-embedding-3-small` as the default. It's 1536 dimensions, cheap ($0.02/1M tokens), and high quality. Support a configuration option to swap models (env var `EMBEDDING_MODEL`), allowing future switch to a local model or `text-embedding-3-large` for higher accuracy. Don't implement both simultaneously — pick one and make it swappable.
+> **A**: A **local embedding model** as the default to minimize external infrastructure dependencies. Use `nomic-embed-text` (768 dimensions, high quality for knowledge content, runs locally). The model path is configurable via `EMBEDDING_MODEL_PATH` so users can point to any local ONNX or HuggingFace-compatible model. An API-based provider (e.g., OpenAI) can be configured as an alternative via `EMBEDDING_PROVIDER=api` but is not the default. This narrows the infrastructure scope — no external API key required for embeddings.
 
 > **Q**: Should embeddings be computed on the server or delegated to an external service?
-> **A**: Computed on the server via API call to OpenAI. The server's RAG module calls the embedding API, receives vectors, and stores them in pgvector. No separate embedding microservice — the NestJS server handles it directly. This keeps the architecture simple and avoids an extra service to deploy.
+> **A**: Computed on the server locally. The server's RAG module loads the local embedding model (e.g., `nomic-embed-text` via ONNX runtime or `@huggingface/transformers`) and generates embeddings in-process. Vectors are stored in pgvector. No external API call required for the default configuration — this minimizes infrastructure dependencies. An API-based provider is available as an opt-in alternative.
 
 > **Q**: What is the chunking strategy — spec-level, paragraph-level, or sentence-level?
 > **A**: Spec-level chunking as the primary unit. Each spec is a discrete knowledge unit by design (single idea), so it's a natural chunk boundary. For specs exceeding ~500 tokens, split at paragraph boundaries within the spec. Embed the spec title + content together. Store the spec ID with each embedding for traceability back to the graph.
@@ -669,7 +671,7 @@ These topics span multiple plans and must be coordinated:
 > **A**: Store a denormalized index in PostgreSQL for query performance (spec metadata, edge adjacency lists, full-text search). JSON files remain the source of truth. On server start, sync the PostgreSQL index from the JSON files. On spec mutation, write to JSON first (commit to git), then update PostgreSQL. This gives fast queries without sacrificing the git-versioned source of truth.
 
 > **Q**: Should we use PostgreSQL's `pgvector` extension for RAG embeddings, or a separate vector database (Pinecone, Weaviate, Qdrant)?
-> **A**: Use `pgvector`. It avoids a separate database service, integrates natively with PostgreSQL queries (join embeddings with spec metadata), and handles the expected scale (10K–50K vectors) easily. A dedicated vector DB is overkill for this use case and adds operational complexity. Install pgvector in the Docker Compose PostgreSQL image.
+> **A**: Use `pgvector`. It avoids a separate database service, integrates natively with PostgreSQL queries (join embeddings with spec metadata), and handles the expected scale (10K–50K vectors) easily. A dedicated vector DB is overkill for this use case and adds operational complexity. Install the pgvector extension in the native PostgreSQL installation (`CREATE EXTENSION vector`).
 
 > **Q**: What data goes in PostgreSQL vs. what stays in the git-tracked JSON/folder structure?
 > **A**: **PostgreSQL**: users, sessions, auth tokens, permissions, agent session logs, dialog history, RAG embeddings (pgvector), denormalized spec/edge index for queries, inquiry queue state. **JSON/folders (git-tracked)**: spec content, edge definitions, document groupings, graph metadata. Rule of thumb: if it needs git versioning, it's in JSON. If it's operational state or user data, it's in PostgreSQL.
@@ -889,7 +891,7 @@ Plans are living documents. As work proceeds:
 > **A**: Local-only through Phase 3. Phase 5 targets cloud deployment on a single VPS or small cloud instance (DigitalOcean, Railway, or a single AWS EC2). The system isn't designed for massive scale — a single server with PostgreSQL handles the expected load. Cloud provider choice is deferred to Phase 5 deployment planning.
 
 > **Q**: Should the system support air-gapped deployment (no internet access)?
-> **A**: Not initially. The system requires internet for Claude API calls and OpenAI embeddings. Air-gapped support would require local LLM and embedding models, which is a significant scope addition. File it as a future enhancement. The architecture should be model-agnostic (env-configurable API endpoints) to make this feasible later.
+> **A**: Partially. The system requires internet for Claude Code CLI (which calls the Anthropic API). However, embeddings run locally by default (no external API needed), and all other services (PostgreSQL, the NestJS server, the React client) are fully local. The only external dependency at runtime is the Claude API accessed through the Claude Code CLI. The architecture is model-agnostic (env-configurable) to allow swapping components.
 
 > **Q**: What is the expected number of concurrent users?
 > **A**: 5–20 concurrent users for the initial deployment. The system is designed for small-to-medium teams. This is well within the capacity of a single server instance. If demand grows beyond 50 users, horizontal scaling (multiple server instances, load balancer) becomes relevant — but that's a Phase 5+ concern.

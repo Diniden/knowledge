@@ -37,16 +37,17 @@
 ### 1.1 Model Selection
 
 - [ ] **RAG-001**: Evaluate embedding model options
-  - **OpenAI `text-embedding-3-small`**: 1536 dimensions, excellent quality, API cost per token
-  - **OpenAI `text-embedding-3-large`**: 3072 dimensions, highest quality, higher cost
-  - **`nomic-embed-text`**: open-source, runs locally, 768 dimensions, good quality
+  - **`nomic-embed-text`**: open-source, runs locally, 768 dimensions, good quality, **recommended default**
   - **`sentence-transformers/all-MiniLM-L6-v2`**: open-source, local, 384 dimensions, fast
-  - **`voyage-3`**: optimized for code and technical content, API-based
-  - Document trade-offs: cost, quality, latency, dimensions, offline capability
+  - **`bge-small-en-v1.5`**: open-source, local, 384 dimensions, excellent for English
+  - **OpenAI `text-embedding-3-small`**: 1536 dimensions, excellent quality, API cost per token (opt-in alternative)
+  - **`voyage-3`**: optimized for code and technical content, API-based (opt-in alternative)
+  - Document trade-offs: quality, latency, dimensions, infrastructure requirements
 - [ ] **RAG-002**: Select primary embedding model
-  - Decision criteria: quality for technical/knowledge content, cost at scale, local vs. API
-  - Recommend: OpenAI `text-embedding-3-small` as primary (best quality-to-cost ratio)
-  - Recommend: `nomic-embed-text` as local fallback (offline/air-gapped scenarios)
+  - Decision criteria: quality for technical/knowledge content, local execution, no external API dependency
+  - **Default: `nomic-embed-text`** (768 dimensions, runs locally, no API key required)
+  - Alternative: any local ONNX/HuggingFace model pointed to via `EMBEDDING_MODEL_PATH`
+  - API-based providers (OpenAI, Voyage) available as opt-in via `EMBEDDING_PROVIDER=api`
 - [ ] **RAG-003**: Define embedding model abstraction interface
   ```typescript
   interface EmbeddingProvider {
@@ -58,30 +59,34 @@
     estimateTokens(text: string): number;
   }
   ```
-- [ ] **RAG-004**: Implement OpenAI embedding provider
-  - Use `text-embedding-3-small` by default
-  - Configure API key from environment variables
+- [ ] **RAG-004**: Implement local embedding provider (primary)
+  - Use `@huggingface/transformers` (formerly `@xenova/transformers`) for local ONNX inference
+  - Default model: `nomic-embed-text` (768 dimensions)
+  - Configurable model path via `EMBEDDING_MODEL_PATH` environment variable
+  - Load model on service startup, cache in memory for subsequent calls
+  - Handle model download and caching (auto-download on first run)
+  - Document memory requirements (~500MB–1GB RAM for model loading)
+  - No external API key required — fully local execution
+- [ ] **RAG-005**: Implement API embedding provider (opt-in alternative)
+  - Support OpenAI `text-embedding-3-small` when `EMBEDDING_PROVIDER=api`
+  - Configure API key via `EMBEDDING_API_KEY` environment variable
   - Handle rate limiting with exponential backoff
   - Handle API errors gracefully (timeout, quota exceeded)
-  - Support dimension reduction via API parameter (e.g., 512 instead of 1536)
-- [ ] **RAG-005**: Implement local embedding provider (nomic-embed-text)
-  - Use ONNX runtime or sentence-transformers Python bridge
-  - Load model on service startup
-  - Handle model download and caching
-  - Document memory and compute requirements
+  - This is NOT the default — only used when explicitly configured
 - [ ] **RAG-006**: Implement embedding provider configuration
-  - Select provider via environment variable or `.kg-config.json`
+  - Select provider via `EMBEDDING_PROVIDER` env var: `local` (default) or `api`
+  - Local model path via `EMBEDDING_MODEL_PATH` (default: auto-downloads `nomic-embed-text`)
   - Support switching providers (requires full re-indexing)
-  - Store provider name in each embedding for provenance tracking
+  - Store provider name and model identifier in each embedding for provenance tracking
 
 ### 1.2 Embedding Configuration
 
 - [ ] **RAG-007**: Define embedding dimensions and storage
-  - Store dimension count in provider config
+  - Store dimension count in provider config (768 for `nomic-embed-text`, configurable)
   - Validate embedding dimensions on read (detect provider mismatch)
   - Support dimension reduction for storage optimization
 - [ ] **RAG-008**: Define token limit handling
-  - `text-embedding-3-small` max: 8191 tokens
+  - `nomic-embed-text` max: 8192 tokens (similar to OpenAI models)
   - If content exceeds token limit: chunk first, embed each chunk
   - Store multiple chunk embeddings per spec
 - [ ] **RAG-009**: Define embedding normalization
@@ -92,31 +97,31 @@
 #### Design Decisions
 
 > **Q**: Should the primary embedding model be API-based (OpenAI) or local (nomic-embed-text, sentence-transformers)?
-> **A**: API-based — OpenAI `text-embedding-3-small` as the default, per the PRD. The quality advantage of OpenAI embeddings over local models is significant for knowledge retrieval, and the cost is negligible ($0.02 per 1M tokens). Offline operation is not a requirement — the system already requires a server, PostgreSQL, and network connectivity. A local model fallback can be added in a future iteration if demand arises.
+> **A**: **Local** — `nomic-embed-text` as the default. This minimizes external infrastructure dependencies: no API key required for embeddings, no network dependency, no per-token costs. Modern local models like `nomic-embed-text` (768 dimensions) provide excellent quality for knowledge retrieval of English prose. The model runs via `@huggingface/transformers` (ONNX runtime in JavaScript/TypeScript). An API-based provider (OpenAI) is available as an opt-in alternative for users who prefer it, configured via `EMBEDDING_PROVIDER=api`.
 
-> **Q**: If using OpenAI, should we use `text-embedding-3-small` (1536 dims, cheaper) or `text-embedding-3-large` (3072 dims, better quality)?
-> **A**: `text-embedding-3-small` (1536 dimensions). Per the PRD, this is the chosen model. The quality difference between small and large is marginal for knowledge graph content (primarily English prose, not code or multilingual). The 2x storage and compute cost of large dims is not justified. If quality evaluation later shows gaps, switching to large is a configuration change + re-embedding.
+> **Q**: What are the resource requirements for local embedding models?
+> **A**: `nomic-embed-text` requires ~500MB–1GB RAM for model loading. Embedding generation is CPU-bound but fast (~50–100 specs/second on modern hardware). The model is downloaded automatically on first run (~500MB download) and cached locally. For servers with limited memory, the API-based provider is available as an alternative. The local model's quality is competitive with OpenAI `text-embedding-3-small` for knowledge graph content.
 
 > **Q**: Should the system support switching embedding models after initial deployment?
-> **A**: Yes, model switching must be supported. Re-embedding 10K specs at 500 tokens each = 5M tokens = ~$0.10 with OpenAI small. Re-embedding 50K specs = ~$0.50. Cost is negligible. Time: at ~100 specs/second via API with batching, 10K specs takes ~100 seconds, 50K takes ~8 minutes. The system supports a `bun run rag:reindex` CLI command that re-embeds all specs with a progress bar. During reindex, the old embeddings remain queryable — new embeddings replace them atomically per spec.
+> **A**: Yes, model switching must be supported. With the local model, re-embedding is free (CPU only). Time: at ~50–100 specs/second locally, 10K specs takes ~100–200 seconds, 50K takes ~8–16 minutes. The system supports a `bun run rag:reindex` CLI command that re-embeds all specs with a progress bar. During reindex, the old embeddings remain queryable — new embeddings replace them atomically per spec. Switching models requires updating `EMBEDDING_MODEL_PATH` and running reindex.
 
 > **Q**: Should embeddings be generated on the server or offloaded to a dedicated embedding service/worker?
-> **A**: On the server, using an async queue within the NestJS application. Embedding generation is an HTTP API call (not CPU-intensive), so a dedicated worker is unnecessary. A `BullMQ`-style in-process queue (backed by an in-memory array, not Redis) processes embedding requests sequentially with concurrency of 5 (5 parallel OpenAI calls). This prevents rate-limit issues while maintaining throughput.
+> **A**: On the server, in-process. With the local embedding model, generation is CPU-bound (not network-bound). An in-process queue processes embedding requests with concurrency of 2–3 (limited by CPU, not API rate limits). No external service needed. The local model is loaded once at startup and reused for all embedding operations. For the API-based alternative, concurrency can be higher (5 parallel calls).
 
 > **Q**: For a local model, should we use Python (sentence-transformers) via a subprocess/sidecar or a JavaScript/ONNX runtime?
-> **A**: Deferred — no local model in v1. If added later, use a Python sidecar process running sentence-transformers behind a lightweight HTTP API (FastAPI). This keeps the ML stack separate from the Node/Bun stack and avoids ONNX runtime immaturity. The sidecar is optional — only started if `EMBEDDING_PROVIDER=local` is configured.
+> **A**: JavaScript/ONNX runtime via `@huggingface/transformers`. This library runs ONNX models directly in the Bun/Node.js runtime without requiring Python, a sidecar process, or any additional infrastructure. It supports `nomic-embed-text` and most HuggingFace embedding models out of the box. No separate process to manage — the embedding model is loaded in-process and runs on the same event loop as the NestJS server.
 
-> **Q**: Should embedding dimensions be configurable? OpenAI's v3 models support Matryoshka representations (can reduce dimensions while maintaining quality).
-> **A**: Use the full 1536 dimensions. Dimension reduction to 512 saves ~60% storage but degrades recall quality by 5–10% based on OpenAI's benchmarks. At 50K vectors × 1536 dims × 4 bytes = ~300MB in pgvector, storage is not a concern. Prioritize recall quality over storage savings. The dimension count is stored in `.kg-config.json` and used to configure the pgvector column size.
+> **Q**: Should embedding dimensions be configurable?
+> **A**: Use the model's native dimensions (768 for `nomic-embed-text`). The dimension count is stored in `.kg-config.json` and used to configure the pgvector column size. At 50K vectors × 768 dims × 4 bytes = ~150MB in pgvector, storage is not a concern. If a different model with different dimensions is configured via `EMBEDDING_MODEL_PATH`, a full re-index is required.
 
 > **Q**: Should the system support multiple embedding models simultaneously (e.g., one for English content, one for code blocks)?
 > **A**: No. Single embedding model for all content. Multiple models would require multiple vector columns or tables, complicate querying, and double embedding costs. The `text-embedding-3-small` model handles both English prose and code adequately. If a spec contains a code block, the embedding captures the surrounding prose context, which is sufficient for retrieval.
 
 > **Q**: Should the embedding of spec content include the spec title and tags as prefix context?
-> **A**: Yes. Prepend the spec title and tags as context before embedding. Format: `Title: {title}\nTags: {tag1}, {tag2}\n\n{content}`. This enriches the embedding with structural metadata, improving retrieval when users search by concept rather than exact content. The token overhead is minimal (~20–30 extra tokens per spec).
+> **A**: Yes. Prepend the spec title and tags as context before embedding. Format: `Title: {title}\nTags: {tag1}, {tag2}\n\n{content}`. This enriches the embedding with structural metadata, improving retrieval when users search by concept rather than exact content. The token overhead is minimal (~20–30 extra tokens per spec). This works identically with both local and API-based embedding providers.
 
 > **Q**: Should the system maintain a backup embedding provider that activates on primary provider failure?
-> **A**: Not in v1. OpenAI's embedding API has excellent uptime (>99.9%). A backup provider (e.g., Cohere) would require maintaining two sets of embeddings (models produce different vector spaces). The retry queue handles transient outages. If OpenAI has an extended outage, search degrades gracefully (existing embeddings still work; new content isn't searchable until re-embedded).
+> **A**: Not needed with the local model as default. The local model runs in-process and has no external dependency that can fail. If the process starts, the model is available. For the opt-in API provider, the retry queue handles transient outages. Search degrades gracefully during any provider issues (existing embeddings still work; new content isn't searchable until re-embedded).
 
 ---
 
@@ -271,7 +276,7 @@
       id TEXT PRIMARY KEY,
       spec_id TEXT NOT NULL,
       chunk_index INTEGER NOT NULL DEFAULT 0,
-      embedding vector(1536),
+      embedding vector(768),
       metadata JSONB,
       model TEXT NOT NULL,
       content_hash TEXT,
@@ -373,7 +378,7 @@
 #### Design Decisions
 
 > **Q**: For initial load of a large knowledge graph, what is the expected indexing time?
-> **A**: With batched API calls (OpenAI supports batch embedding of multiple texts in one request, up to 2,048 texts per call), throughput is ~500 specs/second. 10K specs: ~20 seconds. 50K specs: ~100 seconds. This is fast enough for initial indexing. The batch API call sends up to 100 specs per request with 5 concurrent requests.
+> **A**: With the local model, throughput is ~50–100 specs/second on modern hardware (CPU-bound). 10K specs: ~100–200 seconds. 50K specs: ~8–16 minutes. This is acceptable for initial indexing. The local model processes specs in batches, and the indexer shows progress. For the API provider, throughput is higher (~500 specs/second with batched calls).
 
 > **Q**: Should the system provide a progress indicator for batch indexing operations?
 > **A**: Yes. The CLI shows: `[2,500/10,000] Embedding specs... 25% complete, ~15s remaining`. The API exposes a `/rag/indexing-status` endpoint returning `{ total, completed, inProgress, estimatedSecondsRemaining }` for the frontend to display a progress bar.
@@ -455,8 +460,8 @@
 > **Q**: Should the system track a "dirty" flag on specs whose content changed since last embedding, rather than computing content hashes?
 > **A**: Use `contentHash` in `spec.json` (SHA-256 of the content.md file). When the embedding pipeline processes a spec, it compares the `contentHash` in the vector store metadata against the current spec's `contentHash`. If they match, skip embedding. This is more robust than a dirty flag (which can get stuck if the embedding worker crashes) and handles edge cases like reverting content to a previously embedded version.
 
-> **Q**: What should happen when the embedding provider is unavailable? Queue for retry? Fall back to local model? Return degraded search results?
-> **A**: Queue for retry with exponential backoff: 1s, 2s, 4s, 8s, 16s, max 60s. Maximum 10 retries per spec. If all retries fail, the spec is marked as `embeddingFailed` in the embedding queue and an admin alert is logged. Search continues working with existing embeddings — specs that failed embedding are simply not findable via RAG until the provider recovers and they are re-processed. No local model fallback in v1.
+> **Q**: What should happen when the embedding provider is unavailable?
+> **A**: With the default local model, this scenario is unlikely since the model runs in-process. If the model fails to load at startup, the RAG system is disabled with a clear error message. For the opt-in API provider, queue for retry with exponential backoff: 1s, 2s, 4s, 8s, 16s, max 60s. Maximum 10 retries per spec. If all retries fail, the spec is marked as `embeddingFailed` in the embedding queue and an admin alert is logged. Search continues working with existing embeddings.
 
 > **Q**: How should the system handle partial re-indexing failures (some specs embedded, some failed)?
 > **A**: Each spec is independently embedded. Failures for individual specs do not affect others. The embedding queue tracks per-spec status: `pending`, `processing`, `completed`, `failed`. Failed specs are retried on the next queue processing cycle. The `/rag/indexing-status` endpoint reports failed specs so admins can investigate.
@@ -952,8 +957,8 @@
 
 #### Design Decisions
 
-> **Q**: What is the expected monthly cost for API-based embeddings? At $0.02 per 1M tokens (OpenAI v3 small) and ~500 tokens per spec, 10K specs costs ~$0.10 for initial indexing. Is this budget acceptable?
-> **A**: Yes, the cost is negligible. Monthly estimate for a 10K-spec project with moderate activity (100 spec updates/day): ~3,000 specs/month re-embedded = 1.5M tokens = $0.03/month. Even aggressive usage (1,000 updates/day) costs ~$0.30/month. Version-aware indexing (storing all versions) increases total vectors but not ongoing embedding cost (only new versions are embedded). Budget is not a concern.
+> **Q**: What is the expected cost for embeddings?
+> **A**: **Zero ongoing cost** with the default local model. Embeddings are generated in-process using the local model — no API calls, no per-token pricing. The only cost is compute time on the server (CPU). For the opt-in API provider (OpenAI), costs are negligible: $0.02 per 1M tokens, so 10K specs at ~500 tokens each costs ~$0.10 for initial indexing.
 
 > **Q**: Should the system track and report embedding costs (tokens consumed, estimated cost)?
 > **A**: Yes. The server tracks `totalTokensConsumed` and `estimatedCostUSD` per project per month, stored in the `project_usage` table in PostgreSQL. An admin dashboard shows monthly embedding usage. This is lightweight to implement (count tokens on each API response) and provides cost visibility.
@@ -984,8 +989,8 @@
   ├── rag.controller.ts       # REST endpoints
   ├── providers/
   │   ├── embedding-provider.interface.ts
-  │   ├── openai-embedding.provider.ts
-  │   └── local-embedding.provider.ts
+  │   ├── local-embedding.provider.ts   # Primary: @huggingface/transformers ONNX
+  │   └── api-embedding.provider.ts     # Opt-in alternative: OpenAI/Voyage API
   ├── chunking/
   │   ├── chunker.service.ts
   │   └── markdown-chunker.ts
@@ -1035,16 +1040,17 @@
 - [ ] **RAG-109**: Define RAG configuration schema
   ```typescript
   interface RagConfig {
-    embeddingProvider: 'openai' | 'local';
-    embeddingModel: string;
-    embeddingDimensions: number;
+    embeddingProvider: 'local' | 'api';   // default: 'local'
+    embeddingModelPath: string;            // local model path (default: auto-downloads nomic-embed-text)
+    embeddingApiModel?: string;            // API model name (only if provider='api')
+    embeddingDimensions: number;           // default: 768 (nomic-embed-text)
     vectorStore: 'pgvector' | 'faiss';
     chunkMaxTokens: number;
     chunkOverlapTokens: number;
     searchDefaultTopK: number;
     searchDefaultThreshold: number;
     indexingBatchSize: number;
-    indexingConcurrency: number;
+    indexingConcurrency: number;           // default: 2 for local, 5 for API
     scoringConfig: ScoringConfig;
   }
   ```

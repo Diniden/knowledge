@@ -1,13 +1,17 @@
 # 11 — DEPLOYMENT PLAN
 
 > **Purpose**: Define the complete deployment infrastructure including development
-> environment setup, build pipelines, Docker containerization, CI/CD workflows,
-> hosting infrastructure, monitoring, logging, backup/recovery, and scaling
-> strategy.
+> environment setup, build pipelines, CI/CD workflows, hosting infrastructure,
+> monitoring, logging, backup/recovery, and scaling strategy.
+>
+> **NOTE**: This project does NOT use Docker. All processes run natively in their
+> correct working directories, managed by mprocs for development. PostgreSQL is
+> installed natively. Process isolation is achieved through workspace separation
+> and working directory configuration.
 >
 > **Phase**: 1 (Dev environment) + 5 (Production deployment)
 > **Dependencies**: `01-PROJECT-STRUCTURE/PLAN.md`, `03-SERVER/01-ARCHITECTURE-PLAN.md`, `07-DATABASE/PLAN.md`
-> **Estimated tasks**: 155+
+> **Estimated tasks**: 120+
 
 ---
 
@@ -15,7 +19,7 @@
 
 1. [Development Environment Setup](#1-development-environment-setup)
 2. [Build Pipeline](#2-build-pipeline)
-3. [Docker Configuration](#3-docker-configuration)
+3. [Process Management & Deployment](#3-process-management--deployment)
 4. [CI/CD Pipeline](#4-cicd-pipeline)
 5. [Infrastructure](#5-infrastructure)
 6. [Environment Management](#6-environment-management)
@@ -49,13 +53,14 @@
   - Ensure peer dependency resolution is correct
   - Document troubleshooting for common installation issues
 
-### 1.2 PostgreSQL Local Setup
+### 1.2 PostgreSQL Local Setup (Native Install)
 
-- [ ] **DEP-DE-004**: Document PostgreSQL local installation options
-  - Option A: Docker Compose (recommended — see Docker section)
-  - Option B: Native PostgreSQL installation
-  - Option C: Managed local service (Postgres.app on macOS, pgAdmin on Windows)
+- [ ] **DEP-DE-004**: Document PostgreSQL native installation
+  - macOS: `brew install postgresql@16` then `brew services start postgresql@16`
+  - Linux: `apt install postgresql-16` or equivalent package manager
+  - macOS alternative: Postgres.app (GUI-based)
   - Minimum PostgreSQL version: 15
+  - Install pgvector extension: `CREATE EXTENSION IF NOT EXISTS vector`
 - [ ] **DEP-DE-005**: Create database initialization script
   - Script: `scripts/db-init.sh`
   - Create development database: `kg_dev`
@@ -91,34 +96,31 @@
   - Log (without values) which variables were loaded
   - Warn about insecure values in production (e.g., default secrets)
 
-### 1.4 Docker Compose for Local Development
+### 1.4 mprocs Development Orchestration
 
-- [ ] **DEP-DE-010**: Create `docker-compose.dev.yml`
-  - Services: `postgres`, `redis` (optional), `server`, `client`
-  - PostgreSQL: version 15, persistent volume, port 5432
-  - Redis: version 7, port 6379 (if used for rate limiting/caching)
-  - Server: build from Dockerfile.dev, port 3000, hot reload volume mounts
-  - Client: build from Dockerfile.dev, port 5173, hot reload volume mounts
-  - Network: shared network for inter-service communication
-- [ ] **DEP-DE-011**: Create PostgreSQL Docker configuration
-  - Base image: `postgres:15-alpine`
-  - Environment: `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
-  - Volume: `pgdata:/var/lib/postgresql/data` for persistence
-  - Healthcheck: `pg_isready -U ${POSTGRES_USER}`
-  - Init script: mount `scripts/db-init.sql` for first-run setup
-- [ ] **DEP-DE-012**: Create development Docker network
-  - Network name: `kg-dev-network`
-  - Driver: bridge
-  - All services on the same network for DNS-based service discovery
-  - Server connects to `postgres:5432` instead of `localhost:5432`
+- [ ] **DEP-DE-010**: Create `mprocs.yaml` for development process management
+  - Process: `shared-watch` — `tsc --watch` in `shared/` directory
+  - Process: `server` — `bun --watch src/main.ts` in `server/` directory
+  - Process: `client` — `bun run dev` (Vite) in `client/` directory
+  - Color-coded output per process for visual distinction
+  - Restart-on-failure policy for server and client processes
+- [ ] **DEP-DE-011**: Configure mprocs process dependencies
+  - Shared package watch starts first (other packages depend on it)
+  - Server waits for PostgreSQL readiness (`pg_isready` health check)
+  - Client starts independently (connects to server via proxy)
+  - All processes run natively in their workspace working directories
+- [ ] **DEP-DE-012**: Document mprocs installation and usage
+  - Install: `brew install mprocs` (macOS) or `cargo install mprocs` (any OS)
+  - Usage: `bun run dev` launches mprocs with all configured processes
+  - TUI: keyboard shortcuts for switching between process logs, restarting, stopping
 
 ### 1.5 Hot Reload Configuration
 
 - [ ] **DEP-DE-013**: Configure Vite hot module replacement (HMR) for frontend
   - Vite dev server with HMR enabled (default)
-  - Configure HMR for Docker: set `server.host: '0.0.0.0'` and `server.hmr.clientPort`
   - React Fast Refresh for component-level HMR
   - SCSS hot reload without full page refresh
+  - Runs natively via mprocs (no container networking needed)
 - [ ] **DEP-DE-014**: Configure server hot reload
   - Use `bun --watch` for NestJS server auto-restart on file changes
   - Watch directories: `server/src/`, `shared/src/`
@@ -131,16 +133,16 @@
 
 ### 1.6 Developer Tooling
 
-- [ ] **DEP-DE-016**: Create `bun dev` root command
-  - Starts all development services in parallel
-  - Client dev server (Vite)
-  - Server dev server (NestJS with watch)
-  - Database (if using Docker Compose, start it first)
-  - Show combined log output with service prefixes and color coding
-- [ ] **DEP-DE-017**: Create `bun setup` first-run command
-  - Install all dependencies
+- [ ] **DEP-DE-016**: Create `bun run dev` root command
+  - Launches `mprocs --config mprocs.yaml`
+  - Starts all development services via mprocs TUI
+  - Client dev server (Vite), Server dev server (NestJS with watch), Shared watch (tsc)
+  - mprocs provides per-process log viewing, restart controls, color-coded output
+- [ ] **DEP-DE-017**: Create `bun run setup` first-run command
+  - Install all dependencies across all workspaces (`bun install`)
   - Copy `.env.example` to `.env` (if not exists)
-  - Start Docker Compose services (database)
+  - Check native PostgreSQL is running (`pg_isready`)
+  - Create development and test databases
   - Run database migrations
   - Seed development data
   - Print success message with next steps
@@ -148,10 +150,10 @@
 #### Design Decisions
 
 > **Q**: How should developers set up their local environment? A single `make setup` or `bun setup` command, or a manual step-by-step process? Automation is preferred but requires maintenance.
-> **A**: Single command: `make setup` (or `bun run setup`). This command: installs dependencies (`bun install`), copies `.env.example` to `.env`, starts Docker Compose services (PostgreSQL), runs database migrations, and seeds test data. A `make dev` command starts the dev server with hot-reload. The Makefile is the source of truth for all development commands.
+> **A**: Single command: `bun run setup`. This command: installs all dependencies across all workspaces (`bun install`), copies `.env.example` to `.env`, checks that native PostgreSQL is running, creates development and test databases, runs migrations, and seeds test data. `bun run dev` starts all services via mprocs.
 
 > **Q**: Should there be a shared development server that all developers can use, or should each developer run everything locally?
-> **A**: Each developer runs everything locally via Docker Compose, per the PRD (Docker Compose for dev). No shared dev server. Local development ensures isolation, fast iteration, and no dependency on network connectivity. The Docker Compose dev config mirrors production closely.
+> **A**: Each developer runs everything locally. No Docker required. PostgreSQL is installed natively, and all application processes run in their correct working directories managed by mprocs. Local development ensures isolation, fast iteration, and no dependency on Docker or network connectivity.
 
 > **Q**: Should the dev environment include seeded test data (users, projects, specs)? Realistic test data helps development but needs maintenance.
 > **A**: Yes. A seed script (`bun run seed`) creates: 3 users (admin, editor, viewer), 2 projects, ~20 sample specs with edges, and sample dialog history. The seed data is maintained alongside the schema and updated when the data model changes. Seed data is deterministic (same output every run) for reproducible development.
@@ -245,7 +247,7 @@
 - [ ] **DEP-BP-014**: Create `bun run build:production` command
   - Same as build, with production environment variables
   - Additional optimizations: minification, compression, source map uploading
-  - Generate Docker-ready artifacts
+  - Generate deployment-ready artifacts
 
 #### Design Decisions
 
@@ -253,135 +255,104 @@
 > **A**: Bun is the primary runtime per the PRD. It is stable enough for production with NestJS as of Bun 1.1+. A Node.js fallback is not maintained — if a Bun-specific issue arises, it should be reported and worked around. The performance benefits (faster startup, faster installs, native TypeScript) justify the choice.
 
 > **Q**: Should the server use `bun run` for production execution, or compile to a standalone binary with `bun build --compile`? Standalone binaries are faster to start but harder to debug.
-> **A**: `bun run` for production. Startup time with Bun is already sub-second. The standalone binary approach reduces debuggability and complicates the Docker image (no source maps). `bun run` with the transpiled output is the right balance.
+> **A**: `bun run` for production. Startup time with Bun is already sub-second. The standalone binary approach reduces debuggability. `bun run` with the transpiled output is the right balance.
 
 > **Q**: Should generated UI builds also use Bun, or should they use the more established Node.js + Vite combination for maximum compatibility?
 > **A**: Vite with Bun as the runtime, per the PRD (Bun runtime, Vite builds). `bun run vite build` uses Vite's build pipeline with Bun's speed. This is well-supported and provides maximum compatibility with Vite's plugin ecosystem.
 
-> **Q**: Should the build process produce a single monolithic Docker image (frontend + server) or separate images? Separate images allow independent scaling and deployment but add orchestration complexity.
-> **A**: Single monolithic Docker image. The NestJS server serves the Vite-built frontend as static files. This simplifies deployment (one container for the app), reduces orchestration complexity, and is sufficient for a single-server deployment. The reverse proxy (Caddy) is a separate container for TLS termination.
+> **Q**: Should the build process produce a deployment artifact or just run from source?
+> **A**: Build to production artifacts. The NestJS server is compiled via `tsc`, the client is built via Vite, and both are packaged as a release tarball uploaded to GitHub Releases. The server runs the compiled output with `bun run server/dist/main.js`. The NestJS server serves the Vite-built frontend as static files via `ServeStaticModule`. Caddy handles TLS termination as a native reverse proxy.
 
-> **Q**: Should build artifacts (Docker images) be pushed to a public registry (Docker Hub, GitHub Container Registry) or a private registry? Public is free but exposes the image; private requires registry hosting.
-> **A**: GitHub Container Registry (GHCR), public. The application is not a commercial secret — public images simplify self-hosted deployments (`docker pull ghcr.io/org/botnet-knowledge:latest`). Tagged releases (semver) and a `latest` tag. Private registry is unnecessary.
+> **Q**: Should build artifacts be pushed to a container registry?
+> **A**: No. No Docker images are produced. Build artifacts are uploaded to GitHub Releases as tarballs. Self-hosted deployments download the release, extract, run `bun install --production`, and start the server. This is simpler than Docker and requires no container runtime on the deployment target.
 
 > **Q**: How should generated UI projects be built in CI? Each project requires its own build — should all be built on every CI run, or only changed ones? Building all is thorough but slow.
 > **A**: Only changed projects. Per the PRD, delta builds detect changed specs. CI uses the same change detection: compare the current commit to the last successful build, identify affected projects, build only those. A `--all` flag forces a full rebuild for release builds.
 
 ---
 
-## 3. Docker Configuration
+## 3. Process Management & Deployment
 
-### 3.1 Frontend Dockerfile
+### 3.1 Development Process Management (mprocs)
 
-- [ ] **DEP-DK-001**: Create `client/Dockerfile` for production
-  - Multi-stage build:
-    - Stage 1 (build): `oven/bun:1` base, install deps, run Vite build
-    - Stage 2 (serve): `nginx:alpine` base, copy built assets, configure nginx
-  - Copy `client/ui/dist/` to nginx html directory
-  - Final image size target: < 50MB
-- [ ] **DEP-DK-002**: Create nginx configuration for frontend
-  - File: `client/nginx.conf`
-  - Serve static files from `/usr/share/nginx/html`
-  - SPA routing: all routes fall back to `index.html`
-  - Gzip compression enabled for text assets
+- [ ] **DEP-PM-001**: Create `mprocs.yaml` configuration
+  - Define all development processes with working directories:
+    - `shared-watch`: `tsc --watch` (cwd: `shared/`)
+    - `server`: `bun --watch src/main.ts` (cwd: `server/`)
+    - `client`: `bun run dev` (cwd: `client/`)
+  - Configure color-coded output per process
+  - Set restart policies: `on-failure` for server and client
+  - Document mprocs keyboard shortcuts (switch process, restart, kill)
+- [ ] **DEP-PM-002**: Configure `bun run dev` to launch mprocs
+  - Root `package.json` script: `"dev": "mprocs --config mprocs.yaml"`
+  - Pre-check: verify PostgreSQL is accessible before launching
+  - Single command starts the entire development environment
+- [ ] **DEP-PM-003**: Document mprocs installation requirements
+  - macOS: `brew install mprocs`
+  - Linux: `cargo install mprocs` or download binary from GitHub releases
+  - Add to README prerequisites alongside bun and PostgreSQL
+
+### 3.2 Production Deployment (Native Processes)
+
+- [ ] **DEP-PM-004**: Create production startup script
+  - Script: `scripts/start-production.ts`
+  - Build shared package, server, and client
+  - Run database migrations
+  - Start NestJS server (serves both API and static client assets)
+  - Use `bun run server/dist/main.js` with `NODE_ENV=production`
+- [ ] **DEP-PM-005**: Configure NestJS to serve static client assets in production
+  - Use NestJS `ServeStaticModule` to serve built Vite assets from `client/ui/dist/`
+  - SPA routing: all non-API routes fall back to `index.html`
   - Cache headers: 1 year for hashed assets, no-cache for `index.html`
-  - Security headers (CSP, HSTS, etc.) — coordinate with Security plan
-  - Proxy `/api/` requests to the backend service (optional: can use separate ingress)
-- [ ] **DEP-DK-003**: Configure nginx health check
-  - Health endpoint: `GET /health` returns 200
-  - Used by Docker health check and load balancer
-  - No authentication required
-
-### 3.2 Server Dockerfile
-
-- [ ] **DEP-DK-004**: Create `server/Dockerfile` for production
-  - Multi-stage build:
-    - Stage 1 (build): `oven/bun:1` base, install all deps, compile TypeScript
-    - Stage 2 (production): `oven/bun:1-slim` base, copy compiled output, install prod deps only
-  - Set `NODE_ENV=production`
-  - Run as non-root user
-  - Expose port 3000
-  - Health check: `curl -f http://localhost:3000/api/health || exit 1`
-  - Final image size target: < 200MB
-- [ ] **DEP-DK-005**: Create server .dockerignore
-  - Ignore: `node_modules/`, `dist/`, `.env`, `*.md`, `tests/`, `.git/`
-  - Keep build-relevant files only
-  - Reduce build context size for faster builds
-- [ ] **DEP-DK-006**: Configure server container environment
-  - Accept all configuration via environment variables
-  - No environment files baked into the image
-  - Secrets injected at runtime via Docker secrets or orchestration platform
-
-### 3.3 PostgreSQL Container Configuration
-
-- [ ] **DEP-DK-007**: Configure PostgreSQL container for production
-  - Base image: `postgres:15-alpine`
-  - Custom `postgresql.conf` for tuning:
+  - Gzip compression via NestJS middleware
+- [ ] **DEP-PM-006**: Create systemd service file for production (Linux)
+  - Service file: `config/kg-server.service`
+  - Runs the NestJS server as a systemd service
+  - Automatic restart on failure
+  - Environment file for configuration
+  - Log output to journald
+- [ ] **DEP-PM-007**: Configure PostgreSQL for production
+  - PostgreSQL installed natively on the production server
+  - Custom `postgresql.conf` tuning:
     - `shared_buffers`: 25% of available memory
     - `effective_cache_size`: 75% of available memory
     - `work_mem`: 4MB
     - `maintenance_work_mem`: 256MB
     - `max_connections`: 100
-  - Custom `pg_hba.conf` for authentication rules
-  - Persistent volume for data directory
-- [ ] **DEP-DK-008**: Create PostgreSQL initialization scripts
-  - `docker-entrypoint-initdb.d/01-create-databases.sql` — create application databases
-  - `docker-entrypoint-initdb.d/02-create-users.sql` — create application user with limited privileges
-  - `docker-entrypoint-initdb.d/03-extensions.sql` — enable required extensions (uuid-ossp, pgcrypto)
-  - Scripts run only on first container start (empty data volume)
+  - Enable pgvector extension
+  - Configure `pg_hba.conf` for application user authentication
+- [ ] **DEP-PM-008**: Create database initialization scripts
+  - `scripts/db-init.sql` — create application databases and user
+  - `scripts/db-extensions.sql` — enable required extensions (uuid-ossp, pgcrypto, vector)
+  - Run as part of `bun run setup`
 
-### 3.4 Docker Compose for Production
+### 3.3 Reverse Proxy Configuration
 
-- [ ] **DEP-DK-009**: Create `docker-compose.prod.yml`
-  - Services: `frontend`, `server`, `postgres`, `redis` (if needed)
-  - Use production Dockerfiles
-  - Environment variables from `.env.production` or Docker secrets
-  - Restart policy: `unless-stopped`
-  - Resource limits: memory and CPU per service
-  - Logging driver: json-file with rotation
-- [ ] **DEP-DK-010**: Configure Docker networking for production
-  - Internal network for service-to-service communication
-  - Only frontend and server exposed to the external network
-  - PostgreSQL and Redis not directly accessible from outside
-- [ ] **DEP-DK-011**: Configure Docker volumes for production
-  - `pgdata`: PostgreSQL data directory (persistent)
-  - `repos`: Knowledge graph repositories (persistent)
-  - `uploads`: User-uploaded files (persistent)
-  - `logs`: Application logs (persistent, with rotation)
-  - Volume driver: local (default) or cloud-backed (for managed deployments)
-
-### 3.5 Multi-Stage Build Optimization
-
-- [ ] **DEP-DK-012**: Optimize Docker layer caching
-  - Copy `package.json` and `bun.lock` before source code
-  - `bun install` layer is cached unless dependencies change
-  - Source code changes only rebuild the compilation layer
-  - Use `.dockerignore` to minimize build context
-- [ ] **DEP-DK-013**: Implement Docker build CI caching
-  - Use Docker BuildKit cache mounts for dependency installation
-  - Cache Bun's global cache directory between builds
-  - Use GitHub Actions cache or registry-based caching
-  - Target: rebuild time < 2 minutes for source-only changes
+- [ ] **DEP-PM-009**: Configure Caddy as reverse proxy
+  - Install Caddy natively on the production server
+  - Automatic HTTPS via Let's Encrypt (zero-config TLS)
+  - Proxy `/api/*` and `/ws/*` to the NestJS server (port 3000)
+  - Serve as the public entry point on ports 80/443
+  - Rate limiting at reverse proxy level (defense in depth)
+- [ ] **DEP-PM-010**: Create Caddyfile configuration
+  - TLS termination with automatic certificate renewal
+  - Reverse proxy to NestJS server
+  - Security headers (CSP, HSTS, etc.)
+  - Logging configuration
 
 #### Design Decisions
 
-> **Q**: Should Docker Compose be the production orchestration tool, or should we use Kubernetes, Docker Swarm, or a PaaS? Docker Compose is simplest but limited for multi-node scaling.
-> **A**: Docker Compose for both dev and production, per the PRD. A single `docker-compose.yml` for dev (with hot-reload, debug ports) and a `docker-compose.prod.yml` override for production (optimized images, restart policies, log drivers). Kubernetes is overkill for a single-server, 20–50 user deployment.
+> **Q**: Why not use Docker for deployment?
+> **A**: This project prioritizes simplicity and minimal infrastructure. All processes run natively in their correct working directories. PostgreSQL is installed natively. The NestJS server serves both the API and static client assets. For production, a systemd service (Linux) or launchd (macOS) manages the server process, and Caddy handles reverse proxy with automatic HTTPS. This eliminates Docker daemon requirements, container networking complexity, and volume management overhead.
 
-> **Q**: Should the reverse proxy (nginx/Caddy) run as a Docker container or be installed directly on the host? Containerized is more portable; host installation is simpler for single-server setups.
-> **A**: Docker container (Caddy). Caddy is preferred over nginx for automatic HTTPS (Let's Encrypt integration with zero config). Running as a container keeps the deployment fully containerized and reproducible. The Caddy container handles TLS termination, static file caching, and reverse proxying to the app container.
+> **Q**: How should multiple processes be managed in development?
+> **A**: **mprocs** provides a terminal UI for managing multiple processes. `bun run dev` launches mprocs which starts all development processes (client, server, shared watch) with per-process log viewing, restart controls, and color-coded output. This is superior to `concurrently` (which just interleaves output) or tmux (which requires manual setup).
 
-> **Q**: Should Redis be required for production, or should it be optional (fall back to in-memory for single-server deployments)? Redis is needed for rate limiting and caching across multiple server instances.
-> **A**: Optional at launch. The single-server deployment uses in-memory rate limiting and caching (Map-based, process-level). Redis is added to Docker Compose as an optional service, enabled via env var (`USE_REDIS=true`). When multi-server deployment is introduced, Redis becomes required.
+> **Q**: Should Redis be required for production?
+> **A**: Optional at launch. The single-server deployment uses in-memory rate limiting and caching (Map-based, process-level). Redis can be installed natively and enabled via `USE_REDIS=true` when multi-server deployment is introduced.
 
-> **Q**: Should the application containers use root or non-root users? Non-root is more secure but can cause file permission issues with mounted volumes.
-> **A**: Non-root user (UID 1000). The Dockerfile creates a `botnet` user. Volume permissions are handled by setting the volume ownership in the Docker entrypoint script. This follows container security best practices without sacrificing usability.
-
-> **Q**: What base image should the server use? `oven/bun:1-slim` (smaller), `oven/bun:1` (full), or `oven/bun:1-alpine` (smallest but may have compatibility issues)?
-> **A**: `oven/bun:1-slim` for the production image. Multi-stage build: `oven/bun:1` for the build stage (full toolchain for native dependencies), `oven/bun:1-slim` for the runtime stage (minimal footprint). Alpine is avoided due to musl compatibility issues with some npm packages.
-
-> **Q**: Should we use multi-platform builds (amd64 + arm64) for the Docker images? ARM support is increasingly important for Apple Silicon and ARM-based cloud instances, but adds build time.
-> **A**: Yes, amd64 + arm64. Built via `docker buildx` in GitHub Actions. ARM support is essential for developers on Apple Silicon Macs running the dev environment locally. Build time increase is ~2x but runs in CI (not blocking developer flow).
+> **Q**: Should the client be served by a separate web server (nginx/Caddy) or by the NestJS server?
+> **A**: NestJS serves the built client assets in production using `ServeStaticModule`. Caddy sits in front as a reverse proxy for TLS termination and caching but proxies everything to NestJS. This simplifies deployment to a single application process. No separate nginx or static file server needed.
 
 ---
 
@@ -397,7 +368,7 @@
 - [ ] **DEP-CI-002**: Configure CI environment
   - Runner: `ubuntu-latest`
   - Bun: install via `oven-sh/setup-bun@v1`
-  - PostgreSQL: use service container
+  - PostgreSQL: use GitHub Actions PostgreSQL service
   - Node version: specify for tools that need Node (if any)
   - Cache: bun dependency cache (`~/.bun/install/cache`)
 
@@ -424,7 +395,7 @@
   - Coverage thresholds: statements 80%, branches 70%, functions 80%, lines 80%
   - Fail if coverage drops below thresholds
 - [ ] **DEP-CI-007**: Implement integration test step
-  - Requires: PostgreSQL service container running
+  - Requires: PostgreSQL service running
   - Run database migrations before tests
   - `bun test:integration` — runs integration tests
   - Isolated database per test suite (or transaction rollback)
@@ -449,24 +420,25 @@
 
 ### 4.3 CI/CD Deployment Steps
 
-- [ ] **DEP-CI-011**: Implement Docker image build step
-  - Build frontend and server Docker images
-  - Tag images: `latest`, git commit SHA, semantic version
-  - Push to container registry (GitHub Container Registry, Docker Hub, or private)
+- [ ] **DEP-CI-011**: Implement production build artifact step
+  - Build shared package, server, and client
+  - Package build artifacts as a release tarball
+  - Tag release: git tag, semantic version
+  - Upload to GitHub Releases
 - [ ] **DEP-CI-012**: Implement staging deployment step
   - Trigger: merge to `main` branch
-  - Deploy to staging environment
+  - Deploy to staging environment (rsync/scp build artifacts)
   - Run smoke tests against staging
   - Notify team of staging deployment
 - [ ] **DEP-CI-013**: Implement production deployment step
   - Trigger: manual approval after staging verification (or tag-based)
-  - Deploy to production environment
+  - Deploy to production (rsync build artifacts, run migrations, restart service)
   - Run health checks after deployment
   - Automatic rollback if health checks fail
   - Notify team of production deployment
 - [ ] **DEP-CI-014**: Implement rollback deployment step
   - Quick rollback to previous version
-  - Revert Docker image tags to previous version
+  - Restore previous build artifacts
   - Re-run health checks after rollback
   - Notify team of rollback
 
@@ -474,17 +446,16 @@
 
 - [ ] **DEP-CI-015**: Create development CI configuration
   - Run full test suite
-  - Build Docker images tagged as `dev`
-  - Deploy to development environment (optional, for shared dev)
+  - Build artifacts for development verification
 - [ ] **DEP-CI-016**: Create staging CI configuration
   - Run full test suite
-  - Build Docker images tagged as `staging`
+  - Build production artifacts
   - Deploy to staging environment
   - Run E2E tests against staging
 - [ ] **DEP-CI-017**: Create production CI configuration
   - Require: all tests pass, staging verified
-  - Build Docker images tagged with version and `latest`
-  - Deploy to production with zero-downtime strategy
+  - Build production artifacts with version tag
+  - Deploy to production (restart systemd service)
   - Run post-deployment smoke tests
 
 #### Design Decisions
@@ -502,13 +473,13 @@
 > **A**: Automatic deployment on merge to `main` after all CI checks pass. A manual "deploy" button in GitHub Actions is available as an override for hotfixes or rollbacks. Continuous delivery is preferred for velocity; the CI pipeline (lint, typecheck, unit, integration, E2E) is the safety gate.
 
 > **Q**: Should there be a separate staging environment that mirrors production? Staging is valuable for pre-production testing but doubles hosting costs.
-> **A**: Not at launch. The local dev environment (Docker Compose) serves as the staging environment. A dedicated staging server is a Phase 3+ enhancement when the team grows or the deployment serves external users. Cost doubling is not justified for 20–50 users.
+> **A**: Not at launch. The local dev environment serves as the staging environment. A dedicated staging server is a Phase 3+ enhancement when the team grows or the deployment serves external users. Cost doubling is not justified for 20–50 users.
 
 > **Q**: How should database migrations be handled during deployment? Run before application restart (may cause brief incompatibility) or use expand-then-contract pattern (safe but more complex)?
-> **A**: Run before application restart. Drizzle ORM migrations execute as a pre-start step in the Docker entrypoint (`bun run drizzle-kit migrate` before `bun run start`). For a single-server deployment, the brief incompatibility window (seconds) is acceptable. Expand-then-contract is used only for migrations that drop columns or rename tables (applied manually with care).
+> **A**: Run before application restart. Drizzle ORM migrations execute as a pre-start step (`bun run drizzle-kit migrate` before `bun run start`). For a single-server deployment, the brief incompatibility window (seconds) is acceptable. Expand-then-contract is used only for migrations that drop columns or rename tables (applied manually with care).
 
 > **Q**: Should we implement blue-green deployment, rolling update, or canary release for production? Each has different risk profiles and complexity.
-> **A**: Simple restart (stop old, start new). With a single server and Docker Compose, blue-green/rolling/canary are unnecessary complexity. Downtime during deployment is measured in seconds (Bun startup is sub-second + migration time). If zero-downtime is required later, a blue-green approach with two container instances behind Caddy is the Phase 4+ path.
+> **A**: Simple restart (stop old, start new). With a single server, blue-green/rolling/canary are unnecessary complexity. Downtime during deployment is measured in seconds (Bun startup is sub-second + migration time). If zero-downtime is required later, a blue-green approach with two processes behind Caddy is the Phase 4+ path.
 
 > **Q**: Should E2E tests run on every PR, or only on merge to `main`? E2E tests are slow and flaky; running on every PR provides early feedback but slows the pipeline.
 > **A**: E2E tests run on every PR, per the PRD (GitHub Actions CI: lint, typecheck, unit, integration, E2E). They run in parallel with other checks, so they don't block faster feedback (lint/typecheck results appear first). Flaky tests are quarantined and fixed promptly — flakiness is not tolerated.
@@ -517,7 +488,7 @@
 > **A**: Not in the standard PR pipeline. Performance/load tests run as a separate scheduled workflow (weekly, or on-demand before releases). Results are tracked over time to detect regressions. The PR pipeline stays under 10 minutes.
 
 > **Q**: Should there be a separate "nightly" CI run that performs more thorough testing (security scans, performance tests, full E2E suite)?
-> **A**: Yes. A nightly workflow runs: full E2E suite (including slow/edge-case tests), dependency vulnerability scan (`bun audit` / Trivy for Docker images), and performance benchmarks. Results are posted to a Slack/Discord channel or stored as CI artifacts. Failures create GitHub issues automatically.
+> **A**: Yes. A nightly workflow runs: full E2E suite (including slow/edge-case tests), dependency vulnerability scan (`bun audit`), and performance benchmarks. Results are posted to a Slack/Discord channel or stored as CI artifacts. Failures create GitHub issues automatically.
 
 ---
 
@@ -527,27 +498,27 @@
 
 - [ ] **DEP-IN-001**: Define server hosting requirements
   - Minimum: 2 vCPU, 4GB RAM, 50GB SSD
-  - Recommended: 4 vCPU, 8GB RAM, 100GB SSD
+  - Recommended: 4 vCPU, 8GB RAM, 100GB SSD (extra RAM for local embedding model)
   - OS: Ubuntu 22.04 LTS (or latest LTS)
-  - Docker and Docker Compose pre-installed
-  - Hosting options: VPS (DigitalOcean, Hetzner, Linode), cloud (AWS EC2, GCP Compute), PaaS (Railway, Render)
+  - Required: Bun, PostgreSQL 16, Caddy, git
+  - Hosting options: VPS (DigitalOcean, Hetzner, Linode), cloud (AWS EC2, GCP Compute)
 - [ ] **DEP-IN-002**: Configure server firewall
   - Allow: 80 (HTTP), 443 (HTTPS), 22 (SSH — restricted to admin IPs)
   - Deny all other inbound traffic
   - Allow all outbound traffic
   - Use UFW or cloud security groups
 - [ ] **DEP-IN-003**: Configure reverse proxy
-  - Nginx or Caddy as reverse proxy in front of application containers
-  - TLS termination at the reverse proxy
-  - Forward `/api/*` to server container (port 3000)
-  - Forward `/ws/*` to server container WebSocket (port 3000)
-  - Serve frontend from static files or proxy to frontend container
+  - Caddy as reverse proxy in front of the NestJS server
+  - TLS termination at the reverse proxy (automatic Let's Encrypt)
+  - Forward `/api/*` to NestJS server (port 3000)
+  - Forward `/ws/*` to NestJS server WebSocket (port 3000)
+  - NestJS serves the built client assets directly
   - Rate limiting at reverse proxy level (defense in depth)
 
 ### 5.2 Database Hosting
 
 - [ ] **DEP-IN-004**: Define database hosting options
-  - Option A: Self-hosted PostgreSQL in Docker (simplest, full control)
+  - Option A: Self-hosted PostgreSQL (native install, full control)
   - Option B: Managed PostgreSQL (AWS RDS, GCP Cloud SQL, DigitalOcean Managed DB)
   - Option C: PostgreSQL-compatible service (Supabase, Neon)
   - Recommendation: managed for production (automated backups, failover)
@@ -625,8 +596,8 @@
 > **Q**: Should the application be hosted on a VPS (DigitalOcean, Hetzner, Linode), a cloud platform (AWS, GCP, Azure), or a PaaS (Railway, Render, Fly.io)? Each has different cost, complexity, and scaling characteristics. What is the expected budget for infrastructure?
 > **A**: VPS (Hetzner or DigitalOcean). Per the PRD, the system is local-only through Phase 3 and targets a single-instance server for 20–50 users. A VPS provides the best cost-to-performance ratio (~$20–40/month for 4 vCPU, 8 GB RAM, 160 GB SSD). No cloud platform overhead. Budget target: under $50/month for infrastructure.
 
-> **Q**: Should the application support self-hosted deployments (users run it on their own servers)? If so, the deployment must be simple enough for non-DevOps users (single Docker Compose, minimal configuration).
-> **A**: Yes. Self-hosted deployment is a first-class use case. A single `docker compose up` command with a minimal `.env` file (database password, JWT secret, Anthropic API key) must be the primary deployment method. The Docker Compose file includes all services (app, PostgreSQL, reverse proxy). Documentation covers setup in under 10 minutes.
+> **Q**: Should the application support self-hosted deployments (users run it on their own servers)?
+> **A**: Yes. Self-hosted deployment is a first-class use case. Setup requires: install Bun, PostgreSQL, and Caddy; download the release tarball; configure `.env` (database password, JWT secret, Anthropic API key); run `bun run setup` and `bun run start`. Documentation covers setup in under 15 minutes. No Docker required — all processes run natively.
 
 > **Q**: Should the system run on a single server or be designed for multi-server deployment from the start? Single server is simpler but creates a single point of failure.
 > **A**: Single server at launch, per the PRD. The architecture should not preclude horizontal scaling (stateless server, external database), but multi-server deployment is not a launch requirement. Single-server is acceptable for 20–50 users.
@@ -634,8 +605,8 @@
 > **Q**: What geographic region should the primary server be located in? Is multi-region deployment a future requirement?
 > **A**: Region depends on the deployer's user base. For self-hosted, the user chooses. For any reference deployment, US East or EU West (where most cloud providers have cheapest capacity). Multi-region is not planned — the system is local-only.
 
-> **Q**: Should PostgreSQL be self-hosted (Docker container on the same server) or use a managed service (RDS, Cloud SQL, Supabase)? Managed services cost more but provide automated backups, failover, and scaling.
-> **A**: Self-hosted PostgreSQL in a Docker container, per the PRD (Docker Compose for dev, Docker for production). The container uses a named volume for data persistence. Automated backups are handled by a cron job running `pg_dump`. Managed PostgreSQL is an optional upgrade for users who want hands-off operations.
+> **Q**: Should PostgreSQL be self-hosted (native install) or use a managed service (RDS, Cloud SQL, Supabase)?
+> **A**: Self-hosted PostgreSQL installed natively on the same server. No Docker container. Automated backups are handled by a cron job running `pg_dump`. Managed PostgreSQL is an optional upgrade for users who want hands-off operations.
 
 > **Q**: What is the expected database size? Number of users, specs, and audit log volume affect storage and performance requirements.
 > **A**: At 20–50 users with ~500 specs per project and a few projects: database size under 2 GB (excluding audit logs). Audit logs at ~1 KB/event, ~1,000 events/day = ~365 MB/year. Total expected database size: under 5 GB for the first year. A 40 GB volume is more than sufficient with room for growth.
@@ -660,7 +631,7 @@
 ## 6. Environment Management
 
 - [ ] **DEP-EM-001**: Define environment tiers
-  - **Development**: local machine, Docker Compose, `.env` file
+  - **Development**: local machine, mprocs, native PostgreSQL, `.env` file
   - **Staging**: server-hosted, production-like configuration, test data
   - **Production**: server-hosted, real data, monitoring, backups
 - [ ] **DEP-EM-002**: Create environment-specific configuration files
@@ -675,7 +646,7 @@
 - [ ] **DEP-EM-004**: Implement environment-aware configuration
   - NestJS ConfigModule loads different configs per environment
   - Frontend: Vite `.env.{mode}` files for per-environment variables
-  - Docker Compose: different compose files per environment
+  - mprocs config for development, systemd/scripts for production
   - All services use the same configuration keys with different values
 
 ---
@@ -699,7 +670,7 @@
 - [ ] **DEP-MO-003**: Implement frontend health check
   - Nginx returns 200 for `/health`
   - Verify `index.html` is servable
-  - Used by Docker health check and load balancer
+  - Used by monitoring and load balancer
 
 ### 7.2 Application Performance Monitoring (APM)
 
@@ -741,9 +712,9 @@
 
 - [ ] **DEP-MO-010**: Implement system resource monitoring
   - Track: CPU usage, memory usage, disk usage, network I/O
-  - Per-container metrics (Docker stats)
+  - Per-process metrics (system monitoring)
   - Alert: CPU > 80%, Memory > 85%, Disk > 80%
-  - Tools: Docker stats, node-os-utils, or external agent (Prometheus node_exporter)
+  - Tools: node-os-utils, htop, or external agent (Prometheus node_exporter)
 - [ ] **DEP-MO-011**: Implement uptime monitoring
   - External uptime check: ping health endpoint every 1 minute
   - Alert if endpoint is unreachable for > 2 minutes
@@ -771,7 +742,7 @@
 #### Design Decisions
 
 > **Q**: Should we use a SaaS monitoring solution (Datadog, New Relic, Better Stack) or self-hosted (Prometheus + Grafana, Uptime Kuma)? SaaS is simpler but costs money; self-hosted is free but requires maintenance.
-> **A**: Self-hosted minimal stack at launch, per the PRD (simple monitoring initially). Uptime Kuma for health checks (lightweight, single container). Sentry for error tracking (SaaS — free tier covers 5,000 events/month, sufficient for launch). Full Prometheus + Grafana is a Phase 3+ enhancement if metrics dashboards become necessary.
+> **A**: Self-hosted minimal stack at launch, per the PRD (simple monitoring initially). Uptime Kuma for health checks (lightweight, single process). Sentry for error tracking (SaaS — free tier covers 5,000 events/month, sufficient for launch). Full Prometheus + Grafana is a Phase 3+ enhancement if metrics dashboards become necessary.
 
 > **Q**: What level of observability is needed for launch? Basic health checks and error tracking, or full APM with distributed tracing and metrics dashboards?
 > **A**: Basic: health check endpoint (`/health`), structured JSON logging (Pino), and Sentry error tracking, per the PRD. No APM or distributed tracing at launch. The single-server architecture makes distributed tracing unnecessary. Application metrics (request latency, active connections) are logged and can be queried from log files.
@@ -818,16 +789,16 @@
 
 ### 8.2 Log Aggregation
 
-- [ ] **DEP-LG-005**: Configure log output for Docker
-  - Log to stdout/stderr (Docker captures container output)
-  - Docker logging driver: `json-file` with rotation (max-size: 10MB, max-file: 5)
-  - Or: `fluentd` driver for centralized collection
+- [ ] **DEP-LG-005**: Configure log output for production
+  - Log to stdout/stderr (systemd journal captures output)
+  - Configure logrotate for log files (max-size: 10MB, max-file: 5)
+  - Alternatively pipe logs to a file with Pino transport
 - [ ] **DEP-LG-006**: Implement centralized log aggregation (optional)
   - Option A: ELK stack (Elasticsearch + Logstash + Kibana)
   - Option B: Loki + Grafana
   - Option C: Cloud logging (CloudWatch, GCP Logging)
   - Option D: SaaS (Datadog, Logtail, Better Stack)
-  - Collect logs from all containers into a single searchable index
+  - Collect logs from all processes into a single searchable index
 
 ### 8.3 Client-Side Logging
 
@@ -844,10 +815,10 @@
 #### Design Decisions
 
 > **Q**: Should logs be stored locally (on the server's disk) or sent to a centralized logging service? Centralized logging is better for debugging but adds infrastructure.
-> **A**: Locally on disk at launch, per the PRD (structured JSON logging). Docker container logs are written to JSON files with rotation (max 10 MB per file, max 5 files per container). Logs can be queried with `jq` or `grep`. Centralized logging (Loki, Seq, or a SaaS like Better Stack) is a Phase 3+ enhancement.
+> **A**: Locally on disk at launch, per the PRD (structured JSON logging). Pino logs are written to stdout and captured by systemd journal, or piped to JSON files with rotation (max 10 MB per file, max 5 files). Logs can be queried with `jq` or `grep`. Centralized logging (Loki, Seq, or a SaaS like Better Stack) is a Phase 3+ enhancement.
 
 > **Q**: How long should logs be retained? Longer retention helps with debugging historical issues but increases storage costs. 7 days? 30 days? 90 days?
-> **A**: 30 days on-server. Docker log rotation handles this automatically. Older logs are deleted. If longer retention is needed, the nightly backup job can archive compressed logs to a separate directory or off-site storage.
+> **A**: 30 days on-server. Logrotate handles this automatically. Older logs are deleted. If longer retention is needed, the nightly backup job can archive compressed logs to a separate directory or off-site storage.
 
 > **Q**: Should client-side errors and analytics be logged server-side, or only via Sentry/error tracking? Server-side logging provides more control but increases log volume.
 > **A**: Sentry only for client-side errors. No server-side ingestion of client analytics. This keeps log volume manageable and Sentry provides better tools for client-side error analysis (stack traces, browser context, replay). Client-side analytics (usage metrics) are a Phase 4+ consideration.
@@ -919,7 +890,7 @@
 > **A**: RPO: 24 hours. Daily `pg_dump` backup at a low-traffic hour (e.g., 3 AM local). For the knowledge graph, the git repositories themselves provide point-in-time recovery (every push is a checkpoint). 24 hours of database data loss is tolerable for a knowledge management tool where the primary content (specs) is in git.
 
 > **Q**: What is the acceptable Recovery Time Objective (RTO)? How long can the service be down? 1 hour? 4 hours? 24 hours? This determines recovery procedure complexity.
-> **A**: RTO: 4 hours. Recovery procedure: provision a new server, restore from backup (Docker Compose + pg_restore + git repos), update DNS. This should be achievable by a single admin following a runbook. Sub-hour RTO is not justified for the initial user base.
+> **A**: RTO: 4 hours. Recovery procedure: provision a new server, install prerequisites (Bun, PostgreSQL, Caddy), restore from backup (pg_restore + git repos), deploy release artifact, update DNS. This should be achievable by a single admin following a runbook. Sub-hour RTO is not justified for the initial user base.
 
 > **Q**: Should backups be automated and tested regularly, or is manual backup sufficient for the initial launch?
 > **A**: Automated daily backups (cron job running `pg_dump`, compressing, storing locally). Backup integrity is verified weekly (automated restore to a temporary database, check row counts). Manual backup is insufficient — automation is a launch requirement.
@@ -937,7 +908,7 @@
 ### 10.1 Horizontal Scaling
 
 - [ ] **DEP-SC-001**: Design stateless server architecture
-  - Server containers should be stateless (no in-memory state)
+  - Server processes should be stateless (no in-memory state)
   - Session data in database or Redis
   - Rate limiting state in Redis
   - WebSocket state: sticky sessions or Redis pub/sub
@@ -1007,7 +978,7 @@
 > **A**: Rate limiting per the security plan (120 req/min authenticated, 300 req/min agent sessions). No per-project storage quotas at launch — the 20–50 user base is self-regulating. Soft warnings at 80% of practical limits (1,000 specs, 500 MB repo). Hard limits are a Phase 3+ feature.
 
 > **Q**: At what point should we introduce a caching layer (Redis)? From the start, or only when performance benchmarks show it's needed?
-> **A**: Only when needed. In-memory caching (LRU Map) handles the initial load. Redis is introduced when: (a) multi-server deployment is needed, or (b) benchmarks show memory pressure from caching. Redis is pre-configured in Docker Compose (commented out) for easy enablement.
+> **A**: Only when needed. In-memory caching (LRU Map) handles the initial load. Redis is introduced when: (a) multi-server deployment is needed, or (b) benchmarks show memory pressure from caching. Redis can be added as a native service when the need arises.
 
 > **Q**: Should the frontend use a CDN for static assets? CDNs improve performance for geographically distributed users but add cost and configuration complexity.
 > **A**: No CDN at launch. The system is local-only; users are geographically close to the server. Caddy serves static assets with appropriate cache headers (immutable for hashed assets, short TTL for index.html). CDN is a Phase 4+ optimization for geographically distributed deployments.
@@ -1023,7 +994,7 @@
   - PATCH: bug fixes, backward compatible
   - Pre-release tags: `-alpha.1`, `-beta.1`, `-rc.1`
 - [ ] **DEP-RM-002**: Implement version tagging in CI
-  - Tag Docker images with: git tag, commit SHA, `latest`
+  - Tag release artifacts with: git tag, commit SHA
   - Tag git repository with version on release
   - Generate changelog from commit messages (conventional commits)
 - [ ] **DEP-RM-003**: Create release checklist
@@ -1054,7 +1025,7 @@
   - Include: rollback procedure
 - [ ] **DEP-RB-002**: Create infrastructure setup runbook
   - Guide for provisioning a new server from scratch
-  - Include: OS setup, Docker installation, DNS configuration, SSL setup
+  - Include: OS setup, Bun/PostgreSQL/Caddy installation, DNS configuration, SSL setup
   - Include: initial application deployment
 - [ ] **DEP-RB-003**: Create database operations runbook
   - Guide for: backup, restore, migration, scaling, failover
@@ -1074,8 +1045,8 @@
 > **Q**: Should the deployment include intrusion detection/prevention systems (IDS/IPS)? Tools like fail2ban, OSSEC, or cloud-native equivalents.
 > **A**: fail2ban on the host for SSH brute-force protection. No full IDS/IPS at launch — the application's own rate limiting and structured logging provide sufficient visibility for a 20–50 user deployment. OSSEC or CrowdSec is a Phase 3+ enhancement.
 
-> **Q**: Should container images be scanned for vulnerabilities as part of the build pipeline? Tools: Trivy, Snyk Container, Docker Scout.
-> **A**: Yes. Trivy runs in the nightly CI workflow (not on every PR — too slow). Critical/high vulnerabilities block the nightly build and create a GitHub issue. The Docker image is rebuilt with updated base images on a weekly schedule to pick up OS-level patches.
+> **Q**: Should dependencies be scanned for vulnerabilities as part of the build pipeline? Tools: Trivy, Snyk, bun audit.
+> **A**: Yes. `bun audit` and Trivy run in the nightly CI workflow (not on every PR — too slow). Critical/high vulnerabilities block the nightly build and create a GitHub issue. Dependencies are updated on a weekly schedule to pick up security patches.
 
 > **Q**: Should the server enforce HTTP Strict Transport Security (HSTS) preloading? This is a permanent commitment — once preloaded, the domain can never serve HTTP again.
 > **A**: HSTS yes (Caddy enables it by default), but NOT preloading at launch. Preloading is permanent and premature for a self-hosted tool where the domain may change. Standard HSTS (`max-age=63072000; includeSubDomains`) is sufficient. Preloading can be opted into later if the domain is stable.

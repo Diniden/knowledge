@@ -1,10 +1,20 @@
 # 06-AGENT-SYSTEM / 02 — CLAUDE CODE WRAPPER PLAN
 
-> **Purpose**: Define the complete Claude Code CLI integration layer including
-> process spawning and lifecycle management, working directory sandboxing,
-> prompt construction and templating, output parsing, streaming output relay,
-> environment configuration, cost and token tracking, rate limiting, error
-> handling, health monitoring, version management, and CLAUDE.md generation.
+> **Purpose**: Define the complete Claude Code CLI integration layer. Claude
+> Code is used as a **terminal application agent** — the server wraps the
+> `claude` CLI executable, injecting prompts via stdin and parsing responses
+> from stdout. The `execa` library is used to manage the complex stdio
+> piping, process lifecycle, and signal handling required for robust terminal
+> app wrapping. This plan covers process spawning and lifecycle management,
+> working directory sandboxing, prompt construction and templating, output
+> parsing, streaming output relay, environment configuration, cost and token
+> tracking, rate limiting, error handling, health monitoring, version
+> management, and CLAUDE.md generation.
+>
+> **IMPORTANT**: This system does NOT use Claude's model API directly. Instead,
+> it wraps the **Claude Code terminal application** (`claude` CLI) as the agent
+> runtime. The `execa` library handles the complex stdio communication needed
+> to send prompts to and receive responses from the Claude Code process.
 >
 > **Phase**: 3 (Agent Integration)
 > **Dependencies**: `06-AGENT-SYSTEM/01-ARCHITECTURE-PLAN.md`
@@ -69,10 +79,13 @@
 > **A**: Manual upgrade only. The server operator explicitly upgrades as part of deployment. The wrapper logs the current version at startup and can notify when new versions are available, but never auto-updates.
 
 > **Q**: Should the wrapper support alternative AI runtimes besides Claude Code?
-> **A**: No. The wrapper is purpose-built for Claude Code's specific features (`--resume`, `stream-json`, MCP integration, CLAUDE.md auto-loading). For local testing without API access, a mock mode is provided instead.
+> **A**: No. The wrapper is purpose-built for the Claude Code terminal application's specific features (`--resume`, `stream-json`, MCP integration, CLAUDE.md auto-loading). We are wrapping the terminal app itself — NOT using Claude's model API. For local testing without API access, a mock mode is provided instead.
 
 > **Q**: Should the wrapper use Claude Code's programmatic API (library mode) instead of CLI subprocess spawning?
-> **A**: CLI subprocess spawning (`claude --print --output-format stream-json`) is the documented integration path. The subprocess model provides natural process isolation and matches the PRD architecture. If Anthropic releases a library mode SDK, migration can be considered.
+> **A**: CLI subprocess spawning via **`execa`** is the integration approach. The `execa` library (from `sindresorhus/execa`) is used because it provides robust stdio management, proper signal handling, graceful process cleanup, and streaming support that raw `child_process.spawn()` lacks. `execa` handles the complex terminal interaction needed to inject prompts into the Claude Code terminal app and parse its output. The subprocess model provides natural process isolation. If Anthropic releases a library mode SDK, migration can be considered.
+
+> **Q**: Why use `execa` instead of raw `child_process.spawn()`?
+> **A**: The Claude Code CLI is a complex terminal application, not a simple command. Managing its stdio requires: proper pipe management for stdin injection, streaming stdout parsing for NDJSON, stderr capture without blocking, graceful signal propagation (SIGTERM → SIGKILL), promise-based lifecycle management, and proper cleanup on unexpected exits. `execa` provides all of these out of the box with a clean API, while raw `child_process.spawn()` would require significant boilerplate and is prone to edge cases (hung pipes, zombie processes, unhandled signals).
 
 ### 1.2 CLI Invocation Interface
 
@@ -125,13 +138,13 @@
 #### Design Decisions
 
 > **Q**: Should the wrapper use `--print` mode or interactive mode for conversations?
-> **A**: `--print` mode with `--resume` for multi-turn. Each message is a separate `--print` invocation with `--resume <session-id>`, giving per-message process isolation while preserving conversation context. Interactive mode's stdin/stdout pipe management is fragile.
+> **A**: `--print` mode with `--resume` for multi-turn. Each message is a separate `--print` invocation with `--resume <session-id>`, giving per-message process isolation while preserving conversation context. The `execa` library manages the stdio for each invocation — spawning the Claude Code terminal app, writing the prompt to stdin, and streaming the response from stdout. Interactive mode (long-running stdin/stdout session) is fragile and not recommended.
 
 > **Q**: How are MCP server configurations passed to Claude Code — CLI flags or config file?
 > **A**: Via `.mcp.json` generated in the sandbox directory before each invocation. The wrapper writes a per-session `.mcp.json` with only the MCP servers relevant to the current agent type. This is dynamic per invocation, not static.
 
 > **Q**: Should the prompt be passed via CLI argument, stdin pipe, or temporary file?
-> **A**: Stdin pipe. This avoids CLI argument length limits, avoids writing sensitive content to disk, and handles arbitrary prompt sizes cleanly. The wrapper controls the pipe lifecycle.
+> **A**: Stdin pipe via `execa`. This avoids CLI argument length limits, avoids writing sensitive content to disk, and handles arbitrary prompt sizes cleanly. `execa` manages the pipe lifecycle — writing the prompt, closing stdin, and streaming stdout for the response. The library handles edge cases like backpressure and broken pipes that would require manual handling with raw `child_process`.
 
 ### 1.3 Module Structure
 
@@ -141,7 +154,7 @@
   ├── claude-code.module.ts          # NestJS module
   ├── claude-code.service.ts         # Main service (invoke, manage)
   ├── process/
-  │   ├── process-spawner.ts         # Child process creation
+  │   ├── process-spawner.ts         # Process creation via execa (stdio management)
   │   ├── process-monitor.ts         # Health, resource tracking
   │   └── process-pool.ts            # Warm process pool (optional)
   ├── prompt/
@@ -183,12 +196,13 @@
 ### 2.1 Process Spawning
 
 - [ ] **AG-CC-011**: Implement `ProcessSpawner.spawn()` method
-  - Use Node.js `child_process.spawn()` for subprocess creation
-  - Configure `stdio: ['pipe', 'pipe', 'pipe']` for full I/O control
+  - Use `execa` library for subprocess creation (handles complex stdio management)
+  - Configure stdin as pipe for prompt injection, stdout/stderr as pipe for output capture
   - Set `cwd` to the sandboxed working directory
   - Set environment variables from invocation config
-  - Set `detached: false` to tie process to server lifecycle
-  - Return PID and stream handles
+  - `execa` automatically ties process to server lifecycle (no orphan processes)
+  - Return process handle with promise-based lifecycle, PID, and stream handles
+  - `execa` provides proper cleanup on unexpected exits and signal propagation
 - [ ] **AG-CC-012**: Implement process argument sanitization
   - Escape shell metacharacters in all arguments
   - Validate file paths don't contain path traversal (`..`)
@@ -201,10 +215,10 @@
   - Handle `ENOMEM` (out of memory)
   - Map each to descriptive `AgentError` with recovery suggestion
 - [ ] **AG-CC-014**: Implement process stdin writing
-  - Write the prompt to the process's stdin
+  - Use `execa`'s stdin pipe to inject prompts into the Claude Code terminal app
   - Support multi-part prompts (system prompt + user prompt)
   - Close stdin after writing to signal end of input
-  - Handle write errors (broken pipe if process exits early)
+  - `execa` handles write errors (broken pipe if process exits early) gracefully
 
 #### Design Decisions
 
