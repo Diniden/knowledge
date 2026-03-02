@@ -1,0 +1,86 @@
+.GraphToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-4;
+  padding: $space-2 $space-4;
+  border-bottom: $border-width-thin solid var(--color-border, #{$neutral-200});
+  background: var(--color-bg, #{$neutral-50});
+  flex-shrink: 0;
+
+  &__search {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    padding: $space-1 $space-3;
+    border-radius: $radius-lg;
+    border: $border-width-thin solid var(--color-border, #{$neutral-200});
+    background: var(--color-bg-secondary, #{$neutral-100});
+    flex: 1;
+    max-width: 320px;
+    @include transition(border-color, box-shadow);
+
+    &:focus-within {
+      border-color: var(--color-primary, #{$primary-600});
+      box-shadow: 0 0 0 2px var(--color-primary-light, #{$primary-100});
+    }
+  }
+
+  &__searchIcon {
+    flex-shrink: 0;
+    color: var(--color-text-tertiary, #{$neutral-400});
+  }
+
+  &__searchInput {
+    border: none;
+    background: transparent;
+    outline: none;
+    width: 100%;
+    @include body-sm;
+    color: var(--color-text);
+
+    &::placeholder {
+      color: var(--color-text-tertiary, #{$neutral-400});
+    }
+  }
+
+  &__zoom {
+    display: flex;
+    align-items: center;
+    gap: $space-1;
+  }
+
+  &__zoomButton {
+    @include flex-center;
+    width: 28px;
+    height: 28px;
+    border: $border-width-thin solid var(--color-border, #{$neutral-200});
+    border-radius: $radius-md;
+    background: var(--color-bg, #{$neutral-50});
+    cursor: pointer;
+    font-size: $font-size-base;
+    font-weight: $font-weight-semibold;
+    color: var(--color-text);
+    @include transition(background-color, border-color);
+
+    &:hover {
+      background: var(--color-bg-secondary, #{$neutral-100});
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+
+    &--fit {
+      margin-left: $space-1;
+    }
+  }
+
+  &__zoomLevel {
+    @include caption;
+    color: var(--color-text-secondary, #{$neutral-600});
+    min-width: 42px;
+    text-align: center;
+    user-select: none;
+  }
+}

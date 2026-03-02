@@ -1,0 +1,85 @@
+.Modal {
+  position: fixed;
+  inset: 0;
+  z-index: $z-index-modal;
+  @include flex-center;
+  padding: $space-4;
+
+  &__overlay {
+    position: fixed;
+    inset: 0;
+    z-index: $z-index-modal-backdrop;
+    background-color: rgba(0, 0, 0, 0.5);
+    animation: fadeIn $duration-normal $ease-out;
+  }
+
+  &__content {
+    position: relative;
+    z-index: $z-index-modal;
+    width: 100%;
+    max-height: calc(100vh - #{$space-16});
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-surface-modal);
+    border-radius: $radius-xl;
+    box-shadow: var(--shadow-xl);
+    animation: scaleIn $duration-normal $ease-out;
+    outline: none;
+  }
+
+  &--sm > &__content {
+    max-width: 400px;
+  }
+  &--md > &__content {
+    max-width: 560px;
+  }
+  &--lg > &__content {
+    max-width: 720px;
+  }
+
+  &__header {
+    @include flex-between;
+    padding: $space-5 $space-6;
+    border-bottom: $border-width-thin solid var(--color-border);
+    flex-shrink: 0;
+  }
+
+  &__title {
+    @include heading-5;
+    color: var(--color-text);
+  }
+
+  &__close {
+    @include flex-center;
+    width: 32px;
+    height: 32px;
+    font-size: $font-size-xl;
+    color: var(--color-text-tertiary);
+    border-radius: $radius-md;
+    @include transition(background-color, color);
+
+    &:hover {
+      background-color: var(--color-interactive-hover);
+      color: var(--color-text);
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  &__body {
+    padding: $space-6;
+    overflow-y: auto;
+    @include scrollbar-thin;
+  }
+
+  &__footer {
+    @include flex-row;
+    justify-content: flex-end;
+    gap: $space-3;
+    padding: $space-4 $space-6;
+    border-top: $border-width-thin solid var(--color-border);
+    flex-shrink: 0;
+  }
+}

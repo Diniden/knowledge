@@ -1,0 +1,50 @@
+---
+description: Drizzle ORM schema and migration conventions
+globs:
+  - "server/src/**/*schema*.ts"
+  - "server/src/**/*migration*.ts"
+  - "server/src/db/**/*.ts"
+alwaysApply: false
+---
+
+# Database Conventions
+
+## Schema
+
+- Drizzle ORM schemas live in `server/src/db/schema/`, one file per entity.
+- Table/column names use `snake_case` in the database, `camelCase` in TypeScript.
+- Use Drizzle's type-safe query builder — no raw SQL unless absolutely necessary.
+- All tables include `created_at` and `updated_at` timestamps.
+- Use `pgvector` for embedding columns.
+
+## Migrations
+
+- Timestamped migration files in `server/src/db/migrations/`.
+- Generate migrations with `drizzle-kit generate`.
+- Never hand-edit generated migration SQL unless fixing a conflict.
+- Every migration must be reversible in development.
+
+## Seed Data
+
+- Seed scripts live in `server/src/db/seeds/`.
+- Seeds are idempotent — safe to run multiple times.
+
+## Example Schema
+
+```typescript
+import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+
+export const specs = pgTable('specs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  title: text('title').notNull(),
+  status: text('status').notNull().default('draft'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+```
+
+## Anti-patterns
+
+- Raw SQL queries bypassing Drizzle's query builder.
+- Missing `notNull()` on required columns.
+- Using `camelCase` for database column names.

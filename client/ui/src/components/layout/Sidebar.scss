@@ -1,0 +1,111 @@
+.Sidebar {
+  grid-area: sidebar;
+  display: flex;
+  flex-direction: column;
+  width: $sidebar-width;
+  background-color: var(--color-surface-sidebar);
+  border-right: $border-width-thin solid var(--color-border);
+  overflow: hidden;
+  @include transition(width);
+
+  &--collapsed {
+    width: $sidebar-collapsed-width;
+  }
+
+  &__header {
+    @include flex-between;
+    height: 48px;
+    padding: 0 $space-3;
+    flex-shrink: 0;
+    border-bottom: $border-width-thin solid var(--color-border);
+  }
+
+  &__title {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  &__toggle {
+    @include flex-center;
+    width: 28px;
+    height: 28px;
+    border-radius: $radius-md;
+    font-size: $font-size-sm;
+    color: var(--color-text-tertiary);
+    @include transition(background-color, color);
+
+    &:hover {
+      background-color: var(--color-interactive-hover);
+      color: var(--color-text);
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  &__nav {
+    @include flex-column;
+    padding: $space-2;
+    gap: $space-1;
+    border-bottom: $border-width-thin solid var(--color-border);
+  }
+
+  &__section {
+    padding: $space-3 $space-3 0;
+  }
+
+  &__tree {
+    flex: 1;
+    overflow-y: auto;
+    padding: $space-2;
+    @include scrollbar-thin;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    padding: $space-2 $space-3;
+    border-radius: $radius-md;
+    cursor: pointer;
+    text-decoration: none;
+    color: var(--color-text);
+    @include transition(background-color, color);
+
+    &:hover {
+      background-color: var(--color-interactive-hover);
+    }
+
+    &--active {
+      background-color: var(--color-interactive-selected);
+      color: var(--color-primary);
+    }
+  }
+
+  &__itemIcon {
+    flex-shrink: 0;
+    font-size: $font-size-sm;
+  }
+
+  &__itemLabel {
+    @include truncate-text;
+    font-size: $font-size-sm;
+  }
+
+  @include respond-below(lg) {
+    position: fixed;
+    left: 0;
+    top: $header-height;
+    bottom: 0;
+    z-index: $z-index-fixed;
+    box-shadow: var(--shadow-xl);
+
+    &--collapsed {
+      transform: translateX(-100%);
+    }
+  }
+}

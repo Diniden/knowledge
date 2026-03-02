@@ -1,0 +1,61 @@
+---
+description: MobX store conventions and RootStore pattern
+globs:
+  - "client/ui/src/stores/**/*.ts"
+alwaysApply: false
+---
+
+# Frontend State (MobX)
+
+## Store Categories
+
+- `stores/domain/` — Business entities and API actions (`SpecStore`, `GraphStore`).
+- `stores/session/` — Auth and user profile (`AuthStore`).
+- `stores/ui/` — Transient UI state, computed domain transformations (`UILayoutStore`).
+
+All stores provided via `RootStore` pattern + React Context.
+
+## Rules
+
+- Call `makeObservable(this)` in the constructor.
+- Use decorators: `@observable accessor`, `@computed`, `@action`, `@action.bound`.
+- `enforceActions: 'always'` — all state mutations must occur inside `@action` methods.
+- Async actions: use `runInAction` for state updates after `await`.
+- Simple UI state (hover, open/close, form inputs) stays as local `useState`.
+
+## Example
+
+```typescript
+import { makeObservable, observable, action, computed, runInAction } from 'mobx';
+import type { Spec } from '@kg/shared';
+import type { RootStore } from '../root.store.js';
+
+export class SpecStore {
+  @observable accessor specs: Spec[] = [];
+  @observable accessor loading = false;
+
+  constructor(private readonly rootStore: RootStore) {
+    makeObservable(this);
+  }
+
+  @computed get publishedSpecs(): Spec[] {
+    return this.specs.filter((s) => s.status === 'published');
+  }
+
+  @action.bound async loadSpecs(): Promise<void> {
+    this.loading = true;
+    try {
+      const result = await specService.getAll();
+      runInAction(() => { this.specs = result; });
+    } finally {
+      runInAction(() => { this.loading = false; });
+    }
+  }
+}
+```
+
+## Anti-patterns
+
+- Mutating state outside an `@action` method.
+- Importing stores directly in leaf components — pass data via props.
+- Using `makeAutoObservable` — prefer explicit decorators for clarity.

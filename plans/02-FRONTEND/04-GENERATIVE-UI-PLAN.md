@@ -832,21 +832,21 @@
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. Architecture Overview | 3 (FE-GEN-001 through FE-GEN-003) |
-| 2. Gen UI Project Template | 13 (FE-GEN-004 through FE-GEN-013) |  *  (note: corrected from numbering) |
-| 3. Build Pipeline | 9 (FE-GEN-014 through FE-GEN-022) |
-| 4. ESM Dynamic Loading | 6 (FE-GEN-023 through FE-GEN-028) |
-| 5. Iframe Sandbox Implementation | 9 (FE-GEN-029 through FE-GEN-037) |
-| 6. Host-Iframe Communication Protocol | 9 (FE-GEN-038 through FE-GEN-046) |
-| 7. Security Constraints | 9 (FE-GEN-047 through FE-GEN-055) |
-| 8. Agent Integration | 8 (FE-GEN-056 through FE-GEN-063) |
-| 9. Gen UI Registry & Management | 8 (FE-GEN-064 through FE-GEN-071) |
-| 10. File Storage & Structure | 5 (FE-GEN-072 through FE-GEN-076) |
-| 11. Gen UI Types & Use Cases | 10 (FE-GEN-077 through FE-GEN-086) |
-| 12. Error Handling & Recovery | 7 (FE-GEN-087 through FE-GEN-093) |
-| **TOTAL** | **93** |
+| Section                               | Tasks                              |
+| ------------------------------------- | ---------------------------------- | ----------------------------------- |
+| 1. Architecture Overview              | 3 (FE-GEN-001 through FE-GEN-003)  |
+| 2. Gen UI Project Template            | 13 (FE-GEN-004 through FE-GEN-013) | \* (note: corrected from numbering) |
+| 3. Build Pipeline                     | 9 (FE-GEN-014 through FE-GEN-022)  |
+| 4. ESM Dynamic Loading                | 6 (FE-GEN-023 through FE-GEN-028)  |
+| 5. Iframe Sandbox Implementation      | 9 (FE-GEN-029 through FE-GEN-037)  |
+| 6. Host-Iframe Communication Protocol | 9 (FE-GEN-038 through FE-GEN-046)  |
+| 7. Security Constraints               | 9 (FE-GEN-047 through FE-GEN-055)  |
+| 8. Agent Integration                  | 8 (FE-GEN-056 through FE-GEN-063)  |
+| 9. Gen UI Registry & Management       | 8 (FE-GEN-064 through FE-GEN-071)  |
+| 10. File Storage & Structure          | 5 (FE-GEN-072 through FE-GEN-076)  |
+| 11. Gen UI Types & Use Cases          | 10 (FE-GEN-077 through FE-GEN-086) |
+| 12. Error Handling & Recovery         | 7 (FE-GEN-087 through FE-GEN-093)  |
+| **TOTAL**                             | **93**                             |
 
 > Note: Many tasks contain multiple sub-items and detailed specifications.
 > Combined with the template files, build pipeline configuration, and security
@@ -855,6 +855,7 @@
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] Gen UI project template can be scaffolded by the agent
 - [ ] Gen UI projects build successfully with Vite
 - [ ] Iframe loads built gen UI with proper sandbox restrictions

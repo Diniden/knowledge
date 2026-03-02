@@ -1,0 +1,72 @@
+{
+  "agents": {
+    "conversationalist": {
+      "skillFile": "skills/conversationalist.md",
+      "maxTokens": 4096,
+      "timeout": 60000,
+      "tools": [
+        "rag_search",
+        "rag_find_related",
+        "graph_get_spec",
+        "graph_get_neighbors"
+      ],
+      "rateLimits": {
+        "maxConcurrent": 2,
+        "maxPerHour": 100
+      }
+    },
+    "knowledge_writer": {
+      "skillFile": "skills/knowledge-writer.md",
+      "maxTokens": 8192,
+      "timeout": 120000,
+      "tools": [
+        "spec_create",
+        "spec_update",
+        "graph_create_edge",
+        "rag_search",
+        "graph_get_spec"
+      ],
+      "rateLimits": {
+        "maxConcurrent": 1,
+        "maxPerHour": 50
+      }
+    },
+    "graph_crawler": {
+      "skillFile": "skills/graph-crawler.md",
+      "maxTokens": 4096,
+      "timeout": 90000,
+      "tools": [
+        "graph_get_spec",
+        "graph_get_edges",
+        "graph_get_neighbors",
+        "graph_find_path",
+        "rag_find_related"
+      ],
+      "rateLimits": {
+        "maxConcurrent": 3,
+        "maxPerHour": 200
+      }
+    },
+    "plan_generator": {
+      "skillFile": "skills/plan-generator.md",
+      "maxTokens": 16384,
+      "timeout": 300000,
+      "tools": [
+        "graph_get_spec",
+        "graph_get_neighbors",
+        "rag_search",
+        "plan_create",
+        "plan_add_step"
+      ],
+      "rateLimits": {
+        "maxConcurrent": 1,
+        "maxPerHour": 20
+      }
+    }
+  },
+  "defaults": {
+    "maxConcurrentSessions": 2,
+    "sessionTimeout": 600000,
+    "maxMessageLength": 10000
+  }
+}

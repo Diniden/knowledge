@@ -1153,24 +1153,24 @@
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. Common Components | 23 (FE-COMP-001 through FE-COMP-023) |
-| 2. Layout Components | 14 (FE-COMP-024 through FE-COMP-037) |
-| 3. Feedback Components | 12 (FE-COMP-038 through FE-COMP-049) |
-| 4. Data Display Components | 9 (FE-COMP-050 through FE-COMP-058) |
-| 5. Navigation Components | 6 (FE-COMP-059 through FE-COMP-064) |
-| 6. Form Components | 8 (FE-COMP-065 through FE-COMP-072) |
-| 7. Auth Feature Components | 3 (FE-COMP-073 through FE-COMP-075) |
-| 8. Dashboard Feature Components | 6 (FE-COMP-076 through FE-COMP-081) |
-| 9. Document & Spec Feature Components | 15 (FE-COMP-082 through FE-COMP-096) |
-| 10. Chat Dialog Feature Components | 14 (FE-COMP-097 through FE-COMP-110) |
+| Section                                    | Tasks                                |
+| ------------------------------------------ | ------------------------------------ |
+| 1. Common Components                       | 23 (FE-COMP-001 through FE-COMP-023) |
+| 2. Layout Components                       | 14 (FE-COMP-024 through FE-COMP-037) |
+| 3. Feedback Components                     | 12 (FE-COMP-038 through FE-COMP-049) |
+| 4. Data Display Components                 | 9 (FE-COMP-050 through FE-COMP-058)  |
+| 5. Navigation Components                   | 6 (FE-COMP-059 through FE-COMP-064)  |
+| 6. Form Components                         | 8 (FE-COMP-065 through FE-COMP-072)  |
+| 7. Auth Feature Components                 | 3 (FE-COMP-073 through FE-COMP-075)  |
+| 8. Dashboard Feature Components            | 6 (FE-COMP-076 through FE-COMP-081)  |
+| 9. Document & Spec Feature Components      | 15 (FE-COMP-082 through FE-COMP-096) |
+| 10. Chat Dialog Feature Components         | 14 (FE-COMP-097 through FE-COMP-110) |
 | 11. Graph Visualization Feature Components | 12 (FE-COMP-111 through FE-COMP-122) |
-| 12. Version Control Feature Components | 11 (FE-COMP-123 through FE-COMP-133) |
-| 13. Generative UI Feature Components | 6 (FE-COMP-134 through FE-COMP-139) |
-| 14. Settings Feature Components | 6 (FE-COMP-140 through FE-COMP-145) |
-| 15. Component Patterns & Conventions | 8 (FE-COMP-146 through FE-COMP-153) |
-| **TOTAL** | **153** |
+| 12. Version Control Feature Components     | 11 (FE-COMP-123 through FE-COMP-133) |
+| 13. Generative UI Feature Components       | 6 (FE-COMP-134 through FE-COMP-139)  |
+| 14. Settings Feature Components            | 6 (FE-COMP-140 through FE-COMP-145)  |
+| 15. Component Patterns & Conventions       | 8 (FE-COMP-146 through FE-COMP-153)  |
+| **TOTAL**                                  | **153**                              |
 
 > Note: Many components listed here contain multiple sub-tasks in their
 > descriptions (states, variants, accessibility). The true implementation
@@ -1185,6 +1185,7 @@ with implementation since they reference components defined here.
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] All common components are implemented and render in all states
 - [ ] Layout shell works at all breakpoints
 - [ ] Every component has BEM-compliant SCSS

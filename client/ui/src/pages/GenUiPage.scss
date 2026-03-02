@@ -1,0 +1,33 @@
+.GenUiPage {
+  @include flex-column;
+  height: 100%;
+  gap: $space-6;
+
+  &__header {
+    flex-shrink: 0;
+  }
+
+  &__title {
+    @include heading-3;
+    color: var(--color-text-primary, $neutral-900);
+    margin: 0;
+  }
+
+  &__subtitle {
+    @include body-sm;
+    color: var(--color-text-secondary, $neutral-500);
+    margin: $space-1 0 0;
+  }
+
+  &__viewer {
+    flex: 1;
+    min-height: 0;
+  }
+
+  &__list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    @include scrollbar-thin;
+  }
+}

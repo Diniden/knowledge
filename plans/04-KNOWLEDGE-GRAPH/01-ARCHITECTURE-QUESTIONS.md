@@ -9,6 +9,7 @@
 ## 1. Storage Format & Layout
 
 ### 1.1 File Granularity
+
 - **Q**: The plan splits each spec into three files (`spec.json`, `content.md`,
   `metadata.json`). Is this the right granularity, or should `spec.json` and
   `metadata.json` be merged into a single file to reduce filesystem operations?
@@ -28,6 +29,7 @@
 **A:** This is solved by the hash-bucketed file structure (`specs/{bucket}/{id}.json`). Specs are not stored as directories — each spec is two files (`{id}.json` + `{id}.md`) inside a 2-character hex bucket derived from the nanoid. With 256 buckets, 10K specs averages ~39 entries per bucket, and 100K specs averages ~390 entries per bucket — well within filesystem comfort. No benchmarking needed; this is a proven sharding pattern.
 
 ### 1.2 Sharding
+
 - **Q**: At what spec count should sharding activate? Is 10,000 the right
   threshold, or should it be lower (1,000) or higher (100,000)?
 
@@ -45,6 +47,7 @@
 **A:** Fixed at 1 level of 256 buckets (2 hex chars). A single level is sufficient for up to ~100K specs (~390 files per bucket). Two levels (65,536 buckets) would create excessive empty directories for typical projects. If a project ever exceeds 100K specs, a one-time migration to 2-level sharding can be scripted, but this is not an expected scenario.
 
 ### 1.3 Edge Storage
+
 - **Q**: Should edges be stored as individual files (one per edge) or grouped
   by source spec (all edges from spec X in one file)? Individual files give
   finer-grained git history but create more filesystem entries.
@@ -68,6 +71,7 @@
 ## 2. ID Generation
 
 ### 2.1 ID Format
+
 - **Q**: Should the project use nanoid (21 chars, URL-safe) or UUID v7
   (sortable by time, widely recognized)? UUID v7 provides time-ordering which
   aids debugging.
@@ -90,6 +94,7 @@
 **A:** nanoid's entropy is sufficient. With 21 characters from a 64-character alphabet, the probability of generating a duplicate is vanishingly small (128 bits of entropy). No tombstone file is needed. Git history serves as the permanent record of any deleted entity. A deletion log would add complexity with no practical benefit.
 
 ### 2.2 ID Persistence
+
 - **Q**: Should spec IDs be exposed directly in URLs and user-facing UI, or
   should there be a human-readable slug alongside the technical ID?
 
@@ -105,6 +110,7 @@
 ## 3. Schema Design
 
 ### 3.1 Spec Schema
+
 - **Q**: Should the spec `status` field include a `review` state between
   `draft` and `active`? Some workflows require explicit review before
   activation.
@@ -129,6 +135,7 @@
 **A:** Hierarchy through edges only, using the `derived-from` edge type. A dedicated `parentSpecId` would create a parallel hierarchy system that competes with the edge graph. The `derived-from` edge naturally models parent-child decomposition. Documents provide the grouping/ordering structure; edges provide the relationship semantics.
 
 ### 3.2 Edge Schema
+
 - **Q**: Should edges have a `status` field (active, proposed, rejected)?
   Agent-proposed edges could be `proposed` until human-confirmed.
 
@@ -155,6 +162,7 @@
 **A:** Yes. Store `createdBy` as the user ID and add a `createdByType: 'human' | 'agent'` field. This is lightweight metadata that helps the inquiry queue — the system can prioritize review of agent-created edges. It also supports the PRD model where "edge associations initially created by agent crawl, users can add edges too."
 
 ### 3.3 Document Schema
+
 - **Q**: Should documents support nested sections or sub-documents, or is a
   flat ordered list of specs sufficient?
 
@@ -171,6 +179,7 @@
 **A:** Not in v1. Templates add schema complexity for a feature that can be approximated by cloning an existing document. Defer to a future iteration if user demand emerges.
 
 ### 3.4 Metadata Schema
+
 - **Q**: Should the embedding vector be stored in `metadata.json` or in a
   separate file (e.g., `embedding.bin` or `embedding.json`) to keep metadata
   small? Embedding vectors can be large (1536 floats = ~12KB as JSON).
@@ -192,6 +201,7 @@
 ## 4. Index Design
 
 ### 4.1 Index Strategy
+
 - **Q**: Should indexes be stored as JSON files in the repository (git-tracked)
   or generated at runtime and stored outside git (ephemeral)? Git-tracked
   indexes are portable but create merge conflicts; ephemeral indexes need
@@ -212,6 +222,7 @@
 **A:** In-memory indexes are viable up to ~100K specs. A full adjacency index for 100K specs with 5 edges each is ~50K entries × ~200 bytes ≈ 10MB in memory. A tag index, status index, and ID-to-path lookup add another ~20MB. Total ~30MB — trivial for a server process. No database fallback needed within the target scale. If the system ever exceeds 100K specs, the PostgreSQL-backed spec registry (lightweight rows mirroring spec IDs + key fields) can serve as the index.
 
 ### 4.2 Index Updates
+
 - **Q**: Should index updates be synchronous (update index in the same
   operation as entity write) or asynchronous (queue index updates for a
   background process)?
@@ -229,6 +240,7 @@
 **A:** Full adjacency lists. Each entry in the in-memory adjacency index maps a spec ID to an array of `{ edgeId, targetSpecId, type, direction }` objects. This enables single-lookup traversal without hitting disk. The memory overhead is modest (~200 bytes per edge × 50K edges = 10MB).
 
 ### 4.3 Additional Indexes
+
 - **Q**: Should there be a `status-index.json` mapping spec statuses to spec
   IDs for fast filtering?
 
@@ -249,6 +261,7 @@
 ## 5. Integrity & Validation
 
 ### 5.1 Constraint Enforcement
+
 - **Q**: Should integrity constraints be enforced strictly (reject invalid
   operations) or permissively (allow and flag for later cleanup)? Strict is
   safer but may block agent operations.
@@ -268,6 +281,7 @@
 **A:** Auto-queue as inquiries. Rejecting a merge blocks collaboration. Instead, complete the merge, run a post-merge integrity scan, and create inquiries for any violations (dangling edge references, schema mismatches). The inquiry queue is designed for exactly this — surfacing issues that need human attention.
 
 ### 5.2 Cascading Behavior
+
 - **Q**: When a spec is deleted, should its edges be automatically deleted
   (cascade) or orphaned (flagged)? The operations plan covers this, but the
   architecture should define the default.
@@ -289,6 +303,7 @@
 ## 6. Schema Versioning & Migration
 
 ### 6.1 Migration Timing
+
 - **Q**: Should migrations run automatically on server startup (if pending), or
   require explicit manual/CLI invocation?
 
@@ -305,6 +320,7 @@
 **A:** The server enforces the schema version. When a user pulls changes that include a migration, their local server runs the migration on startup (or prompts them to run it). If a user's local repo has an older schema version than the server expects, the server refuses to start and logs an error with the required migration command. Schema version is tracked in `schema-version.json` in the repo root.
 
 ### 6.2 Migration Scope
+
 - **Q**: Should migrations also handle index schema changes, or are indexes
   always rebuilt from scratch when their schema changes?
 
@@ -325,6 +341,7 @@
 ## 7. Performance & Scale
 
 ### 7.1 Expected Scale
+
 - **Q**: What is the target maximum number of specs the system should handle?
   1,000? 10,000? 100,000? This drives sharding, indexing, and caching
   decisions.
@@ -343,6 +360,7 @@
 **A:** Target: ~500MB for 10K specs, ~2.5GB for 50K specs. This is acceptable for git. Git handles repos of this size well (Linux kernel repo is ~4GB). Embedding vectors are NOT in the repo (they're in pgvector), so the per-spec footprint is closer to 5–20KB (small JSON + modest Markdown). At 10KB average per spec, 50K specs = ~500MB. Perfectly manageable.
 
 ### 7.2 Read Performance
+
 - **Q**: What is the target latency for reading a single spec (all three files)?
   <10ms? <50ms? <100ms?
 
@@ -359,6 +377,7 @@
 **A:** Yes. Read-through with write-invalidation. Every spec read checks the LRU cache first; on miss, reads from disk and populates the cache. Every spec write evicts that spec from the cache. This is the simplest correct caching strategy.
 
 ### 7.3 Write Performance
+
 - **Q**: What is the target latency for writing a single spec update? <50ms?
   <200ms? (Excluding git commit time)
 
@@ -379,6 +398,7 @@
 ## 8. Git Integration
 
 ### 8.1 Git Tracking
+
 - **Q**: Should `indexes/` be git-tracked or git-ignored? Tracking avoids
   rebuild on clone but creates merge conflicts. Ignoring means every clone
   triggers a full index rebuild.
@@ -396,6 +416,7 @@
 **A:** Stored in PostgreSQL only. Inquiries are transient operational items (like a task queue), not permanent knowledge artifacts. They are created, resolved, and cleaned up as part of the workflow. Putting them in git would create noisy commits for every inquiry state change. The `inquiries` table in PostgreSQL handles creation, assignment, resolution, and archival.
 
 ### 8.2 Git Performance
+
 - **Q**: How does git performance degrade with many small files? At 100K spec
   directories (300K files), are git operations (status, diff, commit) still
   fast?
@@ -439,5 +460,5 @@
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

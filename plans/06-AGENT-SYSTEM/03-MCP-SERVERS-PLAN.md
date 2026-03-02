@@ -94,7 +94,10 @@
     abstract version: string;
     abstract tools: McpToolDefinition[];
     initialize(config: McpServerConfig): Promise<void>;
-    handleToolCall(name: string, args: Record<string, unknown>): Promise<McpToolResult>;
+    handleToolCall(
+      name: string,
+      args: Record<string, unknown>,
+    ): Promise<McpToolResult>;
     getToolSchemas(): McpToolSchema[];
     shutdown(): Promise<void>;
   }
@@ -105,13 +108,18 @@
     name: string;
     description: string;
     inputSchema: JSONSchema;
-    handler: (args: Record<string, unknown>, context: ToolContext) => Promise<McpToolResult>;
+    handler: (
+      args: Record<string, unknown>,
+      context: ToolContext,
+    ) => Promise<McpToolResult>;
   }
   ```
 - [ ] **AG-MCP-004**: Define `McpToolResult` interface
   ```typescript
   interface McpToolResult {
-    content: Array<{ type: 'text'; text: string } | { type: 'json'; data: unknown }>;
+    content: Array<
+      { type: 'text'; text: string } | { type: 'json'; data: unknown }
+    >;
     isError?: boolean;
   }
   ```
@@ -202,7 +210,10 @@
         "tags": { "type": "array", "items": { "type": "string" } },
         "status": { "enum": ["draft", "active"] },
         "summary": { "type": "string", "maxLength": 1000 },
-        "documentId": { "type": "string", "description": "Optional document to add the spec to" }
+        "documentId": {
+          "type": "string",
+          "description": "Optional document to add the spec to"
+        }
       },
       "required": ["title", "content"]
     }
@@ -297,7 +308,10 @@
       "type": "object",
       "properties": {
         "status": { "type": "string" },
-        "sortBy": { "enum": ["title", "updatedAt", "createdAt"], "default": "updatedAt" },
+        "sortBy": {
+          "enum": ["title", "updatedAt", "createdAt"],
+          "default": "updatedAt"
+        },
         "sortOrder": { "enum": ["asc", "desc"], "default": "desc" },
         "limit": { "type": "integer", "default": 50 },
         "offset": { "type": "integer", "default": 0 }
@@ -316,7 +330,15 @@
     {
       "type": "object",
       "properties": {
-        "type": { "enum": ["derived-from", "depends-on", "related-to", "contradicts", "supersedes"] },
+        "type": {
+          "enum": [
+            "derived-from",
+            "depends-on",
+            "related-to",
+            "contradicts",
+            "supersedes"
+          ]
+        },
         "sourceSpecId": { "type": "string", "pattern": "^sp_" },
         "targetSpecId": { "type": "string", "pattern": "^sp_" },
         "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
@@ -324,7 +346,14 @@
         "strength": { "enum": ["strong", "moderate", "weak"] },
         "context": { "type": "string", "maxLength": 1000 }
       },
-      "required": ["type", "sourceSpecId", "targetSpecId", "confidence", "rationale", "strength"]
+      "required": [
+        "type",
+        "sourceSpecId",
+        "targetSpecId",
+        "confidence",
+        "rationale",
+        "strength"
+      ]
     }
     ```
   - Validate source and target specs exist
@@ -356,7 +385,10 @@
       "type": "object",
       "properties": {
         "specId": { "type": "string", "pattern": "^sp_" },
-        "direction": { "enum": ["outgoing", "incoming", "both"], "default": "both" },
+        "direction": {
+          "enum": ["outgoing", "incoming", "both"],
+          "default": "both"
+        },
         "edgeType": { "type": "string" },
         "minConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
         "minStrength": { "enum": ["strong", "moderate", "weak"] }
@@ -456,11 +488,22 @@
       "type": "object",
       "properties": {
         "startSpecId": { "type": "string", "pattern": "^sp_" },
-        "maxDepth": { "type": "integer", "minimum": 1, "maximum": 10, "default": 3 },
+        "maxDepth": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 3
+        },
         "edgeTypes": { "type": "array", "items": { "type": "string" } },
-        "direction": { "enum": ["outgoing", "incoming", "both"], "default": "both" },
+        "direction": {
+          "enum": ["outgoing", "incoming", "both"],
+          "default": "both"
+        },
         "minConfidence": { "type": "number", "default": 0.3 },
-        "minStrength": { "enum": ["strong", "moderate", "weak"], "default": "weak" },
+        "minStrength": {
+          "enum": ["strong", "moderate", "weak"],
+          "default": "weak"
+        },
         "maxNodes": { "type": "integer", "default": 50, "maximum": 200 },
         "includeContent": { "type": "boolean", "default": false }
       },
@@ -477,7 +520,11 @@
     {
       "type": "object",
       "properties": {
-        "specIds": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "specIds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
         "includeEdges": { "type": "boolean", "default": true },
         "expandHops": { "type": "integer", "default": 1, "maximum": 3 }
       },
@@ -530,14 +577,31 @@
     {
       "type": "object",
       "properties": {
-        "type": { "enum": ["orphan-spec", "broken-edge", "contradiction", "missing-metadata", "stale-content", "suggested-edge", "quality-issue"] },
+        "type": {
+          "enum": [
+            "orphan-spec",
+            "broken-edge",
+            "contradiction",
+            "missing-metadata",
+            "stale-content",
+            "suggested-edge",
+            "quality-issue"
+          ]
+        },
         "targetId": { "type": "string" },
         "targetType": { "enum": ["spec", "edge", "document"] },
         "title": { "type": "string", "maxLength": 200 },
         "description": { "type": "string", "maxLength": 5000 },
         "severity": { "enum": ["critical", "warning", "info"] }
       },
-      "required": ["type", "targetId", "targetType", "title", "description", "severity"]
+      "required": [
+        "type",
+        "targetId",
+        "targetType",
+        "title",
+        "description",
+        "severity"
+      ]
     }
     ```
   - Generate inquiry ID
@@ -667,7 +731,12 @@
     {
       "type": "object",
       "properties": {
-        "queries": { "type": "array", "items": { "type": "string" }, "minItems": 1, "maxItems": 5 },
+        "queries": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "maxItems": 5
+        },
         "topK": { "type": "integer", "default": 10 },
         "fusionMethod": { "enum": ["rrf", "average"], "default": "rrf" }
       },
@@ -759,7 +828,9 @@
       "properties": {
         "projectName": { "type": "string", "pattern": "^[a-z0-9-]+$" },
         "description": { "type": "string" },
-        "template": { "enum": ["blank", "dashboard", "form", "visualization", "data-table"] },
+        "template": {
+          "enum": ["blank", "dashboard", "form", "visualization", "data-table"]
+        },
         "framework": { "enum": ["react"], "default": "react" }
       },
       "required": ["projectName"]
@@ -838,7 +909,9 @@
     {
       "type": "object",
       "properties": {
-        "template": { "enum": ["blank", "dashboard", "form", "visualization", "data-table"] }
+        "template": {
+          "enum": ["blank", "dashboard", "form", "visualization", "data-table"]
+        }
       },
       "required": ["template"]
     }
@@ -933,7 +1006,9 @@
       "type": "object",
       "properties": {
         "projectId": { "type": "string" },
-        "status": { "enum": ["draft", "approved", "executing", "completed", "failed"] },
+        "status": {
+          "enum": ["draft", "approved", "executing", "completed", "failed"]
+        },
         "limit": { "type": "integer", "default": 20 }
       }
     }
@@ -1034,7 +1109,10 @@
       "properties": {
         "path": { "type": "string" },
         "encoding": { "enum": ["utf-8", "base64"], "default": "utf-8" },
-        "offset": { "type": "integer", "description": "Line offset for partial reads" },
+        "offset": {
+          "type": "integer",
+          "description": "Line offset for partial reads"
+        },
         "limit": { "type": "integer", "description": "Number of lines to read" }
       },
       "required": ["path"]
@@ -1384,10 +1462,10 @@
   interface McpServerRegistryEntry {
     name: string;
     version: string;
-    entryPoint: string;  // path to server executable
+    entryPoint: string; // path to server executable
     transport: 'stdio' | 'http';
-    tools: string[];     // list of tool names
-    requiredBy: AgentType[];  // which agents need this server
+    tools: string[]; // list of tool names
+    requiredBy: AgentType[]; // which agents need this server
     healthCheck: () => Promise<boolean>;
   }
   ```
@@ -1553,15 +1631,17 @@
     | 'INTERNAL_ERROR';
   ```
 - [ ] **AG-MCP-089**: Implement MCP error response format
+
   ```typescript
   interface McpToolError {
     code: McpToolErrorCode;
-    message: string;        // human-readable for the agent
-    details?: unknown;      // structured error details
+    message: string; // human-readable for the agent
+    details?: unknown; // structured error details
     retryable: boolean;
-    suggestion?: string;    // what the agent should do next
+    suggestion?: string; // what the agent should do next
   }
   ```
+
   - Agent receives error as tool result with `isError: true`
   - Agent can use the error info to adjust its approach
   - Suggestions help the agent self-correct
@@ -1693,22 +1773,22 @@
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. MCP Server Architecture | 7 (AG-MCP-001 through AG-MCP-007) |
-| 2. Knowledge Graph MCP Server | 20 (AG-MCP-008 through AG-MCP-027) |
-| 3. RAG MCP Server | 6 (AG-MCP-028 through AG-MCP-033) |
-| 4. Generative UI MCP Server | 8 (AG-MCP-034 through AG-MCP-041) |
-| 5. Plan Generation MCP Server | 7 (AG-MCP-042 through AG-MCP-048) |
-| 6. File System MCP Server | 7 (AG-MCP-049 through AG-MCP-055) |
-| 7. Git MCP Server | 9 (AG-MCP-056 through AG-MCP-064) |
-| 8. User Context MCP Server | 4 (AG-MCP-065 through AG-MCP-068) |
-| 9. MCP Server Registration & Discovery | 7 (AG-MCP-069 through AG-MCP-075) |
-| 10. Transport Layer | 6 (AG-MCP-076 through AG-MCP-081) |
-| 11. Authentication & Authorization | 6 (AG-MCP-082 through AG-MCP-087) |
-| 12. Error Handling | 5 (AG-MCP-088 through AG-MCP-092) |
-| 13. Testing & Validation | 15 (AG-MCP-093 through AG-MCP-107) |
-| **TOTAL** | **107** |
+| Section                                | Tasks                              |
+| -------------------------------------- | ---------------------------------- |
+| 1. MCP Server Architecture             | 7 (AG-MCP-001 through AG-MCP-007)  |
+| 2. Knowledge Graph MCP Server          | 20 (AG-MCP-008 through AG-MCP-027) |
+| 3. RAG MCP Server                      | 6 (AG-MCP-028 through AG-MCP-033)  |
+| 4. Generative UI MCP Server            | 8 (AG-MCP-034 through AG-MCP-041)  |
+| 5. Plan Generation MCP Server          | 7 (AG-MCP-042 through AG-MCP-048)  |
+| 6. File System MCP Server              | 7 (AG-MCP-049 through AG-MCP-055)  |
+| 7. Git MCP Server                      | 9 (AG-MCP-056 through AG-MCP-064)  |
+| 8. User Context MCP Server             | 4 (AG-MCP-065 through AG-MCP-068)  |
+| 9. MCP Server Registration & Discovery | 7 (AG-MCP-069 through AG-MCP-075)  |
+| 10. Transport Layer                    | 6 (AG-MCP-076 through AG-MCP-081)  |
+| 11. Authentication & Authorization     | 6 (AG-MCP-082 through AG-MCP-087)  |
+| 12. Error Handling                     | 5 (AG-MCP-088 through AG-MCP-092)  |
+| 13. Testing & Validation               | 15 (AG-MCP-093 through AG-MCP-107) |
+| **TOTAL**                              | **107**                            |
 
 > **Note**: The 107 task IDs above represent high-level tool implementations.
 > Each tool implementation (especially the 20 Knowledge Graph tools) involves
@@ -1719,6 +1799,7 @@
 ### Dependencies (What This Plan Enables)
 
 Completion of this plan unblocks:
+
 - `06-AGENT-SYSTEM/04-SKILLS-CONFIG-PLAN.md` — needs tool schemas for skill documentation
 - `06-AGENT-SYSTEM/05-PLAN-GENERATION-PLAN.md` — needs plan generation MCP tools
 - `02-FRONTEND/04-GENERATIVE-UI-PLAN.md` — needs generative UI MCP tools for agent-created UIs
@@ -1729,6 +1810,7 @@ Completion of this plan unblocks:
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] All 7 MCP servers are implemented with complete tool sets
 - [ ] Every tool has a valid JSON Schema for input validation
 - [ ] Tool-level authorization enforces user permissions

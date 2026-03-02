@@ -9,6 +9,7 @@
 ## 1. Spec CRUD
 
 ### 1.1 Creation
+
 - **Q**: When creating a spec, should the system auto-generate an initial summary
   from the content, or leave it empty until an agent fills it in?
 
@@ -31,6 +32,7 @@
 **A:** Auto-suggest. The agent proposes tags and edge connections as part of the creation flow, displayed to the user for approval. The user can accept, modify, or dismiss suggestions. Accepted edges are created immediately. This aligns with the PRD: "Edge associations initially created by agent crawl." The creation dialog is the first crawl opportunity.
 
 ### 1.2 Updates
+
 - **Q**: Should spec content updates be tracked as full replacements or as diffs
   (patches)? Storing diffs would save space but adds complexity.
 
@@ -52,6 +54,7 @@
 **A:** No. Permission changes are administrative operations. The user experiences the change organically — they either see full content or a summary on next access. Sending notifications about permission changes creates noise and may reveal information about the permission structure that should remain opaque.
 
 ### 1.3 Deletion
+
 - **Q**: Should spec deletion be a hard delete (remove files) or always a soft
   delete (archive) with a separate purge operation?
 
@@ -77,6 +80,7 @@
 ## 2. Edge Operations
 
 ### 2.1 Creation & Lifecycle
+
 - **Q**: Should edges have a `proposed` status that requires human confirmation
   before becoming `active`? This would prevent agents from creating
   relationships without review.
@@ -99,6 +103,7 @@
 **A:** No hard limit. Some specs are naturally hub-like (foundational concepts, shared dependencies). Enforcing a limit would artificially fragment the graph. Instead, the UI paginates edges when displaying a spec with many connections (show first 20, "load more" for the rest). If a spec accumulates >50 edges, the system creates an inquiry suggesting the spec may need decomposition.
 
 ### 2.2 Bidirectional Edges
+
 - **Q**: For bidirectional types (`related-to`, `contradicts`), should the system
   normalize storage (always store with lexicographically smaller ID as source)
   or store as-is?
@@ -111,6 +116,7 @@
 **A:** Either spec ID can be specified. Deletion by `edgeId` removes the edge from both the source and target edge files. The `edgeId` is globally unique, so direction is irrelevant for the delete operation. The API accepts `DELETE /edges/{edgeId}` — no need to specify source or target.
 
 ### 2.3 Edge Metadata
+
 - **Q**: Should edge `agentAnalysis` metadata be versioned (keep history of
   analysis changes) or overwritten each time?
 
@@ -126,6 +132,7 @@
 ## 3. Document Operations
 
 ### 3.1 Document Structure
+
 - **Q**: Should documents support sections or chapters that group specs within
   the document, or is a flat ordered list sufficient?
 
@@ -147,6 +154,7 @@
 **A:** No. The `specOrder` array is the single source of ordering. If a user wants certain specs at the top, they put them at the top of the list. Pinning creates an implicit ordering layer that conflicts with the explicit order and adds UI complexity.
 
 ### 3.2 Document Lifecycle
+
 - **Q**: Should publishing a document (draft → published) trigger any validation
   (e.g., all referenced specs must be `active`)?
 
@@ -166,6 +174,7 @@
 ## 4. Graph Traversal
 
 ### 4.1 Traversal Performance
+
 - **Q**: What is the maximum acceptable traversal depth? Traversals deeper than
   10 hops could be very expensive. Should there be a hard limit?
 
@@ -182,6 +191,7 @@
 **A:** Return all at once with a result cap of 500 nodes. Traversals that would exceed 500 nodes are truncated with a `truncated: true` flag and a message: "Result limited to 500 nodes. Narrow your query." Streaming adds WebSocket complexity for a rare edge case. The 500-node cap keeps response sizes manageable (<1MB JSON).
 
 ### 4.2 Traversal Semantics
+
 - **Q**: For `depends-on` edge traversal, should transitive dependencies be
   resolved (A depends-on B depends-on C means A transitively depends on C)?
 
@@ -208,6 +218,7 @@
 ## 5. Search & Filtering
 
 ### 5.1 Search Capabilities
+
 - **Q**: Should full-text search use a dedicated search index (like lunr.js or
   MiniSearch) or always delegate to RAG? Dedicated search is faster for exact
   matches; RAG is better for semantic similarity.
@@ -229,6 +240,7 @@
 **A:** Not in v1. Faceted search requires aggregation across all results, which conflicts with the top-K nature of vector search. If needed later, faceted counts can be computed from the spec registry table in PostgreSQL (which has tag and status columns). Defer until user demand is clear.
 
 ### 5.2 Performance
+
 - **Q**: Should search indexes be rebuilt incrementally or from scratch on each
   query? For small graphs, from-scratch may be fast enough.
 
@@ -267,6 +279,7 @@
 ## 7. Import & Export
 
 ### 7.1 Import
+
 - **Q**: Should the import pipeline support incremental imports (add to existing
   graph) or only full replacements?
 
@@ -288,6 +301,7 @@
 **A:** v1 supports import from Markdown files (directory of `.md` files, each becoming a spec) and a JSON bulk format (array of spec objects). Obsidian/Notion/Roam importers are deferred to future iterations or community plugins. The JSON bulk format is flexible enough that external conversion scripts can target it.
 
 ### 7.2 Export
+
 - **Q**: Should exports include version history or only the current state?
 
 **A:** Current state only. The export produces a snapshot of all specs, edges, and documents as they exist now. Version history lives in git and is not portable via export. If a user needs history, they clone the git repo.
@@ -306,6 +320,7 @@
 ## 8. Graph Crawling for Agents
 
 ### 8.1 Crawl Strategy
+
 - **Q**: Should agents have a default crawl strategy, or must every crawl
   request specify a strategy?
 
@@ -327,6 +342,7 @@
 **A:** Yes, via the agent session context. The agent session (stored in PostgreSQL `agent_sessions.context_json`) maintains a `bookmarkedSpecIds` array. Bookmarks persist within the session and can be used as starting points for subsequent crawls. Bookmarks are session-scoped — they don't modify the knowledge graph.
 
 ### 8.2 Crawl Scope
+
 - **Q**: Should agents crawl the entire graph or only specs the requesting user
   has access to? Anti-siloing suggests at least summary access.
 
@@ -348,6 +364,7 @@
 ## 9. Inquiry Queue
 
 ### 9.1 Inquiry Creation
+
 - **Q**: Should only agents create inquiries, or can users create them too
   (e.g., "flag this spec for review")?
 
@@ -364,6 +381,7 @@
 **A:** Yes. Before creating an inquiry, check for existing open inquiries with the same `(type, targetSpecId, targetEdgeId)` tuple. If a match exists, update the existing inquiry's `lastOccurrence` timestamp and increment its `occurrenceCount` instead of creating a duplicate. This prevents the queue from filling with repeated alerts for the same issue.
 
 ### 9.2 Inquiry Prioritization
+
 - **Q**: How should inquiries be prioritized? By severity alone, or also by
   age, affected spec importance, or user preference?
 
@@ -459,5 +477,5 @@
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

@@ -540,7 +540,7 @@ Define the complete directory tree with purpose annotations for every directory.
 ### 4.6 Root References
 
 - [ ] **PS-TS-009**: Create `tsconfig.json` at the repo root (project references)
-  - Use `"references"` to point to client, server, shared, packages/*
+  - Use `"references"` to point to client, server, shared, packages/\*
   - This enables IDE-wide type checking and go-to-definition
 - [ ] **PS-TS-010**: Verify TypeScript project references resolve correctly
   - Run `tsc --build` from root and confirm no errors
@@ -772,7 +772,7 @@ Define the complete directory tree with purpose annotations for every directory.
   - `GIT_USER_NAME` — git committer name
   - `GIT_USER_EMAIL` — git committer email
   - `LOG_LEVEL` — logging verbosity (debug, info, warn, error)
-- [ ] **PS-ENV-003**: Define client environment variables (VITE_ prefixed)
+- [ ] **PS-ENV-003**: Define client environment variables (VITE\_ prefixed)
   - `VITE_API_BASE_URL` — API base URL
   - `VITE_WS_URL` — WebSocket URL
   - `VITE_APP_NAME` — application display name
@@ -1313,30 +1313,31 @@ Define the complete directory tree with purpose annotations for every directory.
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. Monorepo Root Layout | 98 (PS-RL-001 through PS-RL-098) |
-| 2. Bun Workspace Configuration | 12 (PS-WS-001 through PS-WS-012) |
-| 3. Shared Types Package | 40 (PS-ST-001 through PS-ST-040) |
-| 4. TypeScript Configuration | 10 (PS-TS-001 through PS-TS-010) |
-| 5. Vite Configuration | 9 (PS-VT-001 through PS-VT-009) |
-| 6. ESLint Configuration | 8 (PS-EL-001 through PS-EL-008) |
-| 7. Prettier Configuration | 5 (PS-PR-001 through PS-PR-005) |
-| 8. SCSS / Styling Configuration | 11 (PS-SC-001 through PS-SC-011) |
-| 9. Environment Configuration | 9 (PS-ENV-001 through PS-ENV-009) |
-| 10. Git Configuration | 9 (PS-GIT-001 through PS-GIT-009) |
-| 11. Process Management (mprocs) | 7 (PS-MP-001 through PS-MP-007) |
-| 12. Build System | 10 (PS-BD-001 through PS-BD-010) |
-| 13. Development Workflow | 14 (PS-DW-001 through PS-DW-014) |
-| 14. CI/CD Pipeline | 10 (PS-CI-001 through PS-CI-010) |
-| 15. Editor Configuration | 5 (PS-ED-001 through PS-ED-005) |
-| 16. Documentation Structure | 5 (PS-DOC-001 through PS-DOC-005) |
-| 17. Script Utilities | 8 (PS-SC-001 through PS-SC-008) |
-| **TOTAL** | **270** |
+| Section                         | Tasks                             |
+| ------------------------------- | --------------------------------- |
+| 1. Monorepo Root Layout         | 98 (PS-RL-001 through PS-RL-098)  |
+| 2. Bun Workspace Configuration  | 12 (PS-WS-001 through PS-WS-012)  |
+| 3. Shared Types Package         | 40 (PS-ST-001 through PS-ST-040)  |
+| 4. TypeScript Configuration     | 10 (PS-TS-001 through PS-TS-010)  |
+| 5. Vite Configuration           | 9 (PS-VT-001 through PS-VT-009)   |
+| 6. ESLint Configuration         | 8 (PS-EL-001 through PS-EL-008)   |
+| 7. Prettier Configuration       | 5 (PS-PR-001 through PS-PR-005)   |
+| 8. SCSS / Styling Configuration | 11 (PS-SC-001 through PS-SC-011)  |
+| 9. Environment Configuration    | 9 (PS-ENV-001 through PS-ENV-009) |
+| 10. Git Configuration           | 9 (PS-GIT-001 through PS-GIT-009) |
+| 11. Process Management (mprocs) | 7 (PS-MP-001 through PS-MP-007)   |
+| 12. Build System                | 10 (PS-BD-001 through PS-BD-010)  |
+| 13. Development Workflow        | 14 (PS-DW-001 through PS-DW-014)  |
+| 14. CI/CD Pipeline              | 10 (PS-CI-001 through PS-CI-010)  |
+| 15. Editor Configuration        | 5 (PS-ED-001 through PS-ED-005)   |
+| 16. Documentation Structure     | 5 (PS-DOC-001 through PS-DOC-005) |
+| 17. Script Utilities            | 8 (PS-SC-001 through PS-SC-008)   |
+| **TOTAL**                       | **270**                           |
 
 ### Dependencies (What This Plan Enables)
 
 Completion of this plan unblocks:
+
 - `02-FRONTEND/01-ARCHITECTURE-PLAN.md` — needs client workspace, Vite config, SCSS setup
 - `03-SERVER/01-ARCHITECTURE-PLAN.md` — needs server workspace, NestJS skeleton
 - `04-KNOWLEDGE-GRAPH/01-ARCHITECTURE-PLAN.md` — needs knowledge-graph directory structure
@@ -1347,6 +1348,7 @@ Completion of this plan unblocks:
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] `bun install` succeeds from a fresh clone (single install for ALL packages)
 - [ ] `bun run dev` starts client, server, and shared watch via mprocs
 - [ ] `bun run build` produces production artifacts for client and server

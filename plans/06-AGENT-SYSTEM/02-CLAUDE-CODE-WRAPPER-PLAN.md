@@ -123,7 +123,13 @@
     kill: (signal?: NodeJS.Signals) => void;
     getStats: () => ProcessStats;
   }
-  type ProcessStatus = 'starting' | 'running' | 'completed' | 'failed' | 'killed' | 'timed-out';
+  type ProcessStatus =
+    | 'starting'
+    | 'running'
+    | 'completed'
+    | 'failed'
+    | 'killed'
+    | 'timed-out';
   ```
 - [ ] **AG-CC-008**: Implement CLI argument construction
   - Map `ClaudeCodeInvocation` fields to CLI flags
@@ -366,14 +372,14 @@
   - MCP server validates and applies writes to the actual KG directory
   - Sandbox KG view reflects changes immediately (via symlink)
 - [ ] **AG-CC-031**: Implement sandbox scope per agent type
-  | Agent Type | Sandbox Contents |
-  |---|---|
-  | Orchestrator | Minimal (no KG access, no file writes) |
-  | Knowledge Graph | KG directory (read via symlink), temp directory |
-  | Dialog | KG directory (read-only symlink), temp directory |
-  | Generative UI | Gen-UI project directory (read/write), KG read-only |
-  | Plan Generation | Plans directory (read/write), KG read-only |
-  | Graph Crawler | KG directory (read-only symlink), temp directory |
+      | Agent Type | Sandbox Contents |
+      |---|---|
+      | Orchestrator | Minimal (no KG access, no file writes) |
+      | Knowledge Graph | KG directory (read via symlink), temp directory |
+      | Dialog | KG directory (read-only symlink), temp directory |
+      | Generative UI | Gen-UI project directory (read/write), KG read-only |
+      | Plan Generation | Plans directory (read/write), KG read-only |
+      | Graph Crawler | KG directory (read-only symlink), temp directory |
 
 #### Design Decisions
 
@@ -721,16 +727,16 @@
 ### 7.1 Claude Code Environment
 
 - [ ] **AG-CC-068**: Define environment variables passed to Claude Code processes
-  | Variable | Purpose | Example |
-  |---|---|---|
-  | `ANTHROPIC_API_KEY` | API authentication | `sk-ant-...` |
-  | `CLAUDE_CODE_SESSION_ID` | Session tracking | `sess_abc123` |
-  | `CLAUDE_CODE_AGENT_TYPE` | Agent type identifier | `knowledge-graph` |
-  | `CLAUDE_CODE_PROJECT_ID` | Project context | `proj_xyz789` |
-  | `CLAUDE_CODE_USER_ID` | User context | `user_def456` |
-  | `CLAUDE_CODE_SANDBOX_ROOT` | Sandbox directory | `/data/sandboxes/proj_xyz/` |
-  | `CLAUDE_CODE_MAX_TOKENS` | Output token limit | `10000` |
-  | `CLAUDE_CODE_TIMEOUT_MS` | Execution timeout | `120000` |
+      | Variable | Purpose | Example |
+      |---|---|---|
+      | `ANTHROPIC_API_KEY` | API authentication | `sk-ant-...` |
+      | `CLAUDE_CODE_SESSION_ID` | Session tracking | `sess_abc123` |
+      | `CLAUDE_CODE_AGENT_TYPE` | Agent type identifier | `knowledge-graph` |
+      | `CLAUDE_CODE_PROJECT_ID` | Project context | `proj_xyz789` |
+      | `CLAUDE_CODE_USER_ID` | User context | `user_def456` |
+      | `CLAUDE_CODE_SANDBOX_ROOT` | Sandbox directory | `/data/sandboxes/proj_xyz/` |
+      | `CLAUDE_CODE_MAX_TOKENS` | Output token limit | `10000` |
+      | `CLAUDE_CODE_TIMEOUT_MS` | Execution timeout | `120000` |
 - [ ] **AG-CC-069**: Implement environment variable injection
   - Merge base environment (from server config) with per-invocation overrides
   - Never pass server-internal variables (database URLs, internal secrets)
@@ -813,7 +819,7 @@
 ### 8.2 Cost Calculation
 
 - [ ] **AG-CC-077**: Implement cost calculation from token usage
-  - Apply per-model pricing: input tokens * input rate + output tokens * output rate
+  - Apply per-model pricing: input tokens _ input rate + output tokens _ output rate
   - Support different pricing per model (if agents use different models)
   - Store pricing table in configuration (updateable without code changes)
   - Calculate per-session cost immediately after completion
@@ -1029,13 +1035,13 @@
 ### 11.3 Alerting
 
 - [ ] **AG-CC-104**: Define alert thresholds
-  | Metric | Warning | Critical |
-  |---|---|---|
-  | Process failure rate | > 10% over 5 min | > 30% over 5 min |
-  | Active processes | > 80% of max | > 95% of max |
-  | Queue depth | > 20 | > 40 |
-  | Average latency | > 30s | > 60s |
-  | API key health | 1 key unhealthy | All keys unhealthy |
+      | Metric | Warning | Critical |
+      |---|---|---|
+      | Process failure rate | > 10% over 5 min | > 30% over 5 min |
+      | Active processes | > 80% of max | > 95% of max |
+      | Queue depth | > 20 | > 40 |
+      | Average latency | > 30s | > 60s |
+      | API key health | 1 key unhealthy | All keys unhealthy |
 - [ ] **AG-CC-105**: Implement alert emission
   - Log alerts at appropriate level (WARN, ERROR)
   - Emit alert events for external monitoring systems
@@ -1048,15 +1054,15 @@
 ### 12.1 Claude Code Version Tracking
 
 - [ ] **AG-CC-106**: Implement version compatibility matrix
-  | Feature | Min Claude Code Version |
-  |---|---|
-  | Basic `--print` mode | 1.0.0 |
-  | `--output-format json` | 1.1.0 |
-  | `--output-format stream-json` | 1.2.0 |
-  | MCP server support | 1.0.0 |
-  | `--system-prompt` flag | 1.0.0 |
-  | `--max-tokens` flag | 1.0.0 |
-  | `--allowedTools` flag | 1.3.0 |
+      | Feature | Min Claude Code Version |
+      |---|---|
+      | Basic `--print` mode | 1.0.0 |
+      | `--output-format json` | 1.1.0 |
+      | `--output-format stream-json` | 1.2.0 |
+      | MCP server support | 1.0.0 |
+      | `--system-prompt` flag | 1.0.0 |
+      | `--max-tokens` flag | 1.0.0 |
+      | `--allowedTools` flag | 1.3.0 |
 - [ ] **AG-CC-107**: Implement feature flag based on detected version
   - If installed version supports streaming: enable streaming mode
   - If installed version supports tool restrictions: enable tool filtering
@@ -1089,34 +1095,44 @@
 ### 13.1 CLAUDE.md Template System
 
 - [ ] **AG-CC-111**: Define CLAUDE.md file structure
+
   ```markdown
   # Project Context
 
   ## Project Name
+
   {{projectName}}
 
   ## Project Description
+
   {{projectDescription}}
 
   ## Agent Role
+
   {{agentRole}}
 
   ## Available Tools
+
   {{#each mcpTools}}
+
   - {{name}}: {{description}}
-  {{/each}}
+    {{/each}}
 
   ## Knowledge Graph Context
+
   - Total specs: {{specCount}}
   - Total edges: {{edgeCount}}
   - Key topics: {{topicSummary}}
 
   ## Constraints
+
   {{constraints}}
 
   ## Output Format
+
   {{outputFormat}}
   ```
+
 - [ ] **AG-CC-112**: Implement `ClaudeMdGenerator.generate()` method
   - Accept project info, agent type, and context
   - Load template for the agent type
@@ -1196,26 +1212,27 @@
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. Claude Code CLI Integration | 10 (AG-CC-001 through AG-CC-010) |
-| 2. Process Management | 14 (AG-CC-011 through AG-CC-024) |
-| 3. Working Directory Sandboxing | 11 (AG-CC-025 through AG-CC-035) |
-| 4. Prompt Construction & Templating | 13 (AG-CC-036 through AG-CC-048) |
-| 5. Output Parsing | 10 (AG-CC-049 through AG-CC-058) |
-| 6. Streaming Output Handling | 9 (AG-CC-059 through AG-CC-067) |
-| 7. Environment Variable Configuration | 6 (AG-CC-068 through AG-CC-073) |
-| 8. Cost Tracking & Token Usage | 9 (AG-CC-074 through AG-CC-082) |
-| 9. Rate Limiting & Queuing | 6 (AG-CC-083 through AG-CC-088) |
-| 10. Error Handling | 9 (AG-CC-089 through AG-CC-097) |
-| 11. Health Checks & Monitoring | 8 (AG-CC-098 through AG-CC-105) |
-| 12. Version Management | 5 (AG-CC-106 through AG-CC-110) |
-| 13. CLAUDE.md File Generation | 9 (AG-CC-111 through AG-CC-119) |
-| **TOTAL** | **119** |
+| Section                               | Tasks                            |
+| ------------------------------------- | -------------------------------- |
+| 1. Claude Code CLI Integration        | 10 (AG-CC-001 through AG-CC-010) |
+| 2. Process Management                 | 14 (AG-CC-011 through AG-CC-024) |
+| 3. Working Directory Sandboxing       | 11 (AG-CC-025 through AG-CC-035) |
+| 4. Prompt Construction & Templating   | 13 (AG-CC-036 through AG-CC-048) |
+| 5. Output Parsing                     | 10 (AG-CC-049 through AG-CC-058) |
+| 6. Streaming Output Handling          | 9 (AG-CC-059 through AG-CC-067)  |
+| 7. Environment Variable Configuration | 6 (AG-CC-068 through AG-CC-073)  |
+| 8. Cost Tracking & Token Usage        | 9 (AG-CC-074 through AG-CC-082)  |
+| 9. Rate Limiting & Queuing            | 6 (AG-CC-083 through AG-CC-088)  |
+| 10. Error Handling                    | 9 (AG-CC-089 through AG-CC-097)  |
+| 11. Health Checks & Monitoring        | 8 (AG-CC-098 through AG-CC-105)  |
+| 12. Version Management                | 5 (AG-CC-106 through AG-CC-110)  |
+| 13. CLAUDE.md File Generation         | 9 (AG-CC-111 through AG-CC-119)  |
+| **TOTAL**                             | **119**                          |
 
 ### Dependencies (What This Plan Enables)
 
 Completion of this plan unblocks:
+
 - `06-AGENT-SYSTEM/03-MCP-SERVERS-PLAN.md` — needs process spawning, MCP server integration, tool call extraction
 - `06-AGENT-SYSTEM/04-SKILLS-CONFIG-PLAN.md` — needs CLAUDE.md generation, prompt templating, skill file placement
 - `06-AGENT-SYSTEM/05-PLAN-GENERATION-PLAN.md` — needs sandbox management, file system access, streaming output
@@ -1225,6 +1242,7 @@ Completion of this plan unblocks:
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] Claude Code binary is auto-discovered and version-checked at startup
 - [ ] Process spawning works with full I/O capture (stdin, stdout, stderr)
 - [ ] Sandbox directories are created and isolated per session

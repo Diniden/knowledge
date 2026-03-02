@@ -1,0 +1,40 @@
+---
+description: Accessibility standards for React components
+globs:
+  - "client/ui/src/**/*.tsx"
+alwaysApply: false
+---
+
+# Accessibility
+
+## Standards
+
+Target WCAG 2.1 AA compliance.
+
+## Rules
+
+- **Semantic HTML**: Use `<button>`, `<nav>`, `<main>`, `<article>`, `<section>` over generic `<div>` and `<span>`.
+- **ARIA attributes**: Add `aria-label` on icon-only buttons, `aria-expanded` on collapsible sections, `role` when semantic elements aren't suitable.
+- **Keyboard navigation**: All interactive elements must be reachable via Tab and activatable via Enter/Space. Custom widgets need arrow-key support.
+- **Focus management**: Trap focus inside modals. Restore focus to trigger element on close. Use visible focus indicators.
+- **Color contrast**: Minimum 4.5:1 for normal text, 3:1 for large text. Never rely on color alone to convey information.
+- **Screen readers**: Hidden content for screen readers uses `sr-only` class. Dynamic content updates use `aria-live` regions.
+
+## Example
+
+```tsx
+<button
+  aria-label="Close dialog"
+  aria-expanded={isOpen}
+  onClick={onClose}
+  className={styles.Dialog__CloseButton}
+>
+  <CloseIcon aria-hidden="true" />
+</button>
+```
+
+## Anti-patterns
+
+- Click handlers on `<div>` or `<span>` without `role="button"` and `tabIndex={0}`.
+- Missing `alt` text on `<img>` elements (use `alt=""` for decorative images).
+- Disabling browser focus outlines without providing a custom visible indicator.

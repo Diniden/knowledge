@@ -1,0 +1,49 @@
+.Badge {
+  display: inline-flex;
+  align-items: center;
+  font-weight: $font-weight-medium;
+  border-radius: $radius-full;
+  white-space: nowrap;
+
+  &--sm {
+    height: 20px;
+    padding: 0 $space-2;
+    font-size: 11px;
+  }
+
+  &--md {
+    height: 24px;
+    padding: 0 $space-3;
+    font-size: $font-size-xs;
+  }
+
+  &--default {
+    background-color: var(--color-bg-tertiary);
+    color: var(--color-text-secondary);
+  }
+
+  &--primary {
+    background-color: var(--color-primary-light);
+    color: var(--color-primary);
+  }
+
+  &--success {
+    background-color: var(--color-success-bg);
+    color: var(--color-success);
+  }
+
+  &--warning {
+    background-color: var(--color-warning-bg);
+    color: var(--color-warning);
+  }
+
+  &--danger {
+    background-color: var(--color-error-bg);
+    color: var(--color-error);
+  }
+
+  &--info {
+    background-color: var(--color-info-bg);
+    color: var(--color-info);
+  }
+}

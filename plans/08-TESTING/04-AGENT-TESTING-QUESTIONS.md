@@ -10,6 +10,7 @@
 ## 1. Claude Code Mock Strategy
 
 ### 1.1 Mock Fidelity
+
 - **Q**: Should the mock Claude Code subprocess simulate realistic latency
   (e.g., 1-3 seconds for a response, chunk-by-chunk streaming), or return
   instantly? Realistic latency tests timeout logic but makes tests slow.
@@ -30,6 +31,7 @@
 **A:** **Simulate tool calls.** The mock returns `tool_use` blocks that the orchestrator processes through its real tool dispatch logic. The tools themselves are mocked (returning canned results), but the orchestrator's parsing, dispatching, and result-feeding logic runs for real. This tests the most bug-prone part of the agent system: the orchestration loop between agent and tools.
 
 ### 1.2 Mock Subprocess vs Mock Interface
+
 - **Q**: Should tests mock at the subprocess level (replace `spawn()` to
   return a fake process with controllable stdin/stdout) or at the wrapper
   service level (replace `ClaudeCodeWrapper` with a mock service)? Subprocess
@@ -53,6 +55,7 @@
 ## 2. MCP Tool Testing
 
 ### 2.1 Tool Isolation vs Integration
+
 - **Q**: Should MCP tools be tested in isolation (mock the knowledge graph
   file system, mock the database) or against real backends (temp file system,
   test database)? Isolation is faster; integration catches more bugs.
@@ -71,6 +74,7 @@
 **A:** **Yes.** Create a shared test helper `assertValidMcpResponse(response)` that validates the response structure against the MCP protocol spec (correct JSON-RPC format, proper error codes, valid content blocks). Call this helper in every tool test. Additionally, add one dedicated protocol compliance test file that tests MCP lifecycle (initialize, list tools, call tool, shutdown) against the real MCP server process.
 
 ### 2.2 Tool Test Data
+
 - **Q**: Should MCP tool tests create their own knowledge graph test data
   (spec files, edge files), or use shared fixtures? Own data ensures
   isolation; shared fixtures prevent duplication.
@@ -93,6 +97,7 @@
 ## 3. Agent Classification Testing
 
 ### 3.1 Classification Accuracy
+
 - **Q**: How should classification accuracy be measured? Against a labeled
   test set of prompts? If so, who creates the labeled set and what is the
   target accuracy?
@@ -112,6 +117,7 @@
 **A:** **Mark ambiguous prompts in the test set with `acceptable: [type1, type2]`.** If the classifier returns either acceptable type, the test passes. Limit ambiguous prompts to < 10% of the test set. Do not add an "ambiguous" classification type — it adds complexity to the routing layer. If the classifier is unsure, it should pick its best guess; the agent can ask for clarification in its response.
 
 ### 3.2 Classification Evolution
+
 - **Q**: As the project evolves, new agent types may be added. Should the
   classification test set be treated as a living document that grows with
   the project?
@@ -128,6 +134,7 @@
 ## 4. Prompt Engineering Testing
 
 ### 4.1 Prompt Validation Approach
+
 - **Q**: How should prompts be tested for quality? Manual review, automated
   checks (length, structure, required sections), or by testing agent output
   quality? Output testing is ideal but depends on the real model.
@@ -146,6 +153,7 @@
 **A:** **No, keep prompts in code.** Prompts are TypeScript template strings in the agent module, version-controlled with the rest of the codebase. They reference code constants (tool names, type definitions) and must stay in sync with the code. Separating them introduces sync risk. Non-developer review happens through PR review — prompts are readable in diff views.
 
 ### 4.2 Prompt Security
+
 - **Q**: Should there be tests for prompt injection attacks? (e.g., user
   message contains "Ignore your previous instructions...") If so, how
   sophisticated should the attack simulation be?
@@ -169,6 +177,7 @@
 ## 5. End-to-End Agent Testing
 
 ### 5.1 E2E Scope
+
 - **Q**: Should end-to-end agent tests use a mocked Claude Code (faster,
   deterministic) or the real Claude API (realistic, non-deterministic,
   expensive)? A hybrid approach (mostly mocked, periodic real API tests)
@@ -189,6 +198,7 @@
 **A:** **Structure only for CI; quality for nightly.** CI tests verify: response is well-formed, correct tools were called, correct parameters were passed, response completed without errors. Nightly real-API tests can include quality checks: response contains expected keywords, response addresses the user's question, tool results are incorporated into the final answer. Quality assertions use fuzzy matching (contains keywords) rather than exact string comparison.
 
 ### 5.2 Test Determinism
+
 - **Q**: Agent responses are inherently non-deterministic (even with
   temperature=0, responses can vary). How should tests handle this? Assert
   on structure rather than content? Use regular expressions? Allow fuzzy
@@ -212,6 +222,7 @@
 ## 6. RAG Testing
 
 ### 6.1 RAG Test Infrastructure
+
 - **Q**: Should RAG tests use real embeddings (requires model/API call) or
   pre-computed embeddings (deterministic, no API dependency)? Real embeddings
   test the full pipeline; pre-computed are faster and cheaper.
@@ -230,6 +241,7 @@
 **A:** **Quantitative metrics in CI.** Measure **recall@5** (does the correct document appear in the top 5 results?) and **MRR** (mean reciprocal rank) against the labeled test set. Target: recall@5 > 80%, MRR > 0.5. The labeled test set has queries paired with expected relevant documents. These metrics run in CI with pre-computed embeddings. Qualitative assessment supplements this during nightly review.
 
 ### 6.2 RAG Quality Benchmarks
+
 - **Q**: What constitutes "good" RAG results for this project? Is there a
   benchmark set of queries with expected results?
 
@@ -250,12 +262,13 @@
 ## 7. Performance Testing
 
 ### 7.1 Performance Baselines
+
 - **Q**: What are acceptable response times for different agent operations?
   - Simple chat response: < 3 seconds? < 5 seconds?
   - Tool-heavy response: < 10 seconds? < 20 seconds?
   - Plan generation: < 30 seconds? < 2 minutes?
-  Should these be measured from user message to first chunk (time to first
-  token) or to complete response?
+    Should these be measured from user message to first chunk (time to first
+    token) or to complete response?
 
 **A:** Measure **time to first token** (TTFT) — this is what the user perceives. Baselines (TTFT): simple chat < 2 seconds, tool-heavy response < 5 seconds, plan generation < 10 seconds. Total completion time: simple chat < 10s, tool-heavy < 30s, plan generation < 2 minutes. These baselines apply to real API tests (nightly). Mocked tests have near-zero latency and don't test performance. Track baselines manually; they're targets, not CI-enforced assertions.
 
@@ -266,6 +279,7 @@
 **A:** **Not initially.** The system is a professional tool for small teams, not a high-traffic consumer product. Concurrent agent session handling is important but can be load-tested manually before launch. Add throughput testing if the user base exceeds 50 concurrent users. Focus on single-session latency first.
 
 ### 7.2 Resource Limits
+
 - **Q**: Should there be per-user limits on agent usage? (e.g., max 10
   active sessions, max 100K tokens per day.) If so, should these be tested?
 
@@ -286,6 +300,7 @@
 ## 8. Plan Generation Testing
 
 ### 8.1 Plan Quality
+
 - **Q**: How should plan quality be assessed in tests? Structural validity
   (well-formed JSON, valid dependencies) is testable; usefulness and
   completeness require human judgment.
@@ -304,6 +319,7 @@
 **A:** **Yes, for mocked tests.** The mock agent returns deterministic code snippets. Verify: generated TypeScript code parses without syntax errors (use `ts.createSourceFile` for fast parsing), generated file paths don't escape the project directory. For real API tests (nightly), compilation checks are best-effort — log failures but don't fail the test, since the real model may produce code that requires project context to compile.
 
 ### 8.2 Plan Execution Testing
+
 - **Q**: Should plan execution be tested end-to-end (actually run the
   generated plan steps and verify outcomes)? This is the most thorough but
   also the most complex and time-consuming test.
@@ -342,5 +358,5 @@
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

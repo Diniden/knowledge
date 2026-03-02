@@ -1,0 +1,26 @@
+.Spinner {
+  display: inline-block;
+  border-radius: $radius-full;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-right-color: var(--color-primary);
+  animation: spin $duration-slower linear infinite;
+
+  &--sm {
+    width: 16px;
+    height: 16px;
+    border-width: 2px;
+  }
+
+  &--md {
+    width: 24px;
+    height: 24px;
+    border-width: 2px;
+  }
+
+  &--lg {
+    width: 40px;
+    height: 40px;
+    border-width: 3px;
+  }
+}

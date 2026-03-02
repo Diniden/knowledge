@@ -1,0 +1,124 @@
+.ChatContainer {
+  @include flex-column;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+
+  &__header {
+    @include flex-between;
+    height: 40px;
+    padding: 0 $space-3;
+    flex-shrink: 0;
+    border-bottom: $border-width-thin solid var(--color-border);
+  }
+
+  &__title {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    color: var(--color-text);
+    @include truncate-text;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__historyToggle {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: $space-1 $space-2;
+    border-radius: $radius-md;
+    @include transition(background-color, color);
+
+    &:hover {
+      background-color: var(--color-interactive-hover);
+      color: var(--color-text);
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  &__messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: $space-2 0;
+    @include scrollbar-thin;
+  }
+
+  &__noMessages {
+    @include flex-center;
+    height: 100%;
+    color: var(--color-text-tertiary);
+    font-size: $font-size-sm;
+    padding: $space-8;
+    text-align: center;
+  }
+
+  &__scrollDown {
+    position: absolute;
+    bottom: 180px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 32px;
+    height: 32px;
+    border-radius: $radius-full;
+    background-color: var(--color-bg);
+    border: $border-width-thin solid var(--color-border);
+    box-shadow: $shadow-md;
+    @include flex-center;
+    font-size: $font-size-sm;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    z-index: $z-index-sticky;
+    @include transition(background-color);
+
+    &:hover {
+      background-color: var(--color-interactive-hover);
+    }
+  }
+
+  &__status {
+    flex-shrink: 0;
+    min-height: 0;
+  }
+
+  &__input {
+    flex-shrink: 0;
+  }
+
+  &__empty {
+    @include flex-center;
+    @include flex-column;
+    gap: $space-4;
+    height: 100%;
+    color: var(--color-text-tertiary);
+    font-size: $font-size-sm;
+    padding: $space-8;
+    text-align: center;
+  }
+
+  &__emptyAction {
+    padding: $space-2 $space-4;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    color: var(--color-primary-text);
+    background-color: var(--color-primary);
+    border: none;
+    border-radius: $radius-lg;
+    cursor: pointer;
+    @include transition(background-color);
+
+    &:hover {
+      background-color: var(--color-primary-hover);
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+}

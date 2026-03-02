@@ -779,21 +779,21 @@
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. Chat Panel Layout & Docking | 10 (FE-CHAT-001 through FE-CHAT-010) |
-| 2. Chat Session Management | 6 (FE-CHAT-011 through FE-CHAT-016) |
-| 3. Message Types & Rendering | 13 (FE-CHAT-017 through FE-CHAT-029) |
-| 4. Interactive Message Components | 9 (FE-CHAT-030 through FE-CHAT-038) |
-| 5. Graph Links in Messages | 6 (FE-CHAT-039 through FE-CHAT-044) |
-| 6. Agent Status & Thinking Indicators | 6 (FE-CHAT-045 through FE-CHAT-050) |
-| 7. User Input Area | 10 (FE-CHAT-051 through FE-CHAT-060) |
-| 8. Keyboard Shortcuts & Hotkeys | 3 (FE-CHAT-061 through FE-CHAT-063) |
-| 9. Message History & Persistence | 7 (FE-CHAT-064 through FE-CHAT-070) |
-| 10. Multi-User Dialog Features | 5 (FE-CHAT-071 through FE-CHAT-075) |
-| 11. Notifications & Alerts | 3 (FE-CHAT-076 through FE-CHAT-078) |
-| 12. Accessibility | 4 (FE-CHAT-079 through FE-CHAT-082) |
-| **TOTAL** | **82** |
+| Section                               | Tasks                                |
+| ------------------------------------- | ------------------------------------ |
+| 1. Chat Panel Layout & Docking        | 10 (FE-CHAT-001 through FE-CHAT-010) |
+| 2. Chat Session Management            | 6 (FE-CHAT-011 through FE-CHAT-016)  |
+| 3. Message Types & Rendering          | 13 (FE-CHAT-017 through FE-CHAT-029) |
+| 4. Interactive Message Components     | 9 (FE-CHAT-030 through FE-CHAT-038)  |
+| 5. Graph Links in Messages            | 6 (FE-CHAT-039 through FE-CHAT-044)  |
+| 6. Agent Status & Thinking Indicators | 6 (FE-CHAT-045 through FE-CHAT-050)  |
+| 7. User Input Area                    | 10 (FE-CHAT-051 through FE-CHAT-060) |
+| 8. Keyboard Shortcuts & Hotkeys       | 3 (FE-CHAT-061 through FE-CHAT-063)  |
+| 9. Message History & Persistence      | 7 (FE-CHAT-064 through FE-CHAT-070)  |
+| 10. Multi-User Dialog Features        | 5 (FE-CHAT-071 through FE-CHAT-075)  |
+| 11. Notifications & Alerts            | 3 (FE-CHAT-076 through FE-CHAT-078)  |
+| 12. Accessibility                     | 4 (FE-CHAT-079 through FE-CHAT-082)  |
+| **TOTAL**                             | **82**                               |
 
 > Note: Many tasks contain extensive sub-items covering multiple states,
 > variants, and edge cases. The effective implementation effort with all
@@ -802,6 +802,7 @@
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] Chat panel is always visible and docked with resize/collapse/minimize
 - [ ] Chat sessions can be created, switched, and resumed
 - [ ] All message types render correctly (text, code, interactive, graph-linked, gen UI embed)

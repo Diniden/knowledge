@@ -1,0 +1,39 @@
+---
+description: Custom React hook conventions
+globs:
+  - "client/ui/src/hooks/**/*.ts"
+alwaysApply: false
+---
+
+# Frontend Hooks
+
+## Rules
+
+- Naming: `use{HookName}` — e.g., `useDebounce`, `useMediaQuery`, `useClickOutside`.
+- One hook per file: `use-debounce.ts` (kebab-case filename).
+- Co-located test: `use-debounce.test.ts`.
+- Hooks are composable and reusable. Keep them generic.
+- No business logic — delegate to MobX stores for domain operations.
+- Return well-typed values; avoid returning `any`.
+
+## Example
+
+```typescript
+import { useState, useEffect } from 'react';
+
+export function useDebounce<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(timer);
+  }, [value, delayMs]);
+
+  return debounced;
+}
+```
+
+## Anti-patterns
+
+- Putting API calls or store mutations directly in hooks — use services and stores.
+- Hooks that are only used by a single component — co-locate with that component instead.

@@ -1,0 +1,88 @@
+.DocumentView {
+  @include flex-column;
+  max-width: $content-max-width;
+  margin: 0 auto;
+
+  &__header {
+    margin-bottom: $space-6;
+  }
+
+  &__title {
+    @include heading-1;
+    color: var(--color-text);
+    border: none;
+    background: transparent;
+    outline: none;
+    width: 100%;
+    padding: $space-2 0;
+    font-family: $font-family-sans;
+
+    &:focus {
+      border-bottom: $border-width-medium solid var(--color-primary);
+    }
+
+    &::placeholder {
+      color: var(--color-text-tertiary);
+    }
+  }
+
+  &__specs {
+    @include flex-column;
+    gap: $space-2;
+  }
+
+  &__specActions {
+    @include flex-row;
+    align-items: center;
+    gap: $space-2;
+    padding: $space-1 0;
+
+    button {
+      @include flex-center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border: none;
+      border-radius: $radius-sm;
+      background: transparent;
+      color: var(--color-text-tertiary);
+      cursor: pointer;
+      font-size: $font-size-sm;
+      @include transition(background, color);
+
+      &:hover {
+        background: var(--color-interactive-hover);
+        color: var(--color-text);
+      }
+
+      &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  &__addButton {
+    margin-top: $space-4;
+    align-self: center;
+  }
+
+  &__empty {
+    @include flex-center;
+    flex-direction: column;
+    gap: $space-4;
+    padding: $space-16 $space-6;
+    text-align: center;
+    color: var(--color-text-tertiary);
+
+    &Title {
+      @include heading-3;
+      color: var(--color-text-secondary);
+    }
+
+    &Description {
+      @include body-text;
+      max-width: 400px;
+    }
+  }
+}

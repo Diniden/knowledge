@@ -996,26 +996,27 @@
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. Agent Test Infrastructure | 8 (TS-AG-001 through TS-AG-008) |
-| 2. Claude Code Wrapper Testing | 9 (TS-AG-009 through TS-AG-017) |
-| 3. MCP Server Testing | 19 (TS-AG-018 through TS-AG-036) |
-| 4. Agent Routing & Classification Testing | 9 (TS-AG-037 through TS-AG-045) |
-| 5. Agent Output Parsing Testing | 9 (TS-AG-046 through TS-AG-054) |
-| 6. Prompt Template Testing | 6 (TS-AG-055 through TS-AG-060) |
-| 7. Agent Session Lifecycle Testing | 8 (TS-AG-061 through TS-AG-068) |
-| 8. Plan Generation Testing | 7 (TS-AG-069 through TS-AG-075) |
-| 9. RAG Integration Testing | 7 (TS-AG-076 through TS-AG-082) |
-| 10. Knowledge Graph Operations via Agents | 8 (TS-AG-083 through TS-AG-090) |
-| 11. End-to-End Agent Workflow Testing | 9 (TS-AG-091 through TS-AG-099) |
-| 12. Agent Error & Recovery Testing | 12 (TS-AG-100 through TS-AG-111) |
-| 13. Performance & Timeout Testing | 12 (TS-AG-112 through TS-AG-123) |
-| **TOTAL** | **123** |
+| Section                                   | Tasks                            |
+| ----------------------------------------- | -------------------------------- |
+| 1. Agent Test Infrastructure              | 8 (TS-AG-001 through TS-AG-008)  |
+| 2. Claude Code Wrapper Testing            | 9 (TS-AG-009 through TS-AG-017)  |
+| 3. MCP Server Testing                     | 19 (TS-AG-018 through TS-AG-036) |
+| 4. Agent Routing & Classification Testing | 9 (TS-AG-037 through TS-AG-045)  |
+| 5. Agent Output Parsing Testing           | 9 (TS-AG-046 through TS-AG-054)  |
+| 6. Prompt Template Testing                | 6 (TS-AG-055 through TS-AG-060)  |
+| 7. Agent Session Lifecycle Testing        | 8 (TS-AG-061 through TS-AG-068)  |
+| 8. Plan Generation Testing                | 7 (TS-AG-069 through TS-AG-075)  |
+| 9. RAG Integration Testing                | 7 (TS-AG-076 through TS-AG-082)  |
+| 10. Knowledge Graph Operations via Agents | 8 (TS-AG-083 through TS-AG-090)  |
+| 11. End-to-End Agent Workflow Testing     | 9 (TS-AG-091 through TS-AG-099)  |
+| 12. Agent Error & Recovery Testing        | 12 (TS-AG-100 through TS-AG-111) |
+| 13. Performance & Timeout Testing         | 12 (TS-AG-112 through TS-AG-123) |
+| **TOTAL**                                 | **123**                          |
 
 ### Dependencies (What This Plan Enables)
 
 Completion of this plan provides:
+
 - Confidence that agent orchestration correctly routes and processes requests
 - Verified MCP tool implementations for all knowledge graph operations
 - Validated prompt construction and output parsing
@@ -1025,6 +1026,7 @@ Completion of this plan provides:
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] Claude Code wrapper has tests for all lifecycle events (spawn, stream, close)
 - [ ] Every MCP tool has tests for success, error, and permission scenarios
 - [ ] Agent routing classifies all request types correctly

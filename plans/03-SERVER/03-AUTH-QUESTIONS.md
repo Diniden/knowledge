@@ -10,6 +10,7 @@
 ## 1. Password Hashing
 
 ### 1.1 Library Choice
+
 - **Q**: Should the project use `bcrypt` (native C++ bindings, faster) or
   `bcryptjs` (pure JavaScript, more portable)? Bun's compatibility with native
   Node.js addons may make `bcrypt` unreliable.
@@ -28,6 +29,7 @@
 **A:** 12 rounds is correct. ~300ms per hash is acceptable for login/registration (infrequent operations). This provides strong protection against brute-force attacks. Make the round count configurable via `BCRYPT_ROUNDS=12` environment variable so it can be tuned for the deployment hardware. Do not go below 10 rounds.
 
 ### 1.2 Password Policy
+
 - **Q**: Should the password policy require special characters, or is
   length + mixed case + numbers sufficient? NIST guidelines recommend against
   requiring special characters and instead focus on minimum length.
@@ -50,6 +52,7 @@
 ## 2. JWT Strategy
 
 ### 2.1 Token Configuration
+
 - **Q**: Is 15 minutes the right TTL for access tokens? Shorter (5 min) is
   more secure but requires more frequent refreshes. Longer (1 hour) reduces
   network overhead but increases the window for stolen token abuse.
@@ -74,6 +77,7 @@
 **A:** Embed the system role (`admin` or `user`) in the JWT. Role changes are infrequent and take effect at the next token refresh (within 15 minutes). Do NOT embed project-level roles — those are checked against the database per request since they can change more frequently and are project-specific.
 
 ### 2.2 Token Content
+
 - **Q**: What claims should the access token include beyond the minimum
   (sub, exp, iat)? Including email and username avoids DB lookups but increases
   token size and becomes stale if user updates profile.
@@ -96,6 +100,7 @@
 ## 3. Cookie Configuration
 
 ### 3.1 Cookie Settings
+
 - **Q**: Should `sameSite` be set to `'strict'` or `'lax'`? `strict` prevents
   the cookie from being sent on any cross-site request (even top-level
   navigations), which can break OAuth flows and external links. `lax` allows
@@ -115,6 +120,7 @@
 **A:** Restrict to `/api/v1/auth/refresh`. The refresh token cookie should only be sent to the refresh endpoint. This minimizes exposure — even if another endpoint is compromised, the refresh token cookie is not included in requests to it. The access token cookie has path `/` since it's needed for all API requests.
 
 ### 3.2 Dual Authentication
+
 - **Q**: Should the API support both cookie-based and Bearer token
   authentication simultaneously? This allows browser clients to use cookies and
   programmatic clients (CLI, CI) to use Bearer tokens.
@@ -131,6 +137,7 @@
 ## 4. Role-Based Access Control
 
 ### 4.1 Role Design
+
 - **Q**: Are two system roles (`admin`, `user`) sufficient, or should there be
   additional roles like `moderator` or `service-account`?
 
@@ -149,6 +156,7 @@
 **A:** Yes, the system `admin` role acts as super-admin. System admins can access all projects and all specs for support and debugging. This is necessary for a self-hosted system where the operator needs full access. Limit the number of system admins and log all admin access to the audit trail. The first registered user is automatically `admin`.
 
 ### 4.2 Permission Checking
+
 - **Q**: Should role checks happen at the guard level (before the handler) or
   at the service level (within business logic)? Guard-level is cleaner but may
   not have access to all context needed for complex decisions.
@@ -166,6 +174,7 @@
 ## 5. Spec-Level Permissions
 
 ### 5.1 Privacy Model
+
 - **Q**: When a spec is first created, is it public by default (all project
   members have full access) or private by default? The PRD implies public by
   default with the ability to restrict.
@@ -185,6 +194,7 @@
 **A:** Option (a): private specs are replaced with AI-generated summaries inline. The summary includes the spec title, a brief description (1-2 sentences), and the spec's edge connections (relationship types, not target content). This aligns with the PRD's "summary access" permission tier. The summary is pre-generated and stored alongside the spec, updated whenever the spec content changes.
 
 ### 5.2 Token Sharing
+
 - **Q**: How is the spec access token shared between users? Via the server
   (user A requests the server to grant user B access) or via a shareable link
   (user A generates a link that user B clicks)?
@@ -203,6 +213,7 @@
 **A:** Indefinite until explicitly revoked. Time-based expiration adds complexity (cron job to expire grants, notification system for expiring access) without clear benefit for a knowledge management system. The owner can revoke access at any time. Simplicity wins here.
 
 ### 5.3 Agent Permissions
+
 - **Q**: When an agent operates on behalf of a user, does it inherit that
   user's spec permissions? Can the agent see private specs that its user can't?
 
@@ -218,6 +229,7 @@
 ## 6. Session Management
 
 ### 6.1 Session Strategy
+
 - **Q**: Should sessions be tracked via refresh tokens (as proposed) or via a
   separate session table? Refresh tokens as sessions is simple but conflates
   two concepts.
@@ -236,6 +248,7 @@
 **A:** Yes. Default refresh token TTL: 7 days. "Remember me" TTL: 30 days. The login endpoint accepts a `rememberMe: boolean` field. The frontend presents a "Remember me" checkbox on the login form. Both TTLs are configurable via environment variables.
 
 ### 6.2 Multi-Device
+
 - **Q**: Is 10 concurrent sessions per user the right limit? Power users may
   have multiple browsers, mobile devices, and API clients.
 
@@ -252,6 +265,7 @@
 ## 7. CSRF Protection
 
 ### 7.1 Strategy
+
 - **Q**: Is the double-submit cookie pattern sufficient, or should the server
   use the synchronizer token pattern (session-stored token)? The synchronizer
   pattern is more secure but requires server-side state.
@@ -270,6 +284,7 @@
 **A:** Rotate on every session refresh (when the access token is refreshed). This provides a reasonable rotation frequency (every 15 minutes) without the overhead of per-request rotation. The CSRF token is re-set as a cookie alongside the new access token during the refresh flow.
 
 ### 7.2 Implementation
+
 - **Q**: Should CSRF protection be implemented as NestJS middleware (runs for
   all requests) or as a guard (per-route control)? Middleware is simpler but
   guards offer per-route configuration.
@@ -286,6 +301,7 @@
 ## 8. Email Integration
 
 ### 8.1 Email Service
+
 - **Q**: Should the server implement email sending for registration verification
   and password reset, or should these features be deferred? Email requires an
   SMTP service or provider integration.
@@ -308,6 +324,7 @@
 ## 9. Security Trade-offs
 
 ### 9.1 Defense Depth
+
 - **Q**: How many layers of brute force protection are needed? The plan
   includes: rate limiting, progressive delays, account lockout, and IP blocking.
   Is this overkill for an initial release?
@@ -325,6 +342,7 @@
 **A:** No 2FA in the initial release. Defer to phase 2. 2FA requires TOTP library integration, QR code generation, backup codes, and recovery flows. The initial release focuses on solid baseline auth (bcrypt, JWT, refresh rotation, rate limiting). Design the user schema with a `twoFactorEnabled` boolean and `twoFactorSecret` column from day one so the migration is clean.
 
 ### 9.2 Token Theft Mitigation
+
 - **Q**: Refresh token rotation with reuse detection is proposed. Is this worth
   the implementation complexity, or is a simpler approach (long-lived refresh
   tokens without rotation) acceptable for the initial release?
@@ -347,6 +365,7 @@
 ## 10. Future Considerations
 
 ### 10.1 OAuth & SSO
+
 - **Q**: Should the architecture be designed to support OAuth 2.0 / OIDC
   integration (Google, GitHub login) in a future phase? This affects the
   user schema (multiple auth providers per user).
@@ -359,6 +378,7 @@
 **A:** Resource server only. Building an OAuth 2.0 authorization server (token issuance, client registration, consent flows) is a massive undertaking and unnecessary for this application. The API keys feature (phase 2) covers programmatic access. If third-party integration is needed in the future, use a dedicated OAuth provider (Keycloak, Auth0) in front of the API.
 
 ### 10.2 API Keys
+
 - **Q**: Should the system support API keys for programmatic access (CI/CD,
   scripts, external tools)? API keys are long-lived and don't require the
   cookie/refresh flow.

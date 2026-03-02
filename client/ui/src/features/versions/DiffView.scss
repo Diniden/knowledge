@@ -1,0 +1,94 @@
+.DiffView {
+  @include flex-column;
+  border: $border-width-thin solid var(--color-border);
+  border-radius: $radius-lg;
+  overflow: hidden;
+  font-family: $font-family-mono;
+  @include caption;
+
+  &__header {
+    @include flex-between;
+    padding: $space-2 $space-4;
+    background: var(--color-bg-secondary);
+    border-bottom: $border-width-thin solid var(--color-border);
+  }
+
+  &__labels {
+    display: flex;
+    gap: $space-4;
+  }
+
+  &__label {
+    @include caption;
+    color: var(--color-text-secondary);
+
+    &--old {
+      color: var(--color-error);
+    }
+
+    &--new {
+      color: var(--color-success);
+    }
+  }
+
+  &__content {
+    overflow-y: auto;
+    @include scrollbar-thin;
+    max-height: 600px;
+  }
+
+  &__line {
+    display: flex;
+    align-items: stretch;
+    min-height: 22px;
+    line-height: 22px;
+
+    &--addition {
+      background: rgba(0, 200, 0, 0.08);
+    }
+
+    &--deletion {
+      background: rgba(200, 0, 0, 0.08);
+    }
+
+    &--context {
+      background: transparent;
+    }
+  }
+
+  &__lineNumber {
+    flex-shrink: 0;
+    width: 44px;
+    text-align: right;
+    padding: 0 $space-2;
+    color: var(--color-text-tertiary);
+    user-select: none;
+    border-right: $border-width-thin solid var(--color-border);
+
+    &--old {
+      border-right: none;
+    }
+  }
+
+  &__text {
+    flex: 1;
+    padding: 0 $space-3;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--color-text);
+  }
+
+  &__highlight {
+    &--add {
+      background: rgba(0, 200, 0, 0.18);
+      border-radius: $radius-sm;
+    }
+
+    &--delete {
+      background: rgba(200, 0, 0, 0.18);
+      border-radius: $radius-sm;
+      text-decoration: line-through;
+      opacity: 0.7;
+    }
+  }
+}

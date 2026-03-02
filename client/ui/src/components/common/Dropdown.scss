@@ -1,0 +1,77 @@
+.Dropdown {
+  position: relative;
+  display: inline-flex;
+
+  &__trigger {
+    cursor: pointer;
+
+    &:focus-visible {
+      @include focus-ring;
+      border-radius: $radius-md;
+    }
+  }
+
+  &__menu {
+    position: absolute;
+    top: calc(100% + #{$space-1});
+    z-index: $z-index-dropdown;
+    min-width: 180px;
+    padding: $space-1;
+    background-color: var(--color-surface-popover);
+    border: $border-width-thin solid var(--color-border);
+    border-radius: $radius-lg;
+    box-shadow: var(--shadow-lg);
+    animation: slideUp $duration-fast $ease-out;
+
+    &--bottom-start {
+      left: 0;
+    }
+    &--bottom-end {
+      right: 0;
+    }
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    width: 100%;
+    padding: $space-2 $space-3;
+    font-size: $font-size-sm;
+    color: var(--color-text);
+    border-radius: $radius-md;
+    cursor: pointer;
+    text-align: left;
+    @include transition(background-color, color);
+
+    &:hover,
+    &--active {
+      background-color: var(--color-interactive-hover);
+    }
+
+    &--disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    &--danger {
+      color: var(--color-error);
+
+      &:hover,
+      &.Dropdown__item--active {
+        background-color: var(--color-error-bg);
+      }
+    }
+  }
+
+  &__itemIcon {
+    display: inline-flex;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-tertiary);
+  }
+}

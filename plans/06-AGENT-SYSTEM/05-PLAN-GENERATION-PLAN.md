@@ -52,7 +52,17 @@
       "title": { "type": "string" },
       "rootSpecId": { "type": "string", "pattern": "^sp_" },
       "mode": { "enum": ["full", "delta"] },
-      "status": { "enum": ["generating", "draft", "approved", "executing", "completed", "failed", "rolled-back"] },
+      "status": {
+        "enum": [
+          "generating",
+          "draft",
+          "approved",
+          "executing",
+          "completed",
+          "failed",
+          "rolled-back"
+        ]
+      },
       "version": { "type": "integer", "minimum": 1 },
       "previousVersionId": { "type": "string" },
       "specIds": { "type": "array", "items": { "type": "string" } },
@@ -65,11 +75,27 @@
       "approvedBy": { "type": "string" },
       "executionStartedAt": { "type": "string", "format": "date-time" },
       "executionCompletedAt": { "type": "string", "format": "date-time" },
-      "deltaBaseline": { "type": "string", "description": "Commit hash or timestamp of the baseline for delta mode" },
-      "targetRepository": { "type": "string", "description": "Path or URL of the code repo this plan targets" },
+      "deltaBaseline": {
+        "type": "string",
+        "description": "Commit hash or timestamp of the baseline for delta mode"
+      },
+      "targetRepository": {
+        "type": "string",
+        "description": "Path or URL of the code repo this plan targets"
+      },
       "tags": { "type": "array", "items": { "type": "string" } }
     },
-    "required": ["id", "title", "rootSpecId", "mode", "status", "version", "specIds", "generatedAt", "generatedBy"]
+    "required": [
+      "id",
+      "title",
+      "rootSpecId",
+      "mode",
+      "status",
+      "version",
+      "specIds",
+      "generatedAt",
+      "generatedBy"
+    ]
   }
   ```
 - [ ] **AG-PG-002**: Define plan status lifecycle
@@ -95,6 +121,7 @@
 ### 1.2 Plan File Format
 
 - [ ] **AG-PG-005**: Define individual plan file format (Markdown)
+
   ```markdown
   ---
   planId: pl_xxx
@@ -113,22 +140,28 @@
   # Project Setup
 
   ## Objective
+
   {What this plan step accomplishes}
 
   ## Context
+
   {Relevant knowledge from source specs}
 
   ## Steps
+
   1. {Step 1 with specific instructions}
   2. {Step 2 with specific instructions}
-  ...
+     ...
 
   ## Expected Outcome
+
   {What should exist after this step completes}
 
   ## Verification
+
   {How to verify this step was executed correctly}
   ```
+
 - [ ] **AG-PG-006**: Define plan file frontmatter schema
   - `planId`: parent plan ID
   - `directory`: which directory this file belongs to
@@ -211,6 +244,7 @@
 ### 2.2 Supporting Files
 
 - [ ] **AG-PG-013**: Define `spec-map.json` schema
+
   ```json
   {
     "type": "object",
@@ -227,9 +261,11 @@
     }
   }
   ```
+
   - Keys: spec IDs, values: array of plan file paths that reference this spec
   - Enables traceability: for any spec, find all plan steps that use it
   - Enables impact analysis: if a spec changes, which plan steps are affected
+
 - [ ] **AG-PG-014**: Define `execution-status.json` schema
   ```json
   {
@@ -245,7 +281,16 @@
           "type": "object",
           "properties": {
             "filePath": { "type": "string" },
-            "status": { "enum": ["pending", "queued", "executing", "completed", "failed", "skipped"] },
+            "status": {
+              "enum": [
+                "pending",
+                "queued",
+                "executing",
+                "completed",
+                "failed",
+                "skipped"
+              ]
+            },
             "startedAt": { "type": "string" },
             "completedAt": { "type": "string" },
             "error": { "type": "string" },
@@ -279,42 +324,54 @@
 ### 3.1 Master Plan Content
 
 - [ ] **AG-PG-015**: Define master plan structure
+
   ```markdown
   # Master Plan: {Root Spec Title}
 
   ## Plan ID
+
   {planId}
 
   ## Generated
+
   {date} by {agent/user} in {mode} mode
 
   ## Overview
+
   {High-level description of what this plan achieves}
 
   ## Source Specs
+
   {List of all specs included in this plan with brief descriptions}
 
   ## Architecture
+
   {How the plan is organized: parallel groups, serial sequences}
 
   ## Execution Order
+
   1. {Directory/group name} — {description}
      - {file 1}: {step title}
      - {file 2}: {step title}
   2. ...
 
   ## Dependencies
+
   {External dependencies: tools, APIs, environments}
 
   ## Risks & Mitigations
+
   {Known risks and how to handle them}
 
   ## Rollback Strategy
+
   {How to undo this plan if execution fails}
 
   ## Delta Summary (if delta mode)
+
   {What changed since the previous plan version}
   ```
+
 - [ ] **AG-PG-016**: Implement master plan generation
   - Receive traversed subgraph (specs + edges + RAG context)
   - Analyze spec relationships to determine plan structure
@@ -1158,25 +1215,25 @@
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. Plan Output Format | 7 (AG-PG-001 through AG-PG-007) |
-| 2. Plan Directory Structure | 7 (AG-PG-008 through AG-PG-014) |
-| 3. Master Prompt Plan | 4 (AG-PG-015 through AG-PG-018) |
-| 4. Directory-Level Execution Plans | 6 (AG-PG-019 through AG-PG-024) |
-| 5. Plan File Content Structure | 6 (AG-PG-025 through AG-PG-030) |
+| Section                                | Tasks                           |
+| -------------------------------------- | ------------------------------- |
+| 1. Plan Output Format                  | 7 (AG-PG-001 through AG-PG-007) |
+| 2. Plan Directory Structure            | 7 (AG-PG-008 through AG-PG-014) |
+| 3. Master Prompt Plan                  | 4 (AG-PG-015 through AG-PG-018) |
+| 4. Directory-Level Execution Plans     | 6 (AG-PG-019 through AG-PG-024) |
+| 5. Plan File Content Structure         | 6 (AG-PG-025 through AG-PG-030) |
 | 6. Graph Traversal for Plan Generation | 6 (AG-PG-031 through AG-PG-036) |
 | 7. RAG Supplementary Context Retrieval | 4 (AG-PG-037 through AG-PG-040) |
-| 8. Delta Detection | 6 (AG-PG-041 through AG-PG-046) |
-| 9. Full Build vs. Delta Build Modes | 6 (AG-PG-047 through AG-PG-052) |
-| 10. Plan-as-Knowledge-Graph | 6 (AG-PG-053 through AG-PG-058) |
-| 11. Plan Review & Approval Workflow | 6 (AG-PG-059 through AG-PG-064) |
-| 12. Plan Execution Integration | 9 (AG-PG-065 through AG-PG-073) |
-| 13. Plan Versioning | 5 (AG-PG-074 through AG-PG-078) |
-| 14. Plan Rollback | 5 (AG-PG-079 through AG-PG-083) |
-| 15. Execution Tracking | 8 (AG-PG-084 through AG-PG-091) |
-| 16. Test Verification | 9 (AG-PG-092 through AG-PG-100) |
-| **TOTAL** | **100** |
+| 8. Delta Detection                     | 6 (AG-PG-041 through AG-PG-046) |
+| 9. Full Build vs. Delta Build Modes    | 6 (AG-PG-047 through AG-PG-052) |
+| 10. Plan-as-Knowledge-Graph            | 6 (AG-PG-053 through AG-PG-058) |
+| 11. Plan Review & Approval Workflow    | 6 (AG-PG-059 through AG-PG-064) |
+| 12. Plan Execution Integration         | 9 (AG-PG-065 through AG-PG-073) |
+| 13. Plan Versioning                    | 5 (AG-PG-074 through AG-PG-078) |
+| 14. Plan Rollback                      | 5 (AG-PG-079 through AG-PG-083) |
+| 15. Execution Tracking                 | 8 (AG-PG-084 through AG-PG-091) |
+| 16. Test Verification                  | 9 (AG-PG-092 through AG-PG-100) |
+| **TOTAL**                              | **100**                         |
 
 > **Note**: The 100 task IDs represent high-level implementation items.
 > Several tasks (especially plan file generation, execution integration,
@@ -1186,6 +1243,7 @@
 ### Dependencies (What This Plan Enables)
 
 Completion of this plan unblocks:
+
 - `12-CODE-GENERATION/PLAN.md` — needs plan execution engine, verification framework
 - `10-COLLABORATION/PLAN.md` — needs plan approval workflow for multi-user review
 - `08-TESTING/04-AGENT-TESTING-PLAN.md` — needs plan output format for validation tests
@@ -1193,6 +1251,7 @@ Completion of this plan unblocks:
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] Plan metadata schema is defined and validated
 - [ ] Plan directory structure generation creates correct parallel/serial layouts
 - [ ] Master plan is generated with complete overview and execution order

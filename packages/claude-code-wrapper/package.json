@@ -1,0 +1,15 @@
+{
+  "name": "@kg/claude-code-wrapper",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "execa": "^9.6.1"
+  }
+}

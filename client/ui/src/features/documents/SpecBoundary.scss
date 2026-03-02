@@ -1,0 +1,88 @@
+.SpecBoundary {
+  border-left: $border-width-medium solid var(--color-border);
+  border-radius: $radius-md;
+  margin-bottom: $space-4;
+  @include transition(border-color);
+
+  &--draft {
+    border-left-color: $info-500;
+  }
+
+  &--reviewed {
+    border-left-color: $success-500;
+  }
+
+  &--approved {
+    border-left-color: $secondary-500;
+  }
+
+  &--collapsed {
+    .SpecBoundary__content {
+      display: none;
+    }
+  }
+
+  &__header {
+    @include flex-between;
+    padding: $space-2 $space-3;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: $border-width-thin solid var(--color-border);
+    background: var(--color-bg-secondary);
+    border-radius: $radius-md $radius-md 0 0;
+    @include transition(background);
+
+    &:hover {
+      background: var(--color-interactive-hover);
+    }
+  }
+
+  &__title {
+    @include heading-5;
+    color: var(--color-text);
+    flex: 1;
+    @include truncate-text;
+
+    &:hover {
+      color: var(--color-primary);
+    }
+  }
+
+  &__status {
+    margin-left: $space-2;
+    flex-shrink: 0;
+  }
+
+  &__toggle {
+    @include flex-center;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    border-radius: $radius-sm;
+    flex-shrink: 0;
+    margin-left: $space-2;
+    @include transition(transform, color);
+
+    &:hover {
+      color: var(--color-text);
+    }
+
+    .SpecBoundary--collapsed & {
+      transform: rotate(-90deg);
+    }
+  }
+
+  &__content {
+    padding: $space-3;
+  }
+
+  &__summary {
+    @include body-sm;
+    color: var(--color-text-tertiary);
+    padding: $space-2 $space-3;
+    @include line-clamp(1);
+  }
+}

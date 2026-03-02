@@ -1309,37 +1309,38 @@
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. ORM & Migration Library Selection | 9 (DB-001 through DB-009) |
+| Section                                | Tasks                      |
+| -------------------------------------- | -------------------------- |
+| 1. ORM & Migration Library Selection   | 9 (DB-001 through DB-009)  |
 | 2. Database Connection & Configuration | 10 (DB-010 through DB-019) |
-| 3. Schema — Users | 14 (DB-020 through DB-033) |
-| 4. Schema — Projects | 14 (DB-034 through DB-047) |
-| 5. Schema — Project Members | 12 (DB-048 through DB-059) |
-| 6. Schema — Spec Permissions | 13 (DB-060 through DB-073) |
-| 7. Schema — Permission Shares | 15 (DB-074 through DB-088) |
-| 8. Schema — Agent Sessions | 18 (DB-089 through DB-106) |
-| 9. Schema — Agent Messages | 11 (DB-107 through DB-117) |
-| 10. Schema — Sync State | 13 (DB-118 through DB-130) |
-| 11. Schema — Generated UI Registry | 14 (DB-131 through DB-144) |
-| 12. Schema — Plan Executions | 16 (DB-145 through DB-160) |
-| 13. Schema — Audit Log | 18 (DB-161 through DB-178) |
-| 14. Schema — Notification Queue | 17 (DB-179 through DB-195) |
-| 15. Cross-Table Indexes & Constraints | 7 (DB-196 through DB-202) |
-| 16. Enums & Custom Types | 8 (DB-203 through DB-210) |
-| 17. Migration Strategy | 11 (DB-211 through DB-221) |
-| 18. Seed Data | 10 (DB-222 through DB-231) |
-| 19. Connection Pooling | 6 (DB-232 through DB-237) |
-| 20. Backup & Recovery | 5 (DB-238 through DB-242) |
-| 21. Performance Tuning | 9 (DB-243 through DB-251) |
-| 22. Database Monitoring | 7 (DB-252 through DB-258) |
-| 23. Data Lifecycle & Retention | 4 (DB-259 through DB-262) |
-| 24. Security & Access Control | 7 (DB-263 through DB-269) |
-| **TOTAL** | **269** |
+| 3. Schema — Users                      | 14 (DB-020 through DB-033) |
+| 4. Schema — Projects                   | 14 (DB-034 through DB-047) |
+| 5. Schema — Project Members            | 12 (DB-048 through DB-059) |
+| 6. Schema — Spec Permissions           | 13 (DB-060 through DB-073) |
+| 7. Schema — Permission Shares          | 15 (DB-074 through DB-088) |
+| 8. Schema — Agent Sessions             | 18 (DB-089 through DB-106) |
+| 9. Schema — Agent Messages             | 11 (DB-107 through DB-117) |
+| 10. Schema — Sync State                | 13 (DB-118 through DB-130) |
+| 11. Schema — Generated UI Registry     | 14 (DB-131 through DB-144) |
+| 12. Schema — Plan Executions           | 16 (DB-145 through DB-160) |
+| 13. Schema — Audit Log                 | 18 (DB-161 through DB-178) |
+| 14. Schema — Notification Queue        | 17 (DB-179 through DB-195) |
+| 15. Cross-Table Indexes & Constraints  | 7 (DB-196 through DB-202)  |
+| 16. Enums & Custom Types               | 8 (DB-203 through DB-210)  |
+| 17. Migration Strategy                 | 11 (DB-211 through DB-221) |
+| 18. Seed Data                          | 10 (DB-222 through DB-231) |
+| 19. Connection Pooling                 | 6 (DB-232 through DB-237)  |
+| 20. Backup & Recovery                  | 5 (DB-238 through DB-242)  |
+| 21. Performance Tuning                 | 9 (DB-243 through DB-251)  |
+| 22. Database Monitoring                | 7 (DB-252 through DB-258)  |
+| 23. Data Lifecycle & Retention         | 4 (DB-259 through DB-262)  |
+| 24. Security & Access Control          | 7 (DB-263 through DB-269)  |
+| **TOTAL**                              | **269**                    |
 
 ### Dependencies (What This Plan Enables)
 
 Completion of this plan unblocks:
+
 - `03-SERVER/02-API-PLAN.md` — needs database tables and entities for API endpoints
 - `03-SERVER/03-AUTH-PLAN.md` — needs users table for authentication
 - `05-RAG-LAYER/PLAN.md` — needs database for embedding metadata storage
@@ -1349,6 +1350,7 @@ Completion of this plan unblocks:
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] All 12+ tables are created with correct columns, types, and constraints
 - [ ] All indexes are created and verified with EXPLAIN ANALYZE
 - [ ] All foreign keys and check constraints are in place

@@ -1,0 +1,62 @@
+.DocumentList {
+  @include flex-column;
+  height: 100%;
+
+  &__header {
+    padding: $space-3;
+    border-bottom: $border-width-thin solid var(--color-border);
+  }
+
+  &__search {
+    width: 100%;
+  }
+
+  &__items {
+    @include flex-column;
+    flex: 1;
+    overflow-y: auto;
+    @include scrollbar-thin;
+  }
+
+  &__item {
+    @include flex-column;
+    gap: $space-1;
+    padding: $space-3;
+    cursor: pointer;
+    border-bottom: $border-width-thin solid var(--color-border);
+    @include transition(background);
+
+    &:hover {
+      background: var(--color-interactive-hover);
+    }
+
+    &--active {
+      background: var(--color-interactive-selected);
+      border-left: $border-width-medium solid var(--color-primary);
+
+      &:hover {
+        background: var(--color-interactive-selected);
+      }
+    }
+  }
+
+  &__itemTitle {
+    @include body-text;
+    font-weight: $font-weight-medium;
+    color: var(--color-text);
+    @include truncate-text;
+  }
+
+  &__itemMeta {
+    @include flex-row;
+    align-items: center;
+    gap: $space-2;
+    @include caption;
+    color: var(--color-text-tertiary);
+  }
+
+  &__create {
+    padding: $space-3;
+    border-top: $border-width-thin solid var(--color-border);
+  }
+}

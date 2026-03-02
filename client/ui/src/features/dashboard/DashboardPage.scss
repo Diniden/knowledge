@@ -1,0 +1,181 @@
+.DashboardPage {
+  @include flex-column;
+  gap: $space-8;
+  max-width: $content-max-width;
+  margin: 0 auto;
+  width: 100%;
+
+  &__welcome {
+    @include flex-column;
+    gap: $space-1;
+  }
+
+  &__welcomeTitle {
+    @include heading-2;
+    color: var(--color-text);
+  }
+
+  &__welcomeSubtitle {
+    @include body-text;
+    color: var(--color-text-secondary);
+  }
+
+  &__stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: $space-4;
+  }
+
+  &__statCard {
+    @include surface-elevated;
+    @include flex-column;
+    gap: $space-2;
+    padding: $space-5;
+    @include transition(box-shadow);
+
+    &:hover {
+      box-shadow: var(--shadow-md);
+    }
+  }
+
+  &__statIcon {
+    font-size: $font-size-2xl;
+  }
+
+  &__statValue {
+    @include heading-3;
+    color: var(--color-text);
+  }
+
+  &__statLabel {
+    @include body-sm;
+    color: var(--color-text-secondary);
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: $space-6;
+
+    @include respond-below(lg) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__section {
+    @include surface-elevated;
+    @include flex-column;
+    padding: $space-5;
+    gap: $space-4;
+  }
+
+  &__sectionTitle {
+    @include heading-5;
+    color: var(--color-text);
+    padding-bottom: $space-3;
+    border-bottom: $border-width-thin solid var(--color-border);
+  }
+
+  &__recent {
+    @include flex-column;
+    gap: $space-1;
+  }
+
+  &__recentItem {
+    @include flex-between;
+    padding: $space-3;
+    border-radius: $radius-md;
+    cursor: pointer;
+    @include transition(background-color);
+
+    &:hover {
+      background-color: var(--color-interactive-hover);
+    }
+  }
+
+  &__recentTitle {
+    @include body-sm;
+    font-weight: $font-weight-medium;
+    color: var(--color-text);
+  }
+
+  &__recentDate {
+    @include caption;
+    color: var(--color-text-tertiary);
+  }
+
+  &__actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: $space-3;
+  }
+
+  &__actionBtn {
+    @include flex-column;
+    @include flex-center;
+    gap: $space-2;
+    padding: $space-5 $space-3;
+    border-radius: $radius-lg;
+    border: $border-width-thin solid var(--color-border);
+    background-color: var(--color-surface-card);
+    cursor: pointer;
+    @include transition(background-color, box-shadow, border-color);
+
+    &:hover {
+      background-color: var(--color-interactive-hover);
+      border-color: var(--color-primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  &__actionIcon {
+    font-size: $font-size-2xl;
+  }
+
+  &__actionLabel {
+    @include body-sm;
+    font-weight: $font-weight-medium;
+    color: var(--color-text);
+  }
+
+  &__activity {
+    @include flex-column;
+    gap: $space-1;
+  }
+
+  &__activityItem {
+    @include flex-row;
+    align-items: flex-start;
+    gap: $space-3;
+    padding: $space-3;
+    border-radius: $radius-md;
+  }
+
+  &__activityDot {
+    width: 8px;
+    height: 8px;
+    border-radius: $radius-full;
+    background-color: var(--color-primary);
+    flex-shrink: 0;
+    margin-top: 6px;
+  }
+
+  &__activityContent {
+    @include flex-column;
+    gap: $space-1;
+  }
+
+  &__activityText {
+    @include body-sm;
+    color: var(--color-text);
+  }
+
+  &__activityTime {
+    @include caption;
+    color: var(--color-text-tertiary);
+  }
+}

@@ -90,6 +90,7 @@
 ### 2.2 Commit Message Conventions
 
 - [ ] **KG-VC-011**: Define commit message format
+
   ```
   kg(<scope>): <action> <entity-type> <entity-id>
 
@@ -101,6 +102,7 @@
   Author: <user-id>
   Agent-Session: <session-id if agent-initiated>
   ```
+
 - [ ] **KG-VC-012**: Define commit scopes
   - `spec` — spec create/update/delete
   - `edge` — edge create/update/delete
@@ -322,7 +324,7 @@
     fromDate: string;
     toDate: string;
     hunks: DiffHunk[];
-    stats: { additions: number, deletions: number, changes: number };
+    stats: { additions: number; deletions: number; changes: number };
   }
   interface DiffHunk {
     fromStart: number;
@@ -690,7 +692,12 @@
   interface MergeConflict {
     specId: string;
     file: 'spec.json' | 'content.md' | 'metadata.json';
-    type: 'content-conflict' | 'metadata-conflict' | 'status-conflict' | 'delete-modify' | 'both-created';
+    type:
+      | 'content-conflict'
+      | 'metadata-conflict'
+      | 'status-conflict'
+      | 'delete-modify'
+      | 'both-created';
     ours: string;
     theirs: string;
     base?: string;
@@ -800,7 +807,7 @@
     };
     commitCount: number;
     authors: string[];
-    dateRange: { from: string, to: string };
+    dateRange: { from: string; to: string };
   }
   ```
 - [ ] **KG-VC-093**: Implement file-path-to-entity-ID mapping for deltas
@@ -1051,26 +1058,27 @@
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. Git Repository Setup | 7 (KG-VC-001 through KG-VC-007) |
-| 2. Commit Strategy | 11 (KG-VC-008 through KG-VC-018) |
-| 3. Spec-Level Version Tracking | 10 (KG-VC-019 through KG-VC-028) |
-| 4. History Retrieval | 8 (KG-VC-029 through KG-VC-036) |
-| 5. Diff Generation | 11 (KG-VC-037 through KG-VC-047) |
-| 6. Revert Operations | 10 (KG-VC-048 through KG-VC-057) |
-| 7. Branch Management | 10 (KG-VC-058 through KG-VC-067) |
-| 8. Merge Strategy | 11 (KG-VC-068 through KG-VC-078) |
-| 9. Conflict Detection & Resolution | 12 (KG-VC-079 through KG-VC-090) |
-| 10. Delta Detection | 8 (KG-VC-091 through KG-VC-098) |
-| 11. Change Tracking & Agent Triggers | 7 (KG-VC-099 through KG-VC-105) |
-| 12. Audit Trail | 7 (KG-VC-106 through KG-VC-112) |
-| 13. Performance & Optimization | 12 (KG-VC-113 through KG-VC-124) |
-| **TOTAL** | **124** |
+| Section                              | Tasks                            |
+| ------------------------------------ | -------------------------------- |
+| 1. Git Repository Setup              | 7 (KG-VC-001 through KG-VC-007)  |
+| 2. Commit Strategy                   | 11 (KG-VC-008 through KG-VC-018) |
+| 3. Spec-Level Version Tracking       | 10 (KG-VC-019 through KG-VC-028) |
+| 4. History Retrieval                 | 8 (KG-VC-029 through KG-VC-036)  |
+| 5. Diff Generation                   | 11 (KG-VC-037 through KG-VC-047) |
+| 6. Revert Operations                 | 10 (KG-VC-048 through KG-VC-057) |
+| 7. Branch Management                 | 10 (KG-VC-058 through KG-VC-067) |
+| 8. Merge Strategy                    | 11 (KG-VC-068 through KG-VC-078) |
+| 9. Conflict Detection & Resolution   | 12 (KG-VC-079 through KG-VC-090) |
+| 10. Delta Detection                  | 8 (KG-VC-091 through KG-VC-098)  |
+| 11. Change Tracking & Agent Triggers | 7 (KG-VC-099 through KG-VC-105)  |
+| 12. Audit Trail                      | 7 (KG-VC-106 through KG-VC-112)  |
+| 13. Performance & Optimization       | 12 (KG-VC-113 through KG-VC-124) |
+| **TOTAL**                            | **124**                          |
 
 ### Dependencies (What This Plan Enables)
 
 Completion of this plan unblocks:
+
 - `02-FRONTEND/08-VERSION-CONTROL-UI-PLAN.md` — needs diff, history, revert, branch, merge APIs
 - `06-AGENT-SYSTEM/05-PLAN-GENERATION-PLAN.md` — needs delta detection for incremental plans
 - `10-COLLABORATION/PLAN.md` — needs branch, merge, conflict resolution for multi-user sync
@@ -1079,6 +1087,7 @@ Completion of this plan unblocks:
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] Commits are created with conventional messages and structured metadata
 - [ ] Per-spec version history is derivable from git log
 - [ ] Diffs are generated at content, metadata, and spec.json levels

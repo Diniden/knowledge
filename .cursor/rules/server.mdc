@@ -1,0 +1,64 @@
+---
+description: NestJS conventions and patterns for the server workspace
+globs: server/**/*.ts
+alwaysApply: false
+---
+
+# Server Conventions (NestJS)
+
+## Architecture
+
+- One NestJS module per feature domain: `auth`, `users`, `specs`, `graph`, `agent`, `health`, `database`, etc.
+- Each module folder contains: `*.module.ts`, `*.controller.ts`, `*.service.ts`, `*.dto.ts`, and co-located `*.test.ts` files.
+- Use NestJS dependency injection for all service dependencies.
+
+## Module Structure
+
+```
+server/src/modules/{feature}/
+├── {feature}.module.ts        # NestJS module definition
+├── {feature}.controller.ts    # HTTP route handlers
+├── {feature}.service.ts       # Business logic
+├── {feature}.dto.ts           # Request/response DTOs
+├── {feature}.guard.ts         # Auth/permission guards (if needed)
+├── {feature}.controller.test.ts  # Controller unit tests
+└── {feature}.service.test.ts     # Service unit tests
+```
+
+## Controllers
+
+- Handle HTTP concerns only: parse request, call service, return response.
+- Use decorators: `@Controller`, `@Get`, `@Post`, `@Put`, `@Delete`, `@Param`, `@Body`, `@Query`.
+- Use DTOs with `class-validator` decorators for request validation.
+- Return typed responses using shared types from `@kg/shared`.
+
+## Services
+
+- Contain all business logic. Controllers delegate to services.
+- Inject dependencies via constructor: `constructor(private readonly fooService: FooService)`.
+- Use `@Injectable()` decorator.
+- Throw NestJS exceptions (`NotFoundException`, `ForbiddenException`, etc.) for error cases.
+
+## Database
+
+- Use Drizzle ORM with the `DRIZZLE` injection token from `DatabaseModule`.
+- Inject via `@Inject(DRIZZLE)`.
+- All database access goes through services, never directly in controllers.
+
+## Auth
+
+- JWT-based auth with http-only cookies.
+- Use `@UseGuards(JwtAuthGuard)` on protected endpoints.
+- Access authenticated user via custom `@CurrentUser()` decorator.
+
+## Testing
+
+- Unit tests mock all dependencies via NestJS `Test.createTestingModule().overrideProvider().useValue()`.
+- Integration tests (`.integration.test.ts`) use real database connections.
+- Use `bun:test` (`describe`, `test`, `expect`).
+
+## ESM
+
+- The server runs as ESM. Use `.js` extensions in all relative imports.
+- Use `reflect-metadata` for decorator support.
+- TypeScript config enables `emitDecoratorMetadata` and `experimentalDecorators`.

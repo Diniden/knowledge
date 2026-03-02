@@ -938,21 +938,21 @@
 
 ## Summary
 
-| Section | Task Range | Count |
-|---------|-----------|-------|
-| 1. Password Hashing (bcrypt) | SV-AUTH-001 – 008 | 8 |
-| 2. JWT Token Management | SV-AUTH-009 – 018 | 10 |
-| 3. HTTP-Only Cookie Configuration | SV-AUTH-019 – 026 | 8 |
-| 4. Authentication Guards | SV-AUTH-027 – 032 | 6 |
-| 5. Passport Strategies | SV-AUTH-033 – 037 | 5 |
-| 6. Role-Based Access Control | SV-AUTH-038 – 046 | 9 |
-| 7. Spec-Level Permission Enforcement | SV-AUTH-047 – 055 | 9 |
-| 8. Registration Flow | SV-AUTH-056 – 061 | 6 |
-| 9. Login Flow | SV-AUTH-062 – 067 | 6 |
-| 10. Token Refresh Flow | SV-AUTH-068 – 072 | 5 |
-| 11. Logout & Token Revocation | SV-AUTH-073 – 077 | 5 |
-| 12. Password Reset Flow | SV-AUTH-078 – 081 | 4 |
-| 13. Session Management | SV-AUTH-082 – 088 | 7 |
-| 14. CSRF Protection | SV-AUTH-089 – 093 | 5 |
-| 15. Security Hardening | SV-AUTH-094 – 105 | 12 |
-| **TOTAL** | | **105** |
+| Section                              | Task Range        | Count   |
+| ------------------------------------ | ----------------- | ------- |
+| 1. Password Hashing (bcrypt)         | SV-AUTH-001 – 008 | 8       |
+| 2. JWT Token Management              | SV-AUTH-009 – 018 | 10      |
+| 3. HTTP-Only Cookie Configuration    | SV-AUTH-019 – 026 | 8       |
+| 4. Authentication Guards             | SV-AUTH-027 – 032 | 6       |
+| 5. Passport Strategies               | SV-AUTH-033 – 037 | 5       |
+| 6. Role-Based Access Control         | SV-AUTH-038 – 046 | 9       |
+| 7. Spec-Level Permission Enforcement | SV-AUTH-047 – 055 | 9       |
+| 8. Registration Flow                 | SV-AUTH-056 – 061 | 6       |
+| 9. Login Flow                        | SV-AUTH-062 – 067 | 6       |
+| 10. Token Refresh Flow               | SV-AUTH-068 – 072 | 5       |
+| 11. Logout & Token Revocation        | SV-AUTH-073 – 077 | 5       |
+| 12. Password Reset Flow              | SV-AUTH-078 – 081 | 4       |
+| 13. Session Management               | SV-AUTH-082 – 088 | 7       |
+| 14. CSRF Protection                  | SV-AUTH-089 – 093 | 5       |
+| 15. Security Hardening               | SV-AUTH-094 – 105 | 12      |
+| **TOTAL**                            |                   | **105** |

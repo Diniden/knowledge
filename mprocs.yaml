@@ -1,0 +1,10 @@
+procs:
+  shared:
+    shell: 'cd shared && bun run dev'
+    prefix: '[shared]'
+  server:
+    shell: 'cd server && bun run dev'
+    prefix: '[server]'
+  client:
+    shell: 'cd client && bun run dev'
+    prefix: '[client]'

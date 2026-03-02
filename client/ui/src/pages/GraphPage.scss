@@ -1,0 +1,13 @@
+.GraphPage {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  margin: -#{$space-6};
+
+  &__canvasWrapper {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+  }
+}

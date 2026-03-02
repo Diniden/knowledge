@@ -241,9 +241,16 @@
 - [ ] **RAG-021**: Define vector store abstraction interface
   ```typescript
   interface VectorStore {
-    upsert(id: string, vector: number[], metadata: Record<string, unknown>): Promise<void>;
+    upsert(
+      id: string,
+      vector: number[],
+      metadata: Record<string, unknown>,
+    ): Promise<void>;
     upsertBatch(items: VectorItem[]): Promise<void>;
-    search(queryVector: number[], options: SearchOptions): Promise<SearchResult[]>;
+    search(
+      queryVector: number[],
+      options: SearchOptions,
+    ): Promise<SearchResult[]>;
     delete(id: string): Promise<void>;
     deleteBatch(ids: string[]): Promise<void>;
     count(): Promise<number>;
@@ -309,7 +316,7 @@
   - Auto-save on interval (every 5 minutes if dirty)
   - Load from disk on startup; rebuild if missing
 - [ ] **RAG-027**: Implement FAISS metadata filtering
-  - Post-filter: search FAISS for topK * 3, then apply metadata filters, take topK
+  - Post-filter: search FAISS for topK \* 3, then apply metadata filters, take topK
   - Less efficient than pgvector's native filtering but simpler
 
 #### Design Decisions
@@ -582,12 +589,12 @@
 - [ ] **RAG-056**: Define scoring configuration
   ```typescript
   interface ScoringConfig {
-    recencyBoostWeight: number;       // default 0.1
-    recencyHalfLifeDays: number;      // default 90
+    recencyBoostWeight: number; // default 0.1
+    recencyHalfLifeDays: number; // default 90
     statusBoost: Record<string, number>; // active: 1.0, draft: 0.9, deprecated: 0.7
-    tagOverlapBoostWeight: number;    // default 0.15
-    edgeCountBoostWeight: number;     // default 0.05
-    edgeCountCap: number;             // default 20
+    tagOverlapBoostWeight: number; // default 0.15
+    edgeCountBoostWeight: number; // default 0.05
+    edgeCountCap: number; // default 20
   }
   ```
 - [ ] **RAG-057**: Implement score normalization
@@ -659,7 +666,7 @@
 - [ ] **RAG-067**: Define combined filter type
   ```typescript
   interface RAGFilter {
-    tags?: { values: string[], mode: 'all' | 'any' };
+    tags?: { values: string[]; mode: 'all' | 'any' };
     status?: string[];
     author?: string;
     documentId?: string;
@@ -1040,17 +1047,17 @@
 - [ ] **RAG-109**: Define RAG configuration schema
   ```typescript
   interface RagConfig {
-    embeddingProvider: 'local' | 'api';   // default: 'local'
-    embeddingModelPath: string;            // local model path (default: auto-downloads nomic-embed-text)
-    embeddingApiModel?: string;            // API model name (only if provider='api')
-    embeddingDimensions: number;           // default: 768 (nomic-embed-text)
+    embeddingProvider: 'local' | 'api'; // default: 'local'
+    embeddingModelPath: string; // local model path (default: auto-downloads nomic-embed-text)
+    embeddingApiModel?: string; // API model name (only if provider='api')
+    embeddingDimensions: number; // default: 768 (nomic-embed-text)
     vectorStore: 'pgvector' | 'faiss';
     chunkMaxTokens: number;
     chunkOverlapTokens: number;
     searchDefaultTopK: number;
     searchDefaultThreshold: number;
     indexingBatchSize: number;
-    indexingConcurrency: number;           // default: 2 for local, 5 for API
+    indexingConcurrency: number; // default: 2 for local, 5 for API
     scoringConfig: ScoringConfig;
   }
   ```
@@ -1065,27 +1072,28 @@
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. Embedding Model | 9 (RAG-001 through RAG-009) |
-| 2. Chunking Strategy | 9 (RAG-010 through RAG-018) |
-| 3. Vector Store | 9 (RAG-019 through RAG-027) |
-| 4. Index Build Pipeline | 6 (RAG-028 through RAG-033) |
-| 5. Incremental Indexing | 10 (RAG-034 through RAG-043) |
-| 6. Query Pipeline | 10 (RAG-044 through RAG-053) |
-| 7. Relevance Scoring & Ranking | 6 (RAG-054 through RAG-059) |
-| 8. Result Filtering | 8 (RAG-060 through RAG-067) |
-| 9. Version-Aware Indexing | 5 (RAG-068 through RAG-072) |
-| 10. Knowledge Graph Integration | 8 (RAG-073 through RAG-080) |
-| 11. Orphan Positioning | 5 (RAG-081 through RAG-085) |
-| 12. Performance Optimization | 9 (RAG-086 through RAG-094) |
-| 13. Monitoring & Quality Metrics | 8 (RAG-095 through RAG-102) |
-| 14. RAG Service API | 8 (RAG-103 through RAG-110) |
-| **TOTAL** | **110** |
+| Section                          | Tasks                        |
+| -------------------------------- | ---------------------------- |
+| 1. Embedding Model               | 9 (RAG-001 through RAG-009)  |
+| 2. Chunking Strategy             | 9 (RAG-010 through RAG-018)  |
+| 3. Vector Store                  | 9 (RAG-019 through RAG-027)  |
+| 4. Index Build Pipeline          | 6 (RAG-028 through RAG-033)  |
+| 5. Incremental Indexing          | 10 (RAG-034 through RAG-043) |
+| 6. Query Pipeline                | 10 (RAG-044 through RAG-053) |
+| 7. Relevance Scoring & Ranking   | 6 (RAG-054 through RAG-059)  |
+| 8. Result Filtering              | 8 (RAG-060 through RAG-067)  |
+| 9. Version-Aware Indexing        | 5 (RAG-068 through RAG-072)  |
+| 10. Knowledge Graph Integration  | 8 (RAG-073 through RAG-080)  |
+| 11. Orphan Positioning           | 5 (RAG-081 through RAG-085)  |
+| 12. Performance Optimization     | 9 (RAG-086 through RAG-094)  |
+| 13. Monitoring & Quality Metrics | 8 (RAG-095 through RAG-102)  |
+| 14. RAG Service API              | 8 (RAG-103 through RAG-110)  |
+| **TOTAL**                        | **110**                      |
 
 ### Dependencies (What This Plan Enables)
 
 Completion of this plan unblocks:
+
 - `06-AGENT-SYSTEM/03-MCP-SERVERS-PLAN.md` — needs RAG search API for agent tools
 - `06-AGENT-SYSTEM/05-PLAN-GENERATION-PLAN.md` — needs RAG for context retrieval during plan generation
 - `04-KNOWLEDGE-GRAPH/02-OPERATIONS-PLAN.md` — needs RAG for orphan positioning and edge discovery
@@ -1093,6 +1101,7 @@ Completion of this plan unblocks:
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] Embedding provider is configured and generating embeddings
 - [ ] Chunking strategy produces well-formed chunks for all spec sizes
 - [ ] Vector store is operational and receiving embeddings

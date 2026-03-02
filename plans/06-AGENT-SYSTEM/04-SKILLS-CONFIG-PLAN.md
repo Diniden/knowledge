@@ -45,27 +45,35 @@
 ### 1.1 CLAUDE.md Structure
 
 - [ ] **AG-SK-001**: Define the canonical CLAUDE.md structure for all agent types
+
   ```markdown
   # {Project Name} — {Agent Role}
 
   ## Identity
+
   You are a {role description} for the {project name} knowledge system.
 
   ## Available Tools
+
   {tool list with brief descriptions}
 
   ## Knowledge Graph Context
+
   {project stats, key topics, recent changes}
 
   ## Skills
+
   {references to skill files for this agent type}
 
   ## Rules
+
   {behavior constraints and guidelines}
 
   ## Output Format
+
   {expected output structure}
   ```
+
 - [ ] **AG-SK-002**: Implement CLAUDE.md section registry
   - Define all possible sections and their order
   - Mark sections as required or optional per agent type
@@ -300,27 +308,35 @@
 ### 3.1 Skill File Format
 
 - [ ] **AG-SK-030**: Define skill file standard format
+
   ```markdown
   # Skill: {Skill Name}
 
   ## Purpose
+
   {What this skill enables the agent to do}
 
   ## When to Use
+
   {Conditions under which this skill applies}
 
   ## Procedure
+
   {Step-by-step instructions}
 
   ## Tools Required
+
   {MCP tools this skill uses}
 
   ## Examples
+
   {Input/output examples}
 
   ## Common Mistakes
+
   {What to avoid}
   ```
+
 - [ ] **AG-SK-031**: Create skill file directory structure
   ```
   packages/agent-skills/
@@ -577,25 +593,42 @@
 - [ ] **AG-SK-047**: Write `plan-formatting.skill.md`
   - Purpose: Guide agent through writing well-structured plan files
   - Master plan format:
+
     ```markdown
     # Master Plan: {Root Spec Title}
+
     ## Overview
+
     {Plan summary}
+
     ## Dependencies
+
     {External dependencies and prerequisites}
+
     ## Directory Structure
+
     {Plan directory tree with descriptions}
+
     ## Execution Order
+
     {Which directories run in parallel, which files are serial}
     ```
+
   - Directory plan format:
+
     ```markdown
     # {Directory Name} Plan
+
     ## Specs Covered
+
     {List of specs this directory addresses}
+
     ## Parallel with
+
     {Other directories that can execute simultaneously}
+
     ## Steps
+
     1. {Step with spec reference}
     2. {Step with spec reference}
     ```
@@ -749,14 +782,14 @@
 ### 10.1 Token Budget Allocation
 
 - [ ] **AG-SK-061**: Define token budget allocation per agent type
-  | Agent Type | System Prompt | CLAUDE.md | Skills | Context | History | User Msg | Output Buffer | Total |
-  |---|---|---|---|---|---|---|---|---|
-  | Orchestrator | 500 | 500 | 200 | 1,000 | 500 | 500 | 1,000 | 4,200 |
-  | Knowledge Graph | 1,000 | 1,500 | 2,000 | 30,000 | 5,000 | 2,000 | 10,000 | 51,500 |
-  | Dialog | 800 | 1,000 | 1,000 | 15,000 | 5,000 | 2,000 | 5,000 | 29,800 |
-  | Generative UI | 1,500 | 1,500 | 3,000 | 20,000 | 3,000 | 5,000 | 30,000 | 64,000 |
-  | Plan Gen | 1,500 | 2,000 | 3,000 | 40,000 | 2,000 | 5,000 | 50,000 | 103,500 |
-  | Graph Crawler | 1,000 | 1,500 | 2,000 | 30,000 | 1,000 | 2,000 | 10,000 | 47,500 |
+      | Agent Type | System Prompt | CLAUDE.md | Skills | Context | History | User Msg | Output Buffer | Total |
+      |---|---|---|---|---|---|---|---|---|
+      | Orchestrator | 500 | 500 | 200 | 1,000 | 500 | 500 | 1,000 | 4,200 |
+      | Knowledge Graph | 1,000 | 1,500 | 2,000 | 30,000 | 5,000 | 2,000 | 10,000 | 51,500 |
+      | Dialog | 800 | 1,000 | 1,000 | 15,000 | 5,000 | 2,000 | 5,000 | 29,800 |
+      | Generative UI | 1,500 | 1,500 | 3,000 | 20,000 | 3,000 | 5,000 | 30,000 | 64,000 |
+      | Plan Gen | 1,500 | 2,000 | 3,000 | 40,000 | 2,000 | 5,000 | 50,000 | 103,500 |
+      | Graph Crawler | 1,000 | 1,500 | 2,000 | 30,000 | 1,000 | 2,000 | 10,000 | 47,500 |
 - [ ] **AG-SK-062**: Implement budget allocation engine
   - Accept agent type and model context window size
   - Calculate budget per section based on allocation table
@@ -1041,6 +1074,7 @@
 
 - [ ] **AG-SK-094**: Define KG agent output structure
   - For CRUD operations:
+
     ```
     [Natural language summary of what was done]
 
@@ -1054,7 +1088,9 @@
     **Follow-up Actions:**
     - [suggestions for next steps]
     ```
+
   - For graph queries:
+
     ```
     [Natural language description of results]
 
@@ -1069,6 +1105,7 @@
 ### 14.3 Dialog Agent Output
 
 - [ ] **AG-SK-095**: Define dialog agent output structure
+
   ```
   [Answer to the user's question]
 
@@ -1086,6 +1123,7 @@
 ### 14.4 Generative UI Agent Output
 
 - [ ] **AG-SK-096**: Define gen-UI agent output structure
+
   ```
   [Description of what was created]
 
@@ -1104,6 +1142,7 @@
 ### 14.5 Plan Generation Agent Output
 
 - [ ] **AG-SK-097**: Define plan gen agent output structure
+
   ```
   [Plan generation summary]
 
@@ -1128,6 +1167,7 @@
 ### 14.6 Graph Crawler Agent Output
 
 - [ ] **AG-SK-098**: Define crawler agent output structure
+
   ```
   [Crawl summary]
 
@@ -1211,27 +1251,28 @@
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. CLAUDE.md Configuration System | 10 (AG-SK-001 through AG-SK-010) |
-| 2. System Prompt Design | 19 (AG-SK-011 through AG-SK-029) |
-| 3. Skills File Architecture | 4 (AG-SK-030 through AG-SK-033) |
-| 4. Knowledge Graph Skills | 5 (AG-SK-034 through AG-SK-038) |
-| 5. Dialog & Communication Skills | 4 (AG-SK-039 through AG-SK-042) |
-| 6. Generative UI Skills | 3 (AG-SK-043 through AG-SK-045) |
-| 7. Plan Generation Skills | 3 (AG-SK-046 through AG-SK-048) |
-| 8. Graph Analysis Skills | 4 (AG-SK-049 through AG-SK-052) |
-| 9. Prompt Templates | 8 (AG-SK-053 through AG-SK-060) |
-| 10. Context Window Management | 6 (AG-SK-061 through AG-SK-066) |
-| 11. Few-Shot Examples | 12 (AG-SK-067 through AG-SK-078) |
-| 12. Tool Usage Guidelines | 6 (AG-SK-079 through AG-SK-084) |
-| 13. Agent Behavior Rules & Constraints | 8 (AG-SK-085 through AG-SK-092) |
-| 14. Output Format Specifications | 8 (AG-SK-093 through AG-SK-100) |
-| **TOTAL** | **100** |
+| Section                                | Tasks                            |
+| -------------------------------------- | -------------------------------- |
+| 1. CLAUDE.md Configuration System      | 10 (AG-SK-001 through AG-SK-010) |
+| 2. System Prompt Design                | 19 (AG-SK-011 through AG-SK-029) |
+| 3. Skills File Architecture            | 4 (AG-SK-030 through AG-SK-033)  |
+| 4. Knowledge Graph Skills              | 5 (AG-SK-034 through AG-SK-038)  |
+| 5. Dialog & Communication Skills       | 4 (AG-SK-039 through AG-SK-042)  |
+| 6. Generative UI Skills                | 3 (AG-SK-043 through AG-SK-045)  |
+| 7. Plan Generation Skills              | 3 (AG-SK-046 through AG-SK-048)  |
+| 8. Graph Analysis Skills               | 4 (AG-SK-049 through AG-SK-052)  |
+| 9. Prompt Templates                    | 8 (AG-SK-053 through AG-SK-060)  |
+| 10. Context Window Management          | 6 (AG-SK-061 through AG-SK-066)  |
+| 11. Few-Shot Examples                  | 12 (AG-SK-067 through AG-SK-078) |
+| 12. Tool Usage Guidelines              | 6 (AG-SK-079 through AG-SK-084)  |
+| 13. Agent Behavior Rules & Constraints | 8 (AG-SK-085 through AG-SK-092)  |
+| 14. Output Format Specifications       | 8 (AG-SK-093 through AG-SK-100)  |
+| **TOTAL**                              | **100**                          |
 
 ### Dependencies (What This Plan Enables)
 
 Completion of this plan unblocks:
+
 - `06-AGENT-SYSTEM/02-CLAUDE-CODE-WRAPPER-PLAN.md` (prompt templates section) — needs system prompts and CLAUDE.md format
 - `06-AGENT-SYSTEM/05-PLAN-GENERATION-PLAN.md` — needs plan generation skills and output format
 - `08-TESTING/04-AGENT-TESTING-PLAN.md` — needs expected output formats for assertion
@@ -1240,6 +1281,7 @@ Completion of this plan unblocks:
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] CLAUDE.md generation produces valid, token-budgeted files per agent type
 - [ ] System prompts exist for all 6 agent types with comprehensive instructions
 - [ ] All skill files are written and follow the standard format

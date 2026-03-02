@@ -1,0 +1,30 @@
+---
+description: Security practices for server and client code
+globs:
+  - "server/src/**/*.ts"
+  - "client/ui/src/**/*.ts"
+alwaysApply: false
+---
+
+# Security
+
+## Server-side
+
+- **Input validation**: Validate all inputs server-side with `class-validator` DTOs. Never trust client data.
+- **SQL injection**: Use Drizzle ORM's parameterized queries. No string concatenation in queries.
+- **Rate limiting**: Apply rate limits on auth endpoints (login, register, password reset) and any public-facing APIs.
+- **Secrets management**: No secrets, API keys, or credentials in source code. Use environment variables loaded from `.env` files (which are `.gitignore`d).
+- **CSRF protection**: Use SameSite cookies and CSRF tokens for state-changing requests.
+- **Dependency security**: Audit dependencies regularly with `bun audit`.
+
+## Client-side
+
+- **XSS prevention**: React auto-escapes by default. Never use `dangerouslySetInnerHTML` unless the content is sanitized (use DOMPurify and add a comment).
+- **Sensitive data**: Never store tokens, passwords, or PII in localStorage or sessionStorage. Auth tokens belong in http-only cookies.
+- **Content Security Policy**: Configure CSP headers to restrict script sources.
+
+## Anti-patterns
+
+- Using `dangerouslySetInnerHTML` with unsanitized user input.
+- Logging sensitive data (passwords, tokens, PII) even at debug level.
+- Disabling CORS entirely instead of configuring allowed origins.

@@ -234,7 +234,14 @@
       "createdAt": { "type": "string", "format": "date-time" },
       "updatedAt": { "type": "string", "format": "date-time" }
     },
-    "required": ["id", "title", "status", "schemaVersion", "createdAt", "updatedAt"]
+    "required": [
+      "id",
+      "title",
+      "status",
+      "schemaVersion",
+      "createdAt",
+      "updatedAt"
+    ]
   }
   ```
 - [ ] **KG-ARCH-023**: Define spec status lifecycle
@@ -283,7 +290,11 @@
       "specId": { "type": "string" },
       "author": { "type": "string" },
       "contributors": { "type": "array", "items": { "type": "string" } },
-      "tags": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+      "tags": {
+        "type": "array",
+        "items": { "type": "string" },
+        "uniqueItems": true
+      },
       "permissions": { "$ref": "#/$defs/permissions" },
       "summary": { "type": "string", "maxLength": 1000 },
       "embedding": { "$ref": "#/$defs/embedding" },
@@ -303,6 +314,7 @@
   - Maximum tags per spec: 50
   - Tags are used for filtering, grouping, and RAG metadata
 - [ ] **KG-ARCH-033**: Define the permissions schema
+
   ```json
   {
     "$defs": {
@@ -326,14 +338,17 @@
     }
   }
   ```
+
   - `public` visibility: all users have at least `defaultLevel` access
   - `restricted` visibility: only users in `accessList` have access
   - Anti-siloing: `summary` level always available (never "no access")
+
 - [ ] **KG-ARCH-034**: Define the summary field
   - Auto-generated or human-written summary of the spec (max 1000 chars)
   - Used for summary-level access (users who can't see full content)
   - Agent can auto-generate summaries during spec creation/update
 - [ ] **KG-ARCH-035**: Define the embedding schema
+
   ```json
   {
     "$defs": {
@@ -350,9 +365,11 @@
     }
   }
   ```
+
   - `model` — embedding model identifier (e.g., "text-embedding-3-small")
   - `vector` — the embedding vector (stored in metadata for portability)
   - `contentHash` — hash of content when embedding was generated (detect staleness)
+
 - [ ] **KG-ARCH-036**: Define the `documentIds` field
   - Array of document IDs this spec belongs to
   - A spec can belong to multiple documents (many-to-many)
@@ -397,7 +414,15 @@
     "type": "object",
     "properties": {
       "id": { "type": "string", "pattern": "^eg_[A-Za-z0-9_-]{21}$" },
-      "type": { "enum": ["derived-from", "depends-on", "related-to", "contradicts", "supersedes"] },
+      "type": {
+        "enum": [
+          "derived-from",
+          "depends-on",
+          "related-to",
+          "contradicts",
+          "supersedes"
+        ]
+      },
       "sourceSpecId": { "type": "string", "pattern": "^sp_" },
       "targetSpecId": { "type": "string", "pattern": "^sp_" },
       "metadata": { "$ref": "#/$defs/edgeMetadata" },
@@ -406,7 +431,17 @@
       "createdBy": { "type": "string" },
       "schemaVersion": { "type": "integer", "minimum": 1 }
     },
-    "required": ["id", "type", "sourceSpecId", "targetSpecId", "metadata", "createdAt", "updatedAt", "createdBy", "schemaVersion"]
+    "required": [
+      "id",
+      "type",
+      "sourceSpecId",
+      "targetSpecId",
+      "metadata",
+      "createdAt",
+      "updatedAt",
+      "createdBy",
+      "schemaVersion"
+    ]
   }
   ```
 - [ ] **KG-ARCH-039**: Define the fixed edge taxonomy
@@ -505,15 +540,31 @@
       "id": { "type": "string", "pattern": "^dc_[A-Za-z0-9_-]{21}$" },
       "title": { "type": "string", "minLength": 1, "maxLength": 500 },
       "description": { "type": "string", "maxLength": 2000 },
-      "specIds": { "type": "array", "items": { "type": "string", "pattern": "^sp_" } },
+      "specIds": {
+        "type": "array",
+        "items": { "type": "string", "pattern": "^sp_" }
+      },
       "author": { "type": "string" },
-      "tags": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+      "tags": {
+        "type": "array",
+        "items": { "type": "string" },
+        "uniqueItems": true
+      },
       "status": { "enum": ["draft", "published", "archived"] },
       "createdAt": { "type": "string", "format": "date-time" },
       "updatedAt": { "type": "string", "format": "date-time" },
       "schemaVersion": { "type": "integer", "minimum": 1 }
     },
-    "required": ["id", "title", "specIds", "author", "status", "createdAt", "updatedAt", "schemaVersion"]
+    "required": [
+      "id",
+      "title",
+      "specIds",
+      "author",
+      "status",
+      "createdAt",
+      "updatedAt",
+      "schemaVersion"
+    ]
   }
   ```
 - [ ] **KG-ARCH-050**: Define the `specIds` array as an ordered list
@@ -552,6 +603,7 @@
 ### 6.1 Spec Index
 
 - [ ] **KG-ARCH-054**: Define `indexes/spec-index.json` schema
+
   ```json
   {
     "type": "object",
@@ -573,8 +625,10 @@
     }
   }
   ```
+
   - Keys are spec IDs, values are summary info for fast listing
   - Avoids scanning every `specs/*/spec.json` for listing operations
+
 - [ ] **KG-ARCH-055**: Implement spec index builder
   - Scan all `specs/*/spec.json` files
   - Extract ID, title, status, updatedAt
@@ -588,6 +642,7 @@
 ### 6.2 Edge Index
 
 - [ ] **KG-ARCH-057**: Define `indexes/edge-index.json` schema
+
   ```json
   {
     "type": "object",
@@ -600,18 +655,27 @@
         "additionalProperties": {
           "type": "object",
           "properties": {
-            "outgoing": { "type": "array", "items": { "$ref": "#/$defs/edgeRef" } },
-            "incoming": { "type": "array", "items": { "$ref": "#/$defs/edgeRef" } }
+            "outgoing": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/edgeRef" }
+            },
+            "incoming": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/edgeRef" }
+            }
           }
         }
       }
     }
   }
   ```
+
   - `adjacency` keys are spec IDs
   - Each spec has `outgoing` edges (source = this spec) and `incoming` edges (target = this spec)
   - `edgeRef` includes edge ID, type, and the other spec ID for fast traversal
+
 - [ ] **KG-ARCH-058**: Define `edgeRef` sub-schema
+
   ```json
   {
     "$defs": {
@@ -628,7 +692,9 @@
     }
   }
   ```
+
   - Denormalized edge summary for graph traversal without loading full edge files
+
 - [ ] **KG-ARCH-059**: Implement edge index builder
   - Scan all `edges/*.json` files
   - Build bidirectional adjacency lists
@@ -638,6 +704,7 @@
 ### 6.3 Document Index
 
 - [ ] **KG-ARCH-060**: Define `indexes/document-index.json` schema
+
   ```json
   {
     "type": "object",
@@ -666,8 +733,10 @@
     }
   }
   ```
+
   - `documents` — document ID → summary for listing
   - `specToDocuments` — spec ID → array of document IDs (reverse lookup)
+
 - [ ] **KG-ARCH-061**: Implement document index builder
   - Scan all `documents/*/document.json` files
   - Build forward (doc → specs) and reverse (spec → docs) mappings
@@ -676,6 +745,7 @@
 ### 6.4 Tag Index
 
 - [ ] **KG-ARCH-062**: Define `indexes/tag-index.json` schema
+
   ```json
   {
     "type": "object",
@@ -692,7 +762,9 @@
     }
   }
   ```
+
   - Keys are tag names, values are arrays of spec IDs with that tag
+
 - [ ] **KG-ARCH-063**: Implement tag index builder
   - Scan all `specs/*/metadata.json` for `tags` arrays
   - Build inverted index: tag → [spec IDs]
@@ -864,6 +936,7 @@
 ### 9.1 Version Tracking
 
 - [ ] **KG-ARCH-087**: Define `schema-version.json` at the knowledge graph root
+
   ```json
   {
     "currentVersion": 1,
@@ -872,10 +945,12 @@
     "history": []
   }
   ```
+
   - `currentVersion` — the schema version all entities should conform to
   - `minimumReaderVersion` — oldest schema version readers must understand
   - `lastMigration` — timestamp and version of the most recent migration run
   - `history` — array of migration records
+
 - [ ] **KG-ARCH-088**: Define schema version in every entity JSON
   - `spec.json.schemaVersion`, `edge.json.schemaVersion`, `document.json.schemaVersion`
   - Allows entities to be at different schema versions during migration
@@ -1021,7 +1096,12 @@
     createdBy: string;
     schemaVersion: number;
   }
-  type EdgeType = 'derived-from' | 'depends-on' | 'related-to' | 'contradicts' | 'supersedes';
+  type EdgeType =
+    | 'derived-from'
+    | 'depends-on'
+    | 'related-to'
+    | 'contradicts'
+    | 'supersedes';
   ```
 - [ ] **KG-ARCH-107**: Define `EdgeMetadata` TypeScript interface
   ```typescript
@@ -1068,7 +1148,14 @@
     resolvedBy?: string;
     resolution?: string;
   }
-  type InquiryType = 'orphan-spec' | 'broken-edge' | 'contradiction' | 'missing-metadata' | 'stale-content' | 'suggested-edge' | 'quality-issue';
+  type InquiryType =
+    | 'orphan-spec'
+    | 'broken-edge'
+    | 'contradiction'
+    | 'missing-metadata'
+    | 'stale-content'
+    | 'suggested-edge'
+    | 'quality-issue';
   type InquiryStatus = 'open' | 'acknowledged' | 'resolved' | 'dismissed';
   ```
 - [ ] **KG-ARCH-110**: Define `SpecPermissions` TypeScript interface
@@ -1267,25 +1354,26 @@
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. Folder & File Layout | 13 (KG-ARCH-001 through KG-ARCH-013) |
-| 2. ID Generation Strategy | 8 (KG-ARCH-014 through KG-ARCH-021) |
-| 3. Spec (Node) Schema | 16 (KG-ARCH-022 through KG-ARCH-037) |
-| 4. Edge Schema | 11 (KG-ARCH-038 through KG-ARCH-048) |
-| 5. Spec Document Schema | 5 (KG-ARCH-049 through KG-ARCH-053) |
-| 6. Index Files | 16 (KG-ARCH-054 through KG-ARCH-069) |
-| 7. File Naming Conventions | 5 (KG-ARCH-070 through KG-ARCH-074) |
-| 8. Graph Integrity Constraints | 12 (KG-ARCH-075 through KG-ARCH-086) |
-| 9. Schema Versioning | 5 (KG-ARCH-087 through KG-ARCH-091) |
-| 10. Migration Strategy | 11 (KG-ARCH-092 through KG-ARCH-102) |
-| 11. Shared Types & Interfaces | 14 (KG-ARCH-103 through KG-ARCH-115, Note: 103-115 = 13 items) |
-| 12. Storage Layer Abstraction | 11 (KG-ARCH-116 through KG-ARCH-126) |
-| **TOTAL** | **126** |
+| Section                        | Tasks                                                          |
+| ------------------------------ | -------------------------------------------------------------- |
+| 1. Folder & File Layout        | 13 (KG-ARCH-001 through KG-ARCH-013)                           |
+| 2. ID Generation Strategy      | 8 (KG-ARCH-014 through KG-ARCH-021)                            |
+| 3. Spec (Node) Schema          | 16 (KG-ARCH-022 through KG-ARCH-037)                           |
+| 4. Edge Schema                 | 11 (KG-ARCH-038 through KG-ARCH-048)                           |
+| 5. Spec Document Schema        | 5 (KG-ARCH-049 through KG-ARCH-053)                            |
+| 6. Index Files                 | 16 (KG-ARCH-054 through KG-ARCH-069)                           |
+| 7. File Naming Conventions     | 5 (KG-ARCH-070 through KG-ARCH-074)                            |
+| 8. Graph Integrity Constraints | 12 (KG-ARCH-075 through KG-ARCH-086)                           |
+| 9. Schema Versioning           | 5 (KG-ARCH-087 through KG-ARCH-091)                            |
+| 10. Migration Strategy         | 11 (KG-ARCH-092 through KG-ARCH-102)                           |
+| 11. Shared Types & Interfaces  | 14 (KG-ARCH-103 through KG-ARCH-115, Note: 103-115 = 13 items) |
+| 12. Storage Layer Abstraction  | 11 (KG-ARCH-116 through KG-ARCH-126)                           |
+| **TOTAL**                      | **126**                                                        |
 
 ### Dependencies (What This Plan Enables)
 
 Completion of this plan unblocks:
+
 - `04-KNOWLEDGE-GRAPH/02-OPERATIONS-PLAN.md` — needs schemas, storage interface, index system
 - `04-KNOWLEDGE-GRAPH/03-VERSION-CONTROL-PLAN.md` — needs file layout, entity schemas
 - `05-RAG-LAYER/PLAN.md` — needs spec schema (embedding field), metadata structure
@@ -1297,6 +1385,7 @@ Completion of this plan unblocks:
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] All JSON schemas are defined and documented
 - [ ] Folder structure is created in the monorepo
 - [ ] ID generation utilities are implemented and tested

@@ -1,0 +1,39 @@
+---
+description: Authentication and authorization patterns
+globs:
+  - "server/src/modules/auth/**/*.ts"
+  - "server/src/**/*.guard.ts"
+alwaysApply: false
+---
+
+# Server Auth
+
+## Authentication
+
+- JWT tokens stored in http-only, secure, SameSite cookies — never in localStorage.
+- Passwords hashed with `bcrypt` (minimum 12 rounds).
+- Token refresh handled server-side; clients receive new cookies transparently.
+
+## Authorization
+
+- Protect endpoints with `@UseGuards(JwtAuthGuard)`.
+- Role-based access via `@Roles('admin', 'editor')` decorator + `RolesGuard`.
+- Access the authenticated user with `@CurrentUser()` parameter decorator.
+
+## Example
+
+```typescript
+@Post('publish')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('editor', 'admin')
+async publishSpec(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+  return this.specService.publish(id, user.id);
+}
+```
+
+## Rules
+
+- No secrets, tokens, or credentials in source code — use environment variables.
+- Rate-limit auth endpoints (login, register, refresh) to prevent brute-force.
+- Log authentication failures with context (IP, user agent) for audit.
+- Invalidate tokens on password change.

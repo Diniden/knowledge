@@ -1,0 +1,131 @@
+.Button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-2;
+  font-weight: $font-weight-medium;
+  border-radius: $radius-lg;
+  cursor: pointer;
+  border: $border-width-thin solid transparent;
+  @include transition(background-color, color, border-color, box-shadow);
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  // Sizes
+  &--sm {
+    height: 32px;
+    padding: 0 $space-3;
+    font-size: $font-size-sm;
+  }
+
+  &--md {
+    height: 40px;
+    padding: 0 $space-4;
+    font-size: $font-size-sm;
+  }
+
+  &--lg {
+    height: 48px;
+    padding: 0 $space-6;
+    font-size: $font-size-base;
+  }
+
+  // Variants
+  &--primary {
+    background-color: var(--color-primary);
+    color: var(--color-primary-text);
+
+    &:hover:not(:disabled) {
+      background-color: var(--color-primary-hover);
+    }
+
+    &:active:not(:disabled) {
+      background-color: var(--color-primary-hover);
+      transform: scale(0.98);
+    }
+  }
+
+  &--secondary {
+    background-color: transparent;
+    color: var(--color-text);
+    border-color: var(--color-border);
+
+    &:hover:not(:disabled) {
+      background-color: var(--color-interactive-hover);
+    }
+
+    &:active:not(:disabled) {
+      background-color: var(--color-interactive-active);
+    }
+  }
+
+  &--ghost {
+    background-color: transparent;
+    color: var(--color-text-secondary);
+
+    &:hover:not(:disabled) {
+      background-color: var(--color-interactive-hover);
+      color: var(--color-text);
+    }
+
+    &:active:not(:disabled) {
+      background-color: var(--color-interactive-active);
+    }
+  }
+
+  &--danger {
+    background-color: var(--color-error);
+    color: #fff;
+
+    &:hover:not(:disabled) {
+      background-color: #{$error-700};
+    }
+
+    &:active:not(:disabled) {
+      background-color: #{$error-700};
+      transform: scale(0.98);
+    }
+  }
+
+  &--fullWidth {
+    width: 100%;
+  }
+
+  &--loading {
+    position: relative;
+  }
+
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+
+    &--left {
+      margin-right: 0;
+    }
+    &--right {
+      margin-left: 0;
+    }
+  }
+
+  &__label {
+    @include truncate-text;
+  }
+
+  &__spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: $radius-full;
+    animation: spin $duration-slower linear infinite;
+  }
+}

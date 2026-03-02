@@ -9,6 +9,7 @@
 ## 1. ORM & Query Layer
 
 ### 1.1 Library Selection
+
 - **Q**: Should the project use Drizzle ORM (lightweight, SQL-close, excellent
   TypeScript inference) or Prisma (schema-first, powerful migrations, larger
   runtime)? Drizzle is more ESM-native and lighter; Prisma has a richer
@@ -35,6 +36,7 @@
 **A:** N/A — using Drizzle, not Prisma.
 
 ### 1.2 Raw SQL vs ORM
+
 - **Q**: Should performance-critical queries (e.g., permission checks, audit
   log queries, notification counts) use raw SQL instead of ORM abstractions?
   Raw SQL gives full control over query plans but loses type safety.
@@ -51,6 +53,7 @@
 ## 2. Schema Design
 
 ### 2.1 ID Strategy
+
 - **Q**: Should primary keys be UUIDs (globally unique, no conflicts in
   distributed scenarios) or auto-incrementing integers (smaller, faster joins,
   natural ordering)? UUIDs are recommended for a system that may sync between
@@ -72,6 +75,7 @@
 **A:** Yes, create a lightweight `spec_registry` table: `{ spec_id VARCHAR PRIMARY KEY, title TEXT, status VARCHAR, project_id UUID, created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ }`. This table mirrors key spec metadata from the JSON files and enables: efficient permission joins, fast spec listing/filtering without reading JSON files, and referential integrity for `spec_permissions.spec_id`. The registry is updated synchronously whenever a spec is created, updated, or deleted. It is NOT the source of truth (JSON files are) — it's a query accelerator.
 
 ### 2.2 JSONB vs Normalized Columns
+
 - **Q**: `settings_json`, `context_json`, `metadata_json`, `parameters_json`,
   `payload_json`, `details_json`, and `result_json` are all JSONB columns.
   Should any of these be normalized into proper columns? JSONB is flexible but
@@ -100,6 +104,7 @@ General rule: if the data is queried by its contents, normalize it. If it's stor
 **A:** Discriminated union validated at the application layer. The `notification_queue` table has a `type VARCHAR` column that determines the expected payload structure. TypeScript discriminated union types (`type SpecUpdatedPayload = { specId: string, changes: ... }`, etc.) validate the payload on read/write. One table is simpler to query, index, and manage than N notification-type-specific tables.
 
 ### 2.3 Enum Strategy
+
 - **Q**: Should status/type fields use PostgreSQL `CREATE TYPE ... AS ENUM` or
   `VARCHAR + CHECK` constraints? Enums are type-safe and faster but painful to
   modify (adding values requires `ALTER TYPE`; removing values is impossible
@@ -114,6 +119,7 @@ General rule: if the data is queried by its contents, normalize it. If it's stor
 **A:** Yes. Define enum values in a shared TypeScript file (`packages/shared/src/enums.ts`) that exports both TypeScript `const` arrays and type unions. The migration scripts import these arrays to generate `CHECK` constraints. Example: `export const SPEC_STATUSES = ['draft', 'review', 'active', 'deprecated', 'archived'] as const; export type SpecStatus = typeof SPEC_STATUSES[number];` The migration uses `CHECK (status IN ('draft', 'review', 'active', 'deprecated', 'archived'))` generated from the same source.
 
 ### 2.4 Timestamp Handling
+
 - **Q**: Should all timestamps use `TIMESTAMPTZ` (timezone-aware) or
   `TIMESTAMP` (timezone-naive)? `TIMESTAMPTZ` is strongly recommended for
   multi-timezone users, but all timestamps must be stored in UTC.
@@ -131,6 +137,7 @@ General rule: if the data is queried by its contents, normalize it. If it's stor
 ## 3. Permission Model
 
 ### 3.1 Spec Permission Architecture
+
 - **Q**: The `spec_permissions` table has one row per spec per project. If a
   project has 1,000 specs, that's 1,000 rows just for the owner. Should the
   default permission be implicit (no row means "owner has full access") with
@@ -154,6 +161,7 @@ General rule: if the data is queried by its contents, normalize it. If it's stor
 **A:** Application code (NestJS service) as the primary check, backed by a database function for complex queries. The `PermissionService.checkAccess(userId, specId)` method implements the logic: (1) is user the project owner? → `full`. (2) explicit row in `spec_permissions`? → use that level. (3) default → `summary`. For bulk queries (list all specs with access level), a database function `get_accessible_specs(user_id, project_id)` returns `{ spec_id, access_level }` using a single efficient query with `LEFT JOIN` on `spec_permissions`. Both paths implement the same logic; the DB function is an optimization for list views.
 
 ### 3.2 Share Token Management
+
 - **Q**: `spec_permissions.encryption_token` is for encrypted spec content.
   Where is the encryption/decryption key stored? In the database (encrypted
   with a master key)? In environment variables? In a key management service?
@@ -175,6 +183,7 @@ General rule: if the data is queried by its contents, normalize it. If it's stor
 ## 4. Agent Session Design
 
 ### 4.1 Session Lifecycle
+
 - **Q**: Should agent sessions have a maximum duration (timeout)? If a session
   has been `'active'` for 30 minutes with no new messages, should it be
   auto-closed? What's the timeout threshold?
@@ -193,6 +202,7 @@ General rule: if the data is queried by its contents, normalize it. If it's stor
 **A:** Maximum 3 concurrent active sessions per user across all projects. Maximum 10 concurrent active sessions per project across all users. These limits prevent runaway agent costs and ensure fair resource sharing. Attempting to start a new session beyond the limit returns: "Maximum concurrent sessions reached. Close an existing session to start a new one." Limits are configurable in `.kg-config.json`.
 
 ### 4.2 Message Storage
+
 - **Q**: `agent_messages.content` is `TEXT` (unlimited). Should there be a
   max content size? Agent responses can be very large (code generation output).
   What's a reasonable limit?
@@ -215,6 +225,7 @@ General rule: if the data is queried by its contents, normalize it. If it's stor
 ## 5. Sync State Design
 
 ### 5.1 Multi-Branch Support
+
 - **Q**: The `sync_state` table tracks per-user, per-project, per-branch sync
   status. If a user works on 5 branches, that's 5 rows per user per project.
   Is this the right granularity, or should sync state only track the current
@@ -234,6 +245,7 @@ General rule: if the data is queried by its contents, normalize it. If it's stor
 **A:** Yes. Add `last_sync_error TEXT` and `last_sync_error_at TIMESTAMPTZ` columns. When a sync operation fails (merge conflict, network error, etc.), the error message and timestamp are stored. This helps users and admins debug sync issues without digging through server logs. Cleared on the next successful sync.
 
 ### 5.2 Conflict Tracking
+
 - **Q**: `sync_state.conflict_details_json` stores conflict information. What
   is the expected structure? List of conflicting file paths? Per-spec conflict
   details? This should be documented and validated.
@@ -250,6 +262,7 @@ General rule: if the data is queried by its contents, normalize it. If it's stor
 ## 6. Audit Log Design
 
 ### 6.1 Volume & Performance
+
 - **Q**: The audit log will grow continuously. At what point should
   partitioning be introduced? From day one (simpler to start with), or only
   after hitting a size threshold (e.g., 10 million rows)?
@@ -269,6 +282,7 @@ General rule: if the data is queried by its contents, normalize it. If it's stor
 **A:** Yes, append-only enforced by a database trigger. Create a trigger on `audit_logs` that raises an exception on `UPDATE` or `DELETE` operations. The scheduled pruning job uses a dedicated database role (`audit_admin`) that has the trigger disabled for its session (`ALTER TABLE ... DISABLE TRIGGER ...` within a transaction). This ensures application code cannot tamper with audit entries while allowing controlled pruning.
 
 ### 6.2 Compliance
+
 - **Q**: Are there specific compliance requirements (SOC 2, GDPR, HIPAA) that
   dictate audit log retention periods, immutability, or access controls?
 
@@ -289,6 +303,7 @@ General rule: if the data is queried by its contents, normalize it. If it's stor
 ## 7. Notification Design
 
 ### 7.1 Delivery Model
+
 - **Q**: Are database-stored notifications the only notification channel, or
   will there also be email, push notifications, or webhooks? If so, should
   the `notification_queue` be the source for all channels?
@@ -308,6 +323,7 @@ General rule: if the data is queried by its contents, normalize it. If it's stor
 **A:** WebSocket push for real-time delivery, database for persistence. When a notification is inserted into `notification_queue`, the service broadcasts a WebSocket event to the target user's connected clients. The client renders the notification immediately. If the user is offline, the notification waits in the database and is delivered when the client reconnects and fetches unread notifications. No polling.
 
 ### 7.2 Notification Preferences
+
 - **Q**: Should users be able to configure notification preferences (e.g.,
   "don't notify me about agent completions")? If so, should preferences be
   stored in `users.settings_json` or a separate `notification_preferences`
@@ -320,6 +336,7 @@ General rule: if the data is queried by its contents, normalize it. If it's stor
 ## 8. Migration & Operations
 
 ### 8.1 Migration Workflow
+
 - **Q**: Should migrations run automatically on server start (risky in
   production) or require an explicit `bun run migrate:up` command? Auto-run
   is convenient for development but dangerous in production.
@@ -338,6 +355,7 @@ General rule: if the data is queried by its contents, normalize it. If it's stor
 **A:** Each migration runs inside a transaction. If any statement in the migration fails, the entire transaction is rolled back — the database returns to the pre-migration state. The migration runner reports the error with the failing statement and migration file name. No partial migration state is possible (assuming the migration doesn't contain DDL that triggers implicit commits, which PostgreSQL handles correctly within transactions).
 
 ### 8.2 Data Migration
+
 - **Q**: If the schema changes significantly after launch (e.g., splitting a
   JSONB column into normalized columns), should data migration scripts be
   separate from schema migrations?
@@ -354,6 +372,7 @@ General rule: if the data is queried by its contents, normalize it. If it's stor
 ## 9. Performance & Scaling
 
 ### 9.1 Connection Pooling
+
 - **Q**: Should the application use the ORM's built-in connection pool, or an
   external pooler like PgBouncer? PgBouncer is more efficient for many
   short-lived connections but adds operational complexity.
@@ -366,6 +385,7 @@ General rule: if the data is queried by its contents, normalize it. If it's stor
 **A:** Expected peak: 10–15 concurrent connections (5–10 HTTP request handlers + 2–3 background workers + 1 migration lock). Pool size of 20 provides comfortable headroom. Each connection consumes ~5MB of PostgreSQL memory — 20 connections = ~100MB, well within typical PostgreSQL configuration.
 
 ### 9.2 Read Replicas
+
 - **Q**: Should the architecture support read replicas from the start (dual
   connection strings, read/write splitting), or is that premature optimization?
 
@@ -377,6 +397,7 @@ General rule: if the data is queried by its contents, normalize it. If it's stor
 **A:** Audit log queries and dashboard summaries are the primary read replica candidates. These are expensive aggregation queries that benefit from offloading to a replica. Notification listing is lightweight (index scan on user_id + read status). In v1, all queries hit the primary. The query structure is designed to be replica-compatible when the time comes.
 
 ### 9.3 Caching
+
 - **Q**: Should frequently accessed data (user permissions, project membership)
   be cached in application memory (e.g., with a TTL cache), or should every
   request hit the database?
@@ -394,6 +415,7 @@ General rule: if the data is queried by its contents, normalize it. If it's stor
 ## 10. Testing
 
 ### 10.1 Test Database
+
 - **Q**: Should integration tests use a real PostgreSQL instance (Docker) or
   an in-memory substitute? Real PostgreSQL is most accurate; in-memory
   (like SQLite) may have compatibility issues with PostgreSQL-specific features
@@ -440,5 +462,5 @@ General rule: if the data is queried by its contents, normalize it. If it's stor
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

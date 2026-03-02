@@ -1,0 +1,58 @@
+---
+description: React component conventions for the client workspace
+globs:
+  - "client/ui/src/components/**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Frontend Components
+
+## File Structure
+
+Each component lives in its own directory:
+
+```
+components/SpecCard/
+├── index.ts              # Re-export only
+├── SpecCard.tsx           # Component implementation
+├── SpecCard.module.scss   # BEM styles
+└── SpecCard.test.tsx      # Tests
+```
+
+## Rules
+
+- Named exports only. No default exports.
+- Props interface named `{ComponentName}Props`, exported alongside the component.
+- Components are props-driven. No direct store access in leaf/shared components.
+- `observer()` wrapping is reserved for container components that read stores.
+- Keep components focused — one responsibility each.
+
+## Example
+
+```tsx
+import styles from './SpecCard.module.scss';
+
+export interface SpecCardProps {
+  title: string;
+  status: 'draft' | 'published';
+  onSelect: () => void;
+}
+
+export function SpecCard({ title, status, onSelect }: SpecCardProps) {
+  return (
+    <article
+      className={`${styles.SpecCard} ${styles['SpecCard--' + status]}`}
+      onClick={onSelect}
+    >
+      <h3 className={styles.SpecCard__Title}>{title}</h3>
+      <span className={styles.SpecCard__Badge}>{status}</span>
+    </article>
+  );
+}
+```
+
+## Anti-patterns
+
+- Importing a MobX store directly in a shared component.
+- Using `React.FC` — declare props as function parameters instead.
+- Default exports or anonymous arrow components.

@@ -1,0 +1,48 @@
+.ChatQuickActions {
+  padding: $space-1 $space-3;
+  border-top: $border-width-thin solid var(--color-border);
+
+  &__list {
+    display: flex;
+    gap: $space-1;
+    overflow-x: auto;
+    padding-bottom: $space-1;
+    @include scrollbar-thin;
+  }
+
+  &__action {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-1;
+    flex-shrink: 0;
+    padding: $space-1 $space-2;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+    color: var(--color-text-secondary);
+    background-color: var(--color-bg-secondary);
+    border: $border-width-thin solid var(--color-border);
+    border-radius: $radius-full;
+    cursor: pointer;
+    white-space: nowrap;
+    @include transition(background-color, color, border-color);
+
+    &:hover {
+      background-color: var(--color-interactive-hover);
+      color: var(--color-text);
+      border-color: var(--color-primary);
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  &__icon {
+    font-size: $font-size-sm;
+    line-height: 1;
+  }
+
+  &__label {
+    line-height: 1;
+  }
+}

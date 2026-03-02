@@ -9,6 +9,7 @@
 ## 1. Editor Library
 
 ### 1.1 Library Choice
+
 - **Q**: Should the editor use TipTap (recommended), ProseMirror (direct),
   or CodeMirror? TipTap provides the best developer experience but adds a
   dependency layer over ProseMirror. CodeMirror is better for code but less
@@ -27,6 +28,7 @@
 - **A:** Async git-based approach is sufficient. The PRD explicitly specifies "async git-based collaboration (no real-time co-editing)." Do not implement Yjs or CRDTs. Users work on their own branches and merge via the version control system. If two users edit the same spec, the second to save encounters a conflict handled by the merge flow.
 
 ### 1.2 Editor Customization
+
 - **Q**: How heavily should the editor be customized? Minimal (use TipTap
   starter kit defaults) or extensive (custom node types for specs, metadata
   blocks, and agent suggestions)?
@@ -42,13 +44,14 @@
 ## 2. Spec Boundaries
 
 ### 2.1 Visual Design
+
 - **Q**: How should spec boundaries be visually indicated? The plan suggests
   colored left borders and header bars. Other options:
   - Horizontal rules between specs (simple but less distinctive)
   - Card-like containers per spec (clear but heavy)
   - Alternating background colors (subtle but easy)
   - Collapsible accordion sections (compact but hides content)
-  Which best matches the "structured markdown document" feel from the PRD?
+    Which best matches the "structured markdown document" feel from the PRD?
 - **A:** Colored left border (3px solid, neutral-300 default, colored by spec status) + spec header bar. The header bar contains the spec title, status badge, and a collapse/expand toggle. A subtle 1px horizontal divider sits between specs. This creates clear boundaries without the heaviness of cards or the loss of content from accordions. It feels like a structured markdown document with section headers.
 
 - **Q**: Should spec boundaries be editable — can users merge two specs by
@@ -60,6 +63,7 @@
 - **A:** Not in the boundary itself — that would clutter the header bar. Instead, show a small connection count badge (e.g., "5 connections") in the spec header. Clicking the badge opens a popover listing all edges with their types and target spec names. Hovering the badge highlights the spec's connections in the graph panel (if visible).
 
 ### 2.2 Spec Header
+
 - **Q**: What information should the spec header show by default? Title only?
   Title + status? Title + tags + status? More detail might be useful but
   takes vertical space.
@@ -78,6 +82,7 @@
 ## 3. Content Editing
 
 ### 3.1 Formatting Support
+
 - **Q**: What subset of markdown formatting should be supported? Full
   GitHub-Flavored Markdown (GFM), or a restricted subset? Tables, footnotes,
   and math equations each add complexity.
@@ -93,6 +98,7 @@
 - **A:** Deferred to Phase 2. Mermaid support requires a rendering step (server-side or client-side WASM) and a custom TipTap node type. For MVP, users can embed pre-rendered diagram images. Plan for Mermaid as a TipTap extension that renders diagram code blocks into inline SVGs. PlantUML is deprioritized (requires a Java server).
 
 ### 3.2 Media Handling
+
 - **Q**: How should images be handled? Upload to server and store URL, or
   embed as base64? Server upload is better for performance but requires
   API support.
@@ -106,6 +112,7 @@
 - **A:** 10MB per image. Images above 5MB trigger a suggestion to compress/resize. The server rejects uploads above 10MB with a clear error. For video/audio attachments (via spec metadata, not inline), the limit is 100MB. These limits are configurable server-side per deployment.
 
 ### 3.3 Paste Behavior
+
 - **Q**: When pasting content from external sources (Word, Google Docs, web
   pages), how aggressively should formatting be stripped? Keep basic
   formatting (bold, italic, lists) and strip everything else?
@@ -120,6 +127,7 @@
 ## 4. Auto-Save
 
 ### 4.1 Strategy
+
 - **Q**: What should the auto-save debounce interval be? 1 second (fast,
   more network traffic), 2 seconds (recommended), 5 seconds (fewer saves,
   risk of more data loss)?
@@ -136,6 +144,7 @@
 - **A:** Every auto-save creates a git commit. The PRD states each change is a commit hash, so the version history granularity matches the auto-save granularity. The version history UI groups rapid auto-save commits (within a 5-minute editing session) under a single "editing session" entry, expandable to see individual commits. This gives full history without overwhelming the timeline.
 
 ### 4.2 Conflict Resolution
+
 - **Q**: If two users edit the same spec and auto-save creates a conflict,
   how should it be resolved? Real-time merge (like Google Docs), explicit
   merge dialog, or "last write wins"?
@@ -154,6 +163,7 @@
 ## 5. Agent Integration
 
 ### 5.1 Agent Actions
+
 - **Q**: Should agent suggestions appear inline in the editor (like GitHub
   Copilot suggestions) or only in the chat panel? Inline is more immediate
   but potentially distracting.
@@ -168,6 +178,7 @@
 - **A:** Both options available. Default split is heuristic (at cursor position or at the nearest heading boundary). An "AI-assisted split" option in the context menu asks the agent to analyze the content and suggest optimal split points based on semantic coherence. The agent returns 1-3 suggested split points with explanations. This gives fast results for obvious cases and intelligent results for complex ones.
 
 ### 5.2 Agent Triggers
+
 - **Q**: Should the agent proactively suggest improvements as the user types
   (like a spell checker), or only when explicitly requested?
 - **A:** Only when explicitly requested. Proactive typing suggestions would be distracting and expensive (every keystroke would trigger agent inference). The user requests improvements via: the chat (`/review [specId]`), the spec header's "..." menu ("Ask agent to review"), or by selecting text and choosing "Ask agent about selection." The agent can proactively notify about graph implications after a save, but not during typing.
@@ -186,6 +197,7 @@
 ## 6. Spec Operations
 
 ### 6.1 Cross-Document Operations
+
 - **Q**: Should specs be movable between documents via drag-and-drop (drag
   from editor to document tree), or only through a menu action?
 - **A:** Menu action only. Drag-and-drop from the editor to the sidebar document tree is error-prone (long drag distance, easy to drop on the wrong document). The "Move to..." menu action (in the spec header's "..." menu) opens a document picker dialog where the user selects the target document and position. This is more precise and harder to trigger accidentally.
@@ -199,6 +211,7 @@
 - **A:** Preserved. Graph edges connect specs, not documents. Moving a spec to a different document is a structural change to the document, not a semantic change to the knowledge graph. All edges remain intact. The agent is notified of the move and may proactively suggest reviewing edges if the new document context changes the spec's meaning.
 
 ### 6.2 Spec Templates
+
 - **Q**: Should there be spec templates (e.g., "Requirement", "Design
   Decision", "Constraint") that pre-populate the spec with a structure?
 - **A:** Yes. System-provided templates: "Requirement" (title, description, acceptance criteria, priority), "Design Decision" (context, decision, consequences, alternatives), "Constraint" (description, rationale, impact), "User Story" (as a, I want, so that, acceptance criteria), and "Technical Note" (overview, details, references). Users select a template when creating a new spec.
@@ -264,5 +277,5 @@
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

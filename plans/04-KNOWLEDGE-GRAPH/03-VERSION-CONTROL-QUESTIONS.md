@@ -9,6 +9,7 @@
 ## 1. Commit Strategy
 
 ### 1.1 Commit Granularity
+
 - **Q**: Should the system create a commit on every save (keypress-level
   autosave triggers frequent commits) or only on explicit user save actions?
   Frequent commits provide granular history but bloat git log.
@@ -33,6 +34,7 @@
 **A:** No. Indexes are ephemeral in-memory structures, not files on disk. There are no index files to commit. This question is resolved by the architecture decision to keep indexes out of git entirely.
 
 ### 1.2 Commit Messages
+
 - **Q**: Should commit messages be human-readable or optimized for machine
   parsing? The plan proposes a hybrid — is the `kg(<scope>): <action>` format
   sufficient for both?
@@ -50,6 +52,7 @@
 **A:** Yes. The save dialog offers an optional "Commit note" field. If provided, it becomes the commit body text beneath the auto-generated subject line. If left empty, only the auto-generated Conventional Commit message is used. Users are not required to write messages — the auto-generated format is always present.
 
 ### 1.3 Commit Authorship
+
 - **Q**: For agent-initiated changes, should the git author be the agent or the
   human who triggered the session? The plan says human author + agent committer
   — does the team agree?
@@ -66,6 +69,7 @@
 ## 2. Version Tracking
 
 ### 2.1 Version Numbers
+
 - **Q**: Should spec version numbers be monotonically increasing integers (v1,
   v2, v3) or semantic versions (1.0.0, 1.0.1, 1.1.0)? Semantic versions add
   meaning but complexity.
@@ -84,6 +88,7 @@
 **A:** v11. Revert creates a new version with the old content. The version counter never decreases. The commit message clearly marks it as a revert: `kg(spec): revert sp_abc123 to v7`. This preserves linear history — v11's content happens to match v7, but it's a distinct version with its own timestamp and commit.
 
 ### 2.2 Version Comparisons
+
 - **Q**: Should users be able to compare any two versions of a spec (arbitrary
   pair), or only adjacent versions and current-vs-historical?
 
@@ -100,6 +105,7 @@
 **A:** Yes. The diff view shows two sections: "Content Changes" (Markdown diff) and "Edge Changes" (edges added/removed between the two commit points). Edge changes are derived from diffing the spec's edge file at the two commits. This gives a complete picture of how a spec's context evolved between versions.
 
 ### 2.3 Version Metadata
+
 - **Q**: Should each version store a snapshot of the spec's edges at that point
   in time, or should edges be versioned independently?
 
@@ -115,6 +121,7 @@
 ## 3. Diff Generation
 
 ### 3.1 Diff Quality
+
 - **Q**: For Markdown content, should diffs be line-level, word-level, or
   character-level? Word-level provides the best readability but is more
   expensive to compute.
@@ -132,6 +139,7 @@
 **A:** Yes. The diff view offers two modes toggled by the user: "Source" (raw Markdown diff with word-level highlighting) and "Preview" (rendered Markdown with additions highlighted in green and deletions in red). Default is "Preview" for readability. Both modes are generated client-side from the same diff data.
 
 ### 3.2 Diff Scope
+
 - **Q**: Should diffs include changes to the spec's edges (edges added or
   removed between the two versions), or only the spec's own files?
 
@@ -148,6 +156,7 @@
 **A:** Yes. The server tracks `lastViewedVersion` per user per spec in PostgreSQL (a lightweight table: `user_id, spec_id, version, viewed_at`). When a user opens a spec, the UI can show a "3 changes since you last viewed" indicator with a one-click diff to their last-viewed version. This is an optional UI enhancement, not a core diff feature.
 
 ### 3.3 Diff Performance
+
 - **Q**: What is the acceptable latency for generating a diff between two
   versions? <100ms? <500ms? <1s?
 
@@ -168,8 +177,9 @@
 ## 4. Revert Operations
 
 ### 4.1 Revert Semantics
+
 - **Q**: Should revert create a new commit (preserving history) or use `git
-  revert` (which creates a revert commit)? New commit is simpler; git revert is
+revert` (which creates a revert commit)? New commit is simpler; git revert is
   more semantically correct.
 
 **A:** Create a new forward commit that restores the old content. Do NOT use `git revert` (which operates on the commit level and may affect other files in the same commit). The application reads the spec's files at the target version via `git show`, writes them as the current version, and commits. This is a spec-level revert, not a commit-level revert. The commit message: `kg(spec): revert sp_abc123 to v7`.
@@ -185,6 +195,7 @@
 **A:** Revert restores the entire `spec.json` and `content.md` to their state at the target version. This includes content, status, tags, and all metadata. Permission changes (stored in PostgreSQL, not in spec files) are NOT reverted — permissions are managed separately. The revert confirmation dialog lists what will change: "Content: restored, Status: active → draft, Tags: +2 removed, -1 added."
 
 ### 4.2 Revert Safety
+
 - **Q**: Should the system prevent reverting to a version that would break
   existing edges (e.g., reverting a spec to before an edge was created)?
 
@@ -208,6 +219,7 @@
 ## 5. Branch Management
 
 ### 5.1 Branch Usage
+
 - **Q**: What are the expected use cases for knowledge graph branching?
   Experimentation? Parallel editing? Draft vs. published? The answer determines
   how branches are presented in the UI.
@@ -230,6 +242,7 @@
 **A:** Up to 20 active branches. This is a soft limit enforced by the UI (warn at 20, don't block creation). Git itself handles hundreds of branches, but 20+ active experiments suggest organizational problems. Stale branches (no commits in 30 days) are highlighted for cleanup.
 
 ### 5.2 Branch Lifecycle
+
 - **Q**: Should branches have an expiration or auto-cleanup (delete branches
   inactive for >30 days)?
 
@@ -255,6 +268,7 @@
 ## 6. Merge Strategy
 
 ### 6.1 Merge Behavior
+
 - **Q**: Should merges use `git merge --no-ff` (always create a merge commit)
   or allow fast-forward merges? No-ff preserves branch history; ff is cleaner
   for simple branches.
@@ -277,6 +291,7 @@
 **A:** Yes, as an option in the merge dialog. Default is `--no-ff` (preserve all commits). Squash merge is useful when a branch has many small exploratory commits and the user wants a clean single-commit merge. The squash commit message auto-includes the count: "kg(merge): squash merge kg/alice/restructure-auth-specs (14 commits)".
 
 ### 6.2 Merge Triggers
+
 - **Q**: Should the system periodically check for new changes on the remote and
   prompt users to merge?
 
@@ -292,6 +307,7 @@
 ## 7. Conflict Resolution
 
 ### 7.1 Conflict UX
+
 - **Q**: Should conflict resolution happen in a dedicated UI (merge conflict
   screen) or inline in the spec editor?
 
@@ -313,6 +329,7 @@
 **A:** Yes. A spec in conflict state is locked for editing until the conflict is resolved. Other specs unaffected by the merge remain editable. The conflict lock prevents compounding conflicts. The UI shows a clear "Resolve conflict to continue editing" message on locked specs.
 
 ### 7.2 Conflict Prevention
+
 - **Q**: Should the system use advisory locking to prevent concurrent edits to
   the same spec on the same branch?
 
@@ -333,6 +350,7 @@
 ## 8. Delta Detection & Agent Triggers
 
 ### 8.1 Delta Scope
+
 - **Q**: Should delta detection be limited to knowledge graph files, or also
   track changes to project code that may be relevant to specs?
 
@@ -349,6 +367,7 @@
 **A:** The system does not support interactive rebase or commit amend through the UI. These are destructive git operations that conflict with the append-only nature of spec versioning. If a user performs these operations via git CLI directly, the server detects the divergence on next sync and treats it as a force-push: resync from the remote state, create inquiries for any discrepancies. The `version` field in `spec.json` may need reconciliation.
 
 ### 8.2 Agent Triggers
+
 - **Q**: Should agent triggers be opt-in (user configures which triggers to
   enable) or opt-out (all triggers enabled by default)?
 
@@ -429,5 +448,5 @@
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

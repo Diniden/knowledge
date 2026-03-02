@@ -635,9 +635,10 @@
 ### 8.3 Combined Filtering
 
 - [ ] **KG-OPS-088**: Implement `searchSpecs(filter)` composite search operation
+
   ```typescript
   interface SpecFilter {
-    tags?: { values: string[], mode: 'all' | 'any' };
+    tags?: { values: string[]; mode: 'all' | 'any' };
     author?: string;
     status?: SpecStatus[];
     createdAfter?: string;
@@ -655,9 +656,11 @@
     sortOrder?: 'asc' | 'desc';
   }
   ```
+
   - Apply filters in order of selectivity (most restrictive first)
   - Use indexes where possible, fall back to scanning
   - Support pagination with limit/offset
+
 - [ ] **KG-OPS-089**: Implement edge-based spec filtering
   - Find specs that have at least one edge of a specified type
   - Find specs with more than N edges (highly connected)
@@ -1175,28 +1178,29 @@
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. Spec CRUD Operations | 24 (KG-OPS-001 through KG-OPS-024) |
-| 2. Edge CRUD Operations | 15 (KG-OPS-025 through KG-OPS-039) |
-| 3. Spec Document CRUD Operations | 13 (KG-OPS-040 through KG-OPS-052) |
-| 4. Graph Traversal | 9 (KG-OPS-053 through KG-OPS-061) |
-| 5. Subgraph Extraction | 7 (KG-OPS-062 through KG-OPS-068) |
-| 6. Path Finding | 6 (KG-OPS-069 through KG-OPS-074) |
-| 7. Graph Statistics & Analysis | 7 (KG-OPS-075 through KG-OPS-081) |
-| 8. Search & Filtering | 9 (KG-OPS-082 through KG-OPS-090) |
-| 9. Batch Operations | 9 (KG-OPS-091 through KG-OPS-099) |
-| 10. Import & Export | 11 (KG-OPS-100 through KG-OPS-110) |
-| 11. Validation Operations | 9 (KG-OPS-111 through KG-OPS-119) |
-| 12. Graph Crawling for Agents | 10 (KG-OPS-120 through KG-OPS-129) |
-| 13. Inquiry Queue Management | 10 (KG-OPS-130 through KG-OPS-139) |
-| 14. Cascading Operations | 6 (KG-OPS-140 through KG-OPS-145) |
-| 15. Orphan Detection & Management | 6 (KG-OPS-146 through KG-OPS-151) |
-| **TOTAL** | **151** |
+| Section                           | Tasks                              |
+| --------------------------------- | ---------------------------------- |
+| 1. Spec CRUD Operations           | 24 (KG-OPS-001 through KG-OPS-024) |
+| 2. Edge CRUD Operations           | 15 (KG-OPS-025 through KG-OPS-039) |
+| 3. Spec Document CRUD Operations  | 13 (KG-OPS-040 through KG-OPS-052) |
+| 4. Graph Traversal                | 9 (KG-OPS-053 through KG-OPS-061)  |
+| 5. Subgraph Extraction            | 7 (KG-OPS-062 through KG-OPS-068)  |
+| 6. Path Finding                   | 6 (KG-OPS-069 through KG-OPS-074)  |
+| 7. Graph Statistics & Analysis    | 7 (KG-OPS-075 through KG-OPS-081)  |
+| 8. Search & Filtering             | 9 (KG-OPS-082 through KG-OPS-090)  |
+| 9. Batch Operations               | 9 (KG-OPS-091 through KG-OPS-099)  |
+| 10. Import & Export               | 11 (KG-OPS-100 through KG-OPS-110) |
+| 11. Validation Operations         | 9 (KG-OPS-111 through KG-OPS-119)  |
+| 12. Graph Crawling for Agents     | 10 (KG-OPS-120 through KG-OPS-129) |
+| 13. Inquiry Queue Management      | 10 (KG-OPS-130 through KG-OPS-139) |
+| 14. Cascading Operations          | 6 (KG-OPS-140 through KG-OPS-145)  |
+| 15. Orphan Detection & Management | 6 (KG-OPS-146 through KG-OPS-151)  |
+| **TOTAL**                         | **151**                            |
 
 ### Dependencies (What This Plan Enables)
 
 Completion of this plan unblocks:
+
 - `06-AGENT-SYSTEM/03-MCP-SERVERS-PLAN.md` — needs CRUD operations, graph traversal, crawling API
 - `06-AGENT-SYSTEM/05-PLAN-GENERATION-PLAN.md` — needs graph crawling, subgraph extraction, dependency chains
 - `03-SERVER/02-API-PLAN.md` — needs operation signatures for REST endpoint design
@@ -1206,6 +1210,7 @@ Completion of this plan unblocks:
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] Full CRUD operations work for specs, edges, and documents
 - [ ] All index files update correctly after every operation
 - [ ] Graph traversal (BFS, DFS, filtered) works with configurable options

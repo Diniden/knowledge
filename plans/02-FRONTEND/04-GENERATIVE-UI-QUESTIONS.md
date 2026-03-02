@@ -9,6 +9,7 @@
 ## 1. Architecture
 
 ### 1.1 Loading Strategy
+
 - **Q**: Should gen UI projects be loaded as pre-built static files in an
   iframe, or should the host app load ESM modules directly (without an
   iframe)? The iframe approach provides stronger isolation but adds complexity.
@@ -25,12 +26,13 @@
 - **A:** Bundle all dependencies into a single file. Each gen UI is self-contained with its own React copy. This avoids `allow-same-origin` (a major security risk), eliminates version coupling between host and gen UIs, and simplifies the build. The size overhead (~40KB for React) is acceptable per gen UI since they're loaded on demand, not upfront.
 
 ### 1.2 Rendering Context
+
 - **Q**: Where should gen UIs be displayable? Options:
   - Only in the chat panel (as embedded messages)
   - In a dedicated gen UI panel/page
   - In modals
   - In all of the above
-  Should the rendering context affect the gen UI's available viewport size?
+    Should the rendering context affect the gen UI's available viewport size?
 - **A:** All of the above. Gen UIs render in: chat messages (compact, 300px height), the gen UI gallery page (default, 400px height), and a fullscreen modal (expanded, viewport height minus padding). The same `GenUiFrame` component is used in all contexts with a `size` prop (`compact | default | fullscreen`). The gen UI receives its viewport dimensions via the bridge protocol so it can adapt its layout.
 
 - **Q**: Should multiple gen UIs be open simultaneously, or only one at a
@@ -42,6 +44,7 @@
 ## 2. Iframe Security
 
 ### 2.1 Sandbox Configuration
+
 - **Q**: The plan omits `allow-same-origin` from the sandbox. This means the
   iframe cannot access any storage APIs. Is this acceptable, or do gen UIs
   need localStorage for state persistence? If needed, state could be
@@ -58,6 +61,7 @@
 - **A:** `connect-src 'none'` for all gen UIs. If a gen UI needs server data, it requests it through the host bridge (`{ type: 'data:request', endpoint: '/api/specs/123' }`), and the host proxies the request with proper authentication. This prevents gen UIs from making unauthorized API calls and provides a single audit point for all data access.
 
 ### 2.2 Code Safety
+
 - **Q**: How rigorously should agent-generated code be scanned for security
   issues? Static analysis only, or also dynamic analysis (run in a sandbox
   and monitor behavior)?
@@ -76,6 +80,7 @@
 ## 3. Agent Integration
 
 ### 3.1 Gen UI Generation
+
 - **Q**: What prompting strategy should the agent use to generate gen UI
   code? Should there be detailed templates and examples in the agent's
   system prompt, or should the agent learn from existing gen UIs in the
@@ -96,6 +101,7 @@
 - **A:** Yes, basic smoke testing. After a successful build, the server loads the gen UI in a headless browser, waits for the `ready` message via the bridge protocol, and verifies no console errors occur within 3 seconds. If the smoke test fails, the agent is notified and can attempt a fix. No full interaction simulation — that's too complex and slow.
 
 ### 3.2 Data Flow
+
 - **Q**: When a gen UI sends output data (user's form submission), how
   should the agent process it? Automatically create specs, or present the
   output to the user in the chat for review?
@@ -114,6 +120,7 @@
 ## 4. Build Pipeline
 
 ### 4.1 Build Process
+
 - **Q**: Should gen UI builds happen on the server (in a controlled
   environment) or on the client (in the browser)? Server builds are more
   secure and consistent; client builds are faster for the user.
@@ -133,6 +140,7 @@
 - **A:** Built on demand, not committed to git. The gen UI source code is committed; `dist/` is in `.gitignore`. The server rebuilds gen UIs when needed (on first access after a branch switch, or when source changes). Built artifacts are cached on the server filesystem. This keeps the git repo lean — gen UIs are potentially numerous and their dist/ output is redundant with source.
 
 ### 4.2 Build Environment
+
 - **Q**: Should the build environment be isolated (Docker container, VM) for
   security, or is running in the server process acceptable?
 - **A:** Isolated subprocess with restricted permissions. Run `bun build` in a subprocess with: a temp directory for output, a timeout (30s), no network access during build (dependencies are pre-installed), and restricted file system access (only the gen UI project directory). Full Docker isolation is overkill for MVP — the subprocess restrictions plus iframe sandboxing provide defense in depth.
@@ -146,6 +154,7 @@
 ## 5. Communication Protocol
 
 ### 5.1 Message Design
+
 - **Q**: Should the host-iframe communication protocol support streaming
   (for large data transfers), or is single-message sufficient?
 - **A:** Single-message is sufficient. Gen UI data payloads are small (form data, UI state) — typically under 10KB. If a gen UI needs to send large content (e.g., a long text input), the bridge protocol accepts messages up to 1MB. No streaming needed. For truly large data (images), use a file upload through the host bridge rather than postMessage.
@@ -163,6 +172,7 @@
 - **A:** JSON-serializable data only. Images/files from gen UIs are sent as base64-encoded strings within JSON messages (up to the 1MB limit). For larger files, the gen UI sends a request through the bridge, and the host handles the upload via a standard API call. This keeps the protocol simple and debuggable. Binary `Transferable` objects add complexity with minimal benefit.
 
 ### 5.2 Error Handling
+
 - **Q**: How should the host handle messages from a gen UI that it doesn't
   recognize? Silently ignore, log a warning, or show an error?
 - **A:** Log a warning to the console in development mode (`import.meta.env.DEV`), silently ignore in production. Unrecognized messages are not shown to users — they're likely from a protocol version mismatch or a bug in the gen UI code. The warning in dev mode helps the agent debug issues during gen UI development.
@@ -176,6 +186,7 @@
 ## 6. User Experience
 
 ### 6.1 Gen UI Discovery
+
 - **Q**: How should users discover available gen UIs? A browsable gallery,
   search, agent recommendation, or all of the above?
 - **A:** All of the above. The gen UI gallery page (`/gen-ui`) provides browsable discovery with search and filtering by linked spec/document. In chat, the agent can recommend existing gen UIs when relevant ("I have a form for this — want to use it?"). Gen UIs linked to a spec are shown in the spec's metadata panel. The gallery is the primary browsing interface; chat is the contextual discovery path.
@@ -189,6 +200,7 @@
 - **A:** Yes. A set of 5-8 system-provided template gen UIs ships with the platform: "Survey Form," "Requirements Checklist," "Priority Matrix," "Comparison Table," "Decision Tree," "Data Entry Form." These appear in the gen UI gallery under a "Templates" section. The agent can instantiate them with project-specific content. Templates are read-only; using one creates a copy.
 
 ### 6.2 Gen UI Interaction
+
 - **Q**: Should gen UIs support undo/redo for user inputs?
 - **A:** This is the gen UI's responsibility, not the host's. The bridge protocol does not provide undo/redo. If a gen UI needs undo (e.g., a complex form builder), the agent should implement it within the gen UI code. Simple forms don't need undo — the browser's native input undo (Cmd+Z) works within the iframe.
 
@@ -201,6 +213,7 @@
 - **A:** Yes. A fullscreen button in the gen UI container header opens the gen UI in a modal overlay that fills the viewport with 32px padding. The modal includes the gen UI title, a close button, and the iframe at full available size. This is essential for complex gen UIs (multi-step wizards, large forms, data tables) that don't fit in a 400px panel.
 
 ### 6.3 Gen UI Lifecycle
+
 - **Q**: When should gen UIs be deleted? Never (manual only), after linked
   specs are deleted, after a period of inactivity, or when storage quota is
   reached?
@@ -259,5 +272,5 @@
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

@@ -10,6 +10,7 @@
 ## 1. Library & Transport
 
 ### 1.1 WebSocket Library
+
 - **Q**: Should the project use Socket.IO (full-featured, fallback transports,
   rooms, acknowledgments) or plain WebSocket via `ws` (lightweight, standard
   protocol, no overhead)? Socket.IO adds ~20KB to the client bundle but
@@ -29,6 +30,7 @@
 **A:** Socket.IO works with Bun when using `@nestjs/platform-express` (Express under Bun). Socket.IO attaches to the HTTP server instance, which Express provides. Test the WebSocket handshake, message delivery, and room operations under Bun during setup. Known working combination: NestJS 10+ / Socket.IO 4.7+ / Bun 1.1+. Add a WebSocket integration test to CI.
 
 ### 1.2 Protocol
+
 - **Q**: Should the WebSocket protocol use JSON for all events, or should
   there be a binary protocol for high-frequency events (agent streaming)?
   JSON is simpler and debuggable; binary (MessagePack, protobuf) is more
@@ -47,6 +49,7 @@
 ## 2. Event Design
 
 ### 2.1 Event Granularity
+
 - **Q**: Should spec change events include the full updated spec, or just a
   change notification that the client uses to fetch the latest via REST?
   Including full data reduces round trips but increases WebSocket bandwidth.
@@ -67,6 +70,7 @@
 **A:** Send to all project members who are connected to the project room. Presence tracking is on by default (it's a core collaboration feature). Users who want privacy can set their status to "invisible" via `POST /users/me/presence { status: "invisible" }`, which suppresses their presence events. The traffic is minimal — presence events are throttled to 1 per 5 seconds per user.
 
 ### 2.2 Event Naming
+
 - **Q**: Should event names use a hierarchical namespace (`agent:message:chunk`)
   or flat names (`agentMessageChunk`)? Hierarchical is more organized and
   allows wildcard subscriptions; flat is simpler.
@@ -80,6 +84,7 @@
 **A:** Distinct names. Client-to-server events use verb prefixes: `subscribe:project`, `unsubscribe:project`, `send:message`, `context:navigate`. Server-to-client events use noun prefixes: `spec:updated`, `agent:message:chunk`, `session:ready`, `presence:update`. The naming convention makes event direction unambiguous in code and documentation.
 
 ### 2.3 Event Completeness
+
 - **Q**: What events are absolutely essential for MVP vs nice-to-have?
   Essential: agent messages, spec changes. Nice-to-have: presence, capacity,
   analysis events. Should the plan distinguish between phases?
@@ -97,6 +102,7 @@
 ## 3. Authentication
 
 ### 3.1 Auth Strategy
+
 - **Q**: Should WebSocket authentication use the same JWT from the HTTP-only
   cookie, or should there be a separate WebSocket token? Cookies are
   automatically sent during WebSocket handshake, but some environments may
@@ -118,6 +124,7 @@
 **A:** Terminate at the next periodic check (within 5 minutes). Immediate termination would require a real-time token revocation channel (Redis pub/sub or similar), which is unnecessary complexity for the initial single-instance deployment. The 5-minute window is acceptable — the user's access token also has a 15-minute TTL, so the WebSocket check is more frequent.
 
 ### 3.2 Authorization
+
 - **Q**: Should authorization be checked on every incoming event, or only
   on room join? Per-event checking is more secure but adds overhead. Per-room
   checking is cheaper but allows access until the user is removed from the room.
@@ -135,6 +142,7 @@
 ## 4. Room Management
 
 ### 4.1 Room Structure
+
 - **Q**: Should there be a room per spec (for live editing indicators), or is
   document-level granularity sufficient? Per-spec rooms enable "user X is
   editing spec Y" indicators but create many rooms.
@@ -154,6 +162,7 @@
 **A:** Independent subscriptions, no nesting. The client explicitly joins each room it needs: `subscribe:project { projectId }` for project-wide events, `subscribe:document { documentId }` when viewing a document, `subscribe:session { sessionId }` when in an agent session. The server does NOT auto-join sub-rooms. This gives the client fine-grained control over which events it receives.
 
 ### 4.2 Room Scalability
+
 - **Q**: What is the expected maximum number of concurrent rooms? If a project
   has 100 documents and 500 specs, that's potentially 601 rooms per project.
   Is this too many?
@@ -171,6 +180,7 @@
 ## 5. Reconnection & Reliability
 
 ### 5.1 Reconnection Strategy
+
 - **Q**: Should the server maintain a message buffer for reconnecting clients,
   or should clients re-fetch state via REST after reconnection? Message buffer
   is smoother UX but requires server memory. REST re-fetch is simpler but
@@ -191,6 +201,7 @@
 **A:** Skip Socket.IO's connection recovery. The REST re-fetch approach is simpler and more reliable. Socket.IO's recovery feature requires server-side message buffering and has edge cases around buffer overflow. Since all important state is available via REST, there's no need for WebSocket-level message recovery.
 
 ### 5.2 Message Ordering
+
 - **Q**: Should the WebSocket guarantee ordered delivery of events? Socket.IO
   delivers in order over a single connection, but what about re-delivered events
   after reconnection?
@@ -214,6 +225,7 @@
 ## 6. Message Queuing
 
 ### 6.1 Queue Strategy
+
 - **Q**: Should disconnected user messages be queued in-memory only (fast, lost
   on server restart) or in a persistent store (database/Redis)? Persistent is
   more reliable but slower and more complex.
@@ -233,6 +245,7 @@
 **A:** N/A — no queuing. See above.
 
 ### 6.2 Queue Limits
+
 - **Q**: What should the maximum queue depth per user be? 100 events is
   proposed. Should this be per-project or global per user?
 
@@ -249,6 +262,7 @@
 ## 7. Broadcasting
 
 ### 7.1 Broadcasting Efficiency
+
 - **Q**: For events that go to all project members (spec created), should the
   server send one message to the room (Socket.IO handles fan-out) or individual
   messages per client? Room-level is more efficient but all clients get the
@@ -270,6 +284,7 @@
 **A:** Default exclusion (don't echo back to sender). The sender has already applied the change optimistically via the REST API response. Echoing the event back is redundant and can cause UI flickering (double-apply). Use Socket.IO's `socket.to(room).emit()` (excludes sender) as the default pattern. Opt-in echo via `io.to(room).emit()` for events that need it (rare).
 
 ### 7.2 Throttling
+
 - **Q**: What are the right throttle rates for different event types? The plan
   proposes 1 event/5s for presence and 1/2s for thinking indicators. Are these
   appropriate?
@@ -287,6 +302,7 @@
 ## 8. Agent Streaming
 
 ### 8.1 Streaming Protocol
+
 - **Q**: Should agent response streaming use WebSocket events (many small
   events) or Server-Sent Events (SSE, built-in streaming)? WebSocket events
   integrate with the existing system; SSE is purpose-built for server-to-client
@@ -305,6 +321,7 @@
 **A:** Raw text chunks for streaming content. The client accumulates text and renders markdown progressively (most markdown renderers handle partial input). Tool call events are structured JSON (type, tool name, arguments). The client handles formatting: text chunks go into a markdown renderer, tool calls render as progress indicators. The server does not pre-format — it streams Claude Code's output as-is.
 
 ### 8.2 Streaming Performance
+
 - **Q**: What is the expected throughput of agent streaming events? If Claude
   generates ~100 tokens/second at ~5 chars/token, that's ~500 chars/second.
   Should chunks be larger (less overhead) or smaller (more responsive UI)?
@@ -322,6 +339,7 @@
 ## 9. Scaling
 
 ### 9.1 Multi-Instance WebSocket
+
 - **Q**: Is multi-instance WebSocket needed for the initial release, or will a
   single server instance handle expected load? If single instance supports
   ~1000 connections, how many concurrent users are expected?
@@ -341,6 +359,7 @@
 **A:** Defer this decision until scaling is needed. For single-instance, it's moot. When scaling, use the Socket.IO Redis adapter (shared state) over sticky sessions. Sticky sessions complicate load balancer configuration and create availability issues when an instance goes down. The Redis adapter handles cross-instance message delivery transparently.
 
 ### 9.2 Performance Targets
+
 - **Q**: What are the latency targets for WebSocket event delivery? < 50ms for
   agent streaming? < 200ms for spec change notifications?
 
@@ -362,6 +381,7 @@
 ## 10. Security
 
 ### 10.1 WebSocket Security
+
 - **Q**: Should WebSocket connections be rate-limited per client? If so, what
   are reasonable limits? (10 events/second is proposed.)
 
@@ -383,6 +403,7 @@
 **A:** Yes. Log at `info` level: connections (user ID, IP, user agent), disconnections (reason, duration), room joins/leaves (room name, user ID). Log at `warn` level: auth failures, rate limit violations, unauthorized room join attempts. Log at `error` level: unexpected disconnections, protocol errors. Use the same structured JSON logging as the REST API. The connection and room logs feed into the audit trail.
 
 ### 10.2 Data Privacy
+
 - **Q**: Should WebSocket events be filtered based on the user's spec-level
   permissions, or should the client be trusted to handle permission filtering?
   Server-side filtering is more secure; client-side filtering is simpler.

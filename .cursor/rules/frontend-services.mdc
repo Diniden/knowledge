@@ -1,0 +1,38 @@
+---
+description: API client service conventions
+globs:
+  - "client/ui/src/services/**/*.ts"
+alwaysApply: false
+---
+
+# Frontend Services
+
+## Rules
+
+- One service file per backend module: `spec.service.ts`, `auth.service.ts`, `graph.service.ts`.
+- All services use a shared `httpClient` instance (wrapper around `fetch`).
+- No direct `fetch()` calls outside the services layer.
+- Return typed responses matching `@kg/shared` DTOs.
+- Throw typed errors from `@kg/shared` on failure — never swallow HTTP errors.
+- Services are plain modules (not classes) — export named functions.
+
+## Example
+
+```typescript
+import type { Spec, CreateSpecDto, SpecResponseDto } from '@kg/shared';
+import { httpClient } from './http-client.js';
+
+export async function createSpec(dto: CreateSpecDto): Promise<SpecResponseDto> {
+  return httpClient.post<SpecResponseDto>('/api/specs', dto);
+}
+
+export async function getSpecById(id: string): Promise<Spec> {
+  return httpClient.get<Spec>(`/api/specs/${id}`);
+}
+```
+
+## Anti-patterns
+
+- Calling `fetch()` directly in a component or store.
+- Returning untyped `any` responses.
+- Mixing service logic with UI concerns.

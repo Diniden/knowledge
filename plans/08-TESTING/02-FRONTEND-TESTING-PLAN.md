@@ -1254,32 +1254,33 @@
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. Frontend Test Infrastructure | 8 (TS-FE-001 through TS-FE-008) |
-| 2. Component Unit Testing | 5 (TS-FE-009 through TS-FE-013) |
-| 3. Hook Testing | 11 (TS-FE-014 through TS-FE-024) |
-| 4. State Management Testing | 8 (TS-FE-025 through TS-FE-032) |
-| 5. API Client & Service Testing | 11 (TS-FE-033 through TS-FE-043) |
-| 6. WebSocket Mock Testing | 7 (TS-FE-044 through TS-FE-050) |
-| 7. Snapshot Testing | 5 (TS-FE-051 through TS-FE-055) |
-| 8. Interaction Testing | 9 (TS-FE-056 through TS-FE-064) |
-| 9. Form Validation Testing | 6 (TS-FE-065 through TS-FE-070) |
-| 10. Routing Tests | 5 (TS-FE-071 through TS-FE-075) |
-| 11. Accessibility Testing | 5 (TS-FE-076 through TS-FE-080) |
-| 12. Generative UI Sandbox Testing | 5 (TS-FE-081 through TS-FE-085) |
-| 13. Visual Regression Testing | 5 (TS-FE-086 through TS-FE-090) |
+| Section                           | Tasks                            |
+| --------------------------------- | -------------------------------- |
+| 1. Frontend Test Infrastructure   | 8 (TS-FE-001 through TS-FE-008)  |
+| 2. Component Unit Testing         | 5 (TS-FE-009 through TS-FE-013)  |
+| 3. Hook Testing                   | 11 (TS-FE-014 through TS-FE-024) |
+| 4. State Management Testing       | 8 (TS-FE-025 through TS-FE-032)  |
+| 5. API Client & Service Testing   | 11 (TS-FE-033 through TS-FE-043) |
+| 6. WebSocket Mock Testing         | 7 (TS-FE-044 through TS-FE-050)  |
+| 7. Snapshot Testing               | 5 (TS-FE-051 through TS-FE-055)  |
+| 8. Interaction Testing            | 9 (TS-FE-056 through TS-FE-064)  |
+| 9. Form Validation Testing        | 6 (TS-FE-065 through TS-FE-070)  |
+| 10. Routing Tests                 | 5 (TS-FE-071 through TS-FE-075)  |
+| 11. Accessibility Testing         | 5 (TS-FE-076 through TS-FE-080)  |
+| 12. Generative UI Sandbox Testing | 5 (TS-FE-081 through TS-FE-085)  |
+| 13. Visual Regression Testing     | 5 (TS-FE-086 through TS-FE-090)  |
 | 14. Design System Component Tests | 14 (TS-FE-091 through TS-FE-104) |
-| 15. Spec Editor Tests | 6 (TS-FE-105 through TS-FE-110) |
-| 16. Knowledge Graph UI Tests | 9 (TS-FE-111 through TS-FE-119) |
-| 17. Chat Dialog Tests | 8 (TS-FE-120 through TS-FE-127) |
-| 18. Version Control UI Tests | 10 (TS-FE-128 through TS-FE-137) |
-| 19. Frontend E2E Tests | 17 (TS-FE-138 through TS-FE-154) |
-| **TOTAL** | **158** |
+| 15. Spec Editor Tests             | 6 (TS-FE-105 through TS-FE-110)  |
+| 16. Knowledge Graph UI Tests      | 9 (TS-FE-111 through TS-FE-119)  |
+| 17. Chat Dialog Tests             | 8 (TS-FE-120 through TS-FE-127)  |
+| 18. Version Control UI Tests      | 10 (TS-FE-128 through TS-FE-137) |
+| 19. Frontend E2E Tests            | 17 (TS-FE-138 through TS-FE-154) |
+| **TOTAL**                         | **158**                          |
 
 ### Dependencies (What This Plan Enables)
 
 Completion of this plan provides:
+
 - Full test coverage for all frontend components and features
 - Confidence in refactoring frontend code
 - Regression detection for UI changes
@@ -1288,6 +1289,7 @@ Completion of this plan provides:
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] Every React component has at least a render test and prop test
 - [ ] Every custom hook has tests for all return values and state transitions
 - [ ] Every store has tests for all actions and selectors

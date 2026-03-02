@@ -9,6 +9,7 @@
 ## 1. CLAUDE.md Configuration
 
 ### 1.1 Structure & Content
+
 - **Q**: How much of the CLAUDE.md should be static (same for every session)
   versus dynamic (generated per session)? Static content is fast and
   cacheable; dynamic content is more relevant but slower to generate.
@@ -41,6 +42,7 @@
 **A:** File path reference. The CLAUDE.md includes a "Skills" section listing available skill files by path: `Skills available: ./skills/spec-authoring.md, ./skills/edge-management.md`. Claude Code can read these files from the sandbox when needed. This keeps the CLAUDE.md lean (one line per skill vs. hundreds of tokens per skill content). The agent reads a skill file only when the task requires it, saving tokens on tasks that don't need specialized skills. Skill files are placed in the sandbox at `./skills/` during sandbox setup.
 
 ### 1.2 Dynamic Content
+
 - **Q**: How fresh should dynamic CLAUDE.md content be? Should it reflect
   changes made in the current conversation (e.g., "you just created spec X")
   or only pre-session state?
@@ -63,6 +65,7 @@
 ## 2. System Prompts
 
 ### 2.1 Prompt Design
+
 - **Q**: How long should system prompts be? Very detailed prompts (1000+
   tokens) produce more consistent behavior but reduce the context budget
   for actual content. Is there a target token count per agent type?
@@ -94,6 +97,7 @@
 **A:** CLAUDE.md only. User information (name, role, expertise) goes in the CLAUDE.md's dynamic section. The system prompt is shared across all users of the same agent type — it defines the agent's behavior, not the user's context. Putting user info in CLAUDE.md keeps the system prompt reusable and cacheable. The user context MCP server provides additional user information if the agent needs it during the session.
 
 ### 2.2 Prompt Versioning
+
 - **Q**: How should prompt changes be tested and deployed? Should there be
   A/B testing of prompt variants? Should prompt changes go through code
   review?
@@ -115,6 +119,7 @@
 ## 3. Skills
 
 ### 3.1 Skill Design
+
 - **Q**: How detailed should skill files be? Very detailed skills (step-by-
   step procedures with examples) produce better results but consume more
   tokens. Concise skills save tokens but may be ambiguous.
@@ -145,6 +150,7 @@
 **A:** No. Skill selection is handled by the agent's natural reasoning — the CLAUDE.md lists available skills with one-line descriptions, and the agent reads the relevant skill file when it determines the task requires it. Adding meta-skills creates an extra layer of indirection. If the agent consistently fails to select the right skill, the fix is better skill descriptions in the CLAUDE.md listing, not a meta-skill. Keep the skill architecture flat and simple.
 
 ### 3.2 Skill Lifecycle
+
 - **Q**: How should new skills be developed and tested? Is there a "skill
   testing" framework where a skill can be evaluated against test cases?
 
@@ -171,22 +177,23 @@
 ## 4. Context Window Management
 
 ### 4.1 Token Budgets
+
 - **Q**: What is the target Claude model context window size? 100K? 200K?
   This directly determines how much context can be included. Should
   different agent types use different models (and thus different budgets)?
 
 **A:** 200K context window (Claude Sonnet). All agent types use the same model at launch. Token budget allocation per agent type:
 
-| Component | Dialog | KG Agent | Gen UI | Plan Gen |
-|-----------|--------|----------|--------|----------|
-| System prompt | 500 | 500 | 500 | 500 |
-| CLAUDE.md | 2,000 | 2,000 | 2,000 | 2,000 |
-| Skills | 1,000 | 1,500 | 1,500 | 2,000 |
-| Conversation | 50,000 | 30,000 | 20,000 | 10,000 |
-| Context (specs) | 30,000 | 40,000 | 20,000 | 60,000 |
-| Output buffer | 10,000 | 15,000 | 30,000 | 30,000 |
-| Tool results | 20,000 | 25,000 | 20,000 | 20,000 |
-| Reserve | ~86K | ~86K | ~106K | ~75K |
+| Component       | Dialog | KG Agent | Gen UI | Plan Gen |
+| --------------- | ------ | -------- | ------ | -------- |
+| System prompt   | 500    | 500      | 500    | 500      |
+| CLAUDE.md       | 2,000  | 2,000    | 2,000  | 2,000    |
+| Skills          | 1,000  | 1,500    | 1,500  | 2,000    |
+| Conversation    | 50,000 | 30,000   | 20,000 | 10,000   |
+| Context (specs) | 30,000 | 40,000   | 20,000 | 60,000   |
+| Output buffer   | 10,000 | 15,000   | 30,000 | 30,000   |
+| Tool results    | 20,000 | 25,000   | 20,000 | 20,000   |
+| Reserve         | ~86K   | ~86K     | ~106K  | ~75K     |
 
 The reserve absorbs overflow. Plan Gen gets the most context for specs and the largest output buffer.
 
@@ -209,6 +216,7 @@ The reserve absorbs overflow. Plan Gen gets the most context for specs and the l
 **A:** Yes. The monitoring system tracks actual token usage per budget category (system prompt, CLAUDE.md, conversation, context, output, tool results) per session. A Grafana dashboard shows: average utilization per category, 95th percentile usage, and sessions that hit budget limits. This data drives future budget tuning — if Dialog agents consistently use only 5K of their 50K conversation budget, the budget can be reallocated. Data collection starts at launch; the dashboard is a post-launch task.
 
 ### 4.2 Compression Strategy
+
 - **Q**: When compressing conversation history, should the system use an
   LLM to summarize (accurate but expensive) or a heuristic approach
   (e.g., keep first and last turns, drop middle)? LLM summarization
@@ -233,6 +241,7 @@ The reserve absorbs overflow. Plan Gen gets the most context for specs and the l
 ## 5. Few-Shot Examples
 
 ### 5.1 Example Design
+
 - **Q**: How many few-shot examples should be included per intent category?
   More examples improve accuracy but consume tokens. Is there a point of
   diminishing returns (e.g., >5 examples per category)?
@@ -296,6 +305,7 @@ The reserve absorbs overflow. Plan Gen gets the most context for specs and the l
 ## 7. Behavior Rules
 
 ### 7.1 Rule Design
+
 - **Q**: How should behavior rules be prioritized when they conflict?
   For example, "be thorough" vs. "be concise" — which wins when a user
   asks a complex question?
@@ -321,6 +331,7 @@ The reserve absorbs overflow. Plan Gen gets the most context for specs and the l
 **A:** No automatic adjustment. Behavior changes from user feedback follow a human-in-the-loop process: (1) User feedback is collected (thumbs down, explicit complaints), (2) Product/engineering reviews feedback patterns quarterly, (3) Prompt/skill changes are made deliberately and tested via the evaluation suite. Automatic behavioral adjustment risks: oscillation (verbose → concise → verbose), different behavior for different users of the same project (inconsistency), and difficulty debugging why an agent behaves a certain way. Deliberate, versioned changes are safer.
 
 ### 7.2 Safety
+
 - **Q**: Should there be a "safety layer" that reviews agent output
   before sending to the user? This catches unsafe content but adds
   latency.
@@ -429,5 +440,5 @@ The reserve absorbs overflow. Plan Gen gets the most context for specs and the l
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

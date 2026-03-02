@@ -1,0 +1,35 @@
+---
+description: Monorepo layout, workspace boundaries, and import rules
+alwaysApply: true
+---
+
+# Project Structure
+
+## Workspaces
+
+| Workspace | Package | Path |
+|-----------|---------|------|
+| Client | `@kg/client` | `client/ui/` |
+| Server | `@kg/server` | `server/` |
+| Shared | `@kg/shared` | `shared/` |
+| Packages | varies | `packages/*/` |
+
+Dependency chain: `@kg/client` → `@kg/shared`, `@kg/server` → `@kg/shared`. No circular workspace dependencies.
+
+## Import Rules
+
+- Cross-workspace imports go through the package name (`@kg/shared`), never relative paths.
+- Within a workspace, use relative imports with `.js` extensions.
+- Never import from `@kg/client` in server code, or from `@kg/server` in client code.
+
+## Directory Creation
+
+- Do not create new top-level directories without checking the project structure plan.
+- New features go in `server/src/modules/{feature}/` (server) or `client/ui/src/features/{feature}/` (client).
+- Shared types go in `shared/src/types/`, shared DTOs in `shared/src/dto/`.
+
+## Dev / Runtime Boundary
+
+Development AI config lives at root level (`.cursor/`, `.claude/`, `CLAUDE.md`). Application runtime config lives in `server/src/modules/agent/`. See `BOUNDARY.md`.
+
+Never modify runtime agent files (`server/src/modules/agent/prompts/`, `server/agents/`) as part of dev-config work.

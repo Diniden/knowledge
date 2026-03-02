@@ -9,6 +9,7 @@
 ## 1. Test Runner & Tooling
 
 ### 1.1 bun test Compatibility
+
 - **Q**: Has `bun test` been verified to work with all project dependencies?
   Specifically: NestJS test utilities (`@nestjs/testing`), `@testing-library/react`,
   and `supertest`? Are there known incompatibilities?
@@ -33,6 +34,7 @@
 **A:** Yes, Bun runs test files in parallel by default. For unit tests this is fine. For database integration tests, each test file must use its own transaction that rolls back at the end, ensuring isolation despite parallel execution. If parallel DB access causes contention, use `--concurrency 1` for integration-tagged test runs only.
 
 ### 1.2 DOM Environment
+
 - **Q**: Should the project use `happy-dom` (faster, lighter) or `jsdom`
   (more complete DOM implementation) for component tests? Are there specific
   DOM APIs used by the project (e.g., `IntersectionObserver`, `ResizeObserver`,
@@ -47,6 +49,7 @@
 **A:** Yes. `happy-dom` provides `document`, `window`, and `navigator` globals. Configure it in `bunfig.toml` with `[test] preload = ["./test/setup.ts"]` where the setup file initializes `happy-dom` and any required polyfills. This is a well-trodden path.
 
 ### 1.3 E2E Framework
+
 - **Q**: Should the project use Playwright (better cross-browser, auto-wait)
   or Cypress (better DX, time-travel)? Does the team have existing experience
   with either?
@@ -68,6 +71,7 @@
 ## 2. Test Organization
 
 ### 2.1 Co-location vs Centralized
+
 - **Q**: Should tests be co-located with source files (e.g., `auth.service.test.ts`
   next to `auth.service.ts`) or centralized in a `__tests__/` directory per
   module? Co-location makes discovery easier; centralized keeps source
@@ -81,6 +85,7 @@
 **A:** Top-level `e2e/` directory at the repository root. E2E tests span both frontend and server, so they don't belong in a single workspace. Structure as `e2e/specs/`, `e2e/fixtures/`, `e2e/helpers/`. Playwright config lives at `e2e/playwright.config.ts`.
 
 ### 2.2 Integration Test Boundaries
+
 - **Q**: What exactly constitutes an "integration test" vs a "unit test" in
   this project? If a NestJS service is tested with a real database but mocked
   HTTP clients, is that unit or integration?
@@ -94,6 +99,7 @@
 **A:** Same `bun test` runner, but separate scripts with different configurations. Use `bun test --filter '*.test.ts' --exclude '*.integration.test.ts'` for unit tests and `bun test --filter '*.integration.test.ts' --timeout 30000` for integration tests. Package.json scripts: `test:unit`, `test:integration`, `test` (runs both).
 
 ### 2.3 Test File Naming
+
 - **Q**: Should integration tests have a distinct file suffix
   (`.integration.test.ts`) or be in a separate directory (`__integration__/`)?
   A distinct suffix allows easy filtering with `bun test --filter`.
@@ -110,6 +116,7 @@
 ## 3. Coverage Policy
 
 ### 3.1 Coverage Targets
+
 - **Q**: Are the proposed coverage targets (80% global, 90% new code) too
   aggressive or too lenient for the team's velocity? Should targets start
   lower and increase over time?
@@ -128,6 +135,7 @@
 **A:** Track both, enforce on **line coverage**. Report branch coverage as informational. Branch coverage targets are aspirational (60%+), not blocking. Line coverage is the gating metric.
 
 ### 3.2 Coverage Tooling
+
 - **Q**: Does `bun test --coverage` produce accurate coverage data for the
   project's TypeScript code? Are there known issues with coverage of
   decorators (NestJS), JSX (React), or dynamic imports?
@@ -145,6 +153,7 @@
 ## 4. CI Integration
 
 ### 4.1 CI Platform
+
 - **Q**: Which CI platform will the project use? GitHub Actions, GitLab CI,
   CircleCI, Jenkins? The choice affects Docker service support, caching, and
   artifact handling.
@@ -157,6 +166,7 @@
 **A:** Run the full test suite on PRs targeting `main`. Run only unit tests (fast) on every push to feature branches. This balances early feedback with CI resource usage.
 
 ### 4.2 Test Parallelism in CI
+
 - **Q**: Should CI split tests across multiple machines for speed (e.g.,
   Playwright sharding, test file splitting)? This is beneficial for large
   test suites but adds complexity.
@@ -169,6 +179,7 @@
 **A:** **Parallel CI jobs.** Three concurrent jobs: (1) unit tests, (2) integration tests (with PostgreSQL service container), (3) E2E tests (with full stack). All three run simultaneously; the PR status check passes only when all three succeed. This maximizes speed within the 5-minute budget.
 
 ### 4.3 Test Artifacts
+
 - **Q**: How long should CI retain test artifacts (screenshots, videos,
   coverage reports)? 7 days? 30 days? This affects CI storage costs.
 
@@ -184,6 +195,7 @@
 ## 5. Test Data Management
 
 ### 5.1 Fixture Strategy
+
 - **Q**: Should fixtures be static JSON files or dynamic TypeScript objects?
   Static JSON is more portable but less flexible; TypeScript objects can
   use functions and computed values.
@@ -201,6 +213,7 @@
 **A:** Shared type definitions and factory base logic live in the `@kg/shared` package. Each workspace wraps these with workspace-specific factories: the server factory adds database persistence (`factory.create()` inserts into DB); the frontend factory produces plain objects for store/component tests. This avoids duplication while respecting workspace boundaries.
 
 ### 5.2 Factory Pattern
+
 - **Q**: Should the project use an existing factory library (e.g., `fishery`,
   `factory.ts`) or build a custom factory pattern? Existing libraries provide
   sequences, traits, and associations out of the box.
@@ -214,6 +227,7 @@
 **A:** Both. `factory.build()` returns an in-memory object (for unit tests). `factory.create()` persists via Drizzle ORM (for integration tests). `fishery` supports this pattern natively through `onCreate` hooks. Both methods are always available; tests choose which to use based on their scope.
 
 ### 5.3 Test Database Management
+
 - **Q**: Should each test file get an isolated database transaction (rolled
   back after the file), or should tests share a database and clean up
   between files? Transaction rollback is faster but limits what can be tested
@@ -232,6 +246,7 @@
 ## 6. Mocking Strategy
 
 ### 6.1 Mock Boundaries
+
 - **Q**: Should the project mock at module boundaries (mock entire modules)
   or at function boundaries (mock individual functions)? Module-level mocking
   is simpler but less precise.
@@ -250,6 +265,7 @@
 **A:** Distribute mocks alongside their implementations. Place `auth.service.mock.ts` next to `auth.service.ts`. Shared mock utilities (mock database connection, mock WebSocket client) live in `test/mocks/`. No centralized registry — it becomes a dumping ground that nobody maintains.
 
 ### 6.2 External Service Mocking
+
 - **Q**: Should the Claude Code wrapper be mocked at the subprocess level
   (mock `child_process.spawn`) or at the wrapper interface level (mock the
   wrapper class)? Subprocess-level is more realistic; interface-level is simpler.
@@ -272,6 +288,7 @@
 ## 7. Performance & Accessibility Testing
 
 ### 7.1 Performance Testing Scope
+
 - **Q**: Should performance tests run in CI, or only on-demand before releases?
   CI performance tests add value but are slow and can be flaky due to
   environment differences.
@@ -290,6 +307,7 @@
 **A:** Defer until post-MVP. The app is a desktop-first professional tool, not a public-facing website. Core Web Vitals matter less here than functional correctness. Add Lighthouse CI once the feature set stabilizes if perceived performance becomes a concern.
 
 ### 7.2 Accessibility Testing Scope
+
 - **Q**: Should accessibility tests run on every PR, or only on PRs that
   change UI components? Running on every PR catches regressions but adds
   CI time.
@@ -333,5 +351,5 @@
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

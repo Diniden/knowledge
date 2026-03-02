@@ -10,6 +10,7 @@
 ## 1. Embedding Model
 
 ### 1.1 Model Choice
+
 - **Q**: Should the primary embedding model be API-based (OpenAI) or local
   (nomic-embed-text, sentence-transformers)? API provides higher quality but
   adds cost, latency, and external dependency. Local enables offline operation.
@@ -40,6 +41,7 @@
 **A:** Deferred — no local model in v1. If added later, use a Python sidecar process running sentence-transformers behind a lightweight HTTP API (FastAPI). This keeps the ML stack separate from the Node/Bun stack and avoids ONNX runtime immaturity. The sidecar is optional — only started if `EMBEDDING_PROVIDER=local` is configured.
 
 ### 1.2 Model Configuration
+
 - **Q**: Should embedding dimensions be configurable? OpenAI's v3 models
   support Matryoshka representations (can reduce dimensions while maintaining
   quality). 512 dims vs. 1536 dims: what's the right trade-off for storage vs.
@@ -62,6 +64,7 @@
 ## 2. Chunking Strategy
 
 ### 2.1 Chunk Granularity
+
 - **Q**: Should the primary chunking unit be the spec (one embedding per spec)
   or a fixed-size token window? Spec-level is simpler but may miss nuances
   in long specs.
@@ -84,6 +87,7 @@
 **A:** No. One chunking strategy for all specs. The spec type does not meaningfully change optimal chunk size. Requirement specs and design decision specs are both prose-first with occasional code/diagrams. Maintaining multiple chunking strategies adds complexity for negligible retrieval improvement.
 
 ### 2.2 Chunk Overlap
+
 - **Q**: What chunk overlap percentage provides the best retrieval quality?
   10%? 20%? Higher overlap = better recall but more storage and cost.
 
@@ -95,6 +99,7 @@
 **A:** Semantic boundaries preferred. Split at paragraph breaks (double newline), heading boundaries, or list item boundaries — choosing the nearest semantic boundary within ±100 tokens of the 1,000-token target. This produces chunks that start and end at natural content boundaries, improving both embedding quality and result readability. Fall back to token-based split if no semantic boundary is found within range.
 
 ### 2.3 Chunk Context
+
 - **Q**: Should each chunk include context from the spec's metadata (title,
   tags, summary) prepended to the content? This improves embedding quality but
   increases token usage per chunk.
@@ -116,6 +121,7 @@
 ## 3. Vector Store
 
 ### 3.1 Store Selection
+
 - **Q**: Should the vector store be pgvector (co-located with PostgreSQL),
   ChromaDB (Python-native), Qdrant (high-performance), or FAISS (file-based)?
   The plan recommends pgvector — does the team agree?
@@ -139,6 +145,7 @@
 **A:** pgvector with HNSW handles up to ~500K vectors with <100ms query latency. At the target scale (50K specs × ~1.2 chunks average = ~60K vectors), pgvector is well within its comfort zone. Migration to a dedicated vector DB (Qdrant) is the escape hatch if the system ever exceeds 500K vectors, but this is not an expected scenario. No upfront migration planning needed.
 
 ### 3.2 Index Type
+
 - **Q**: For pgvector, should we use IVFFlat (faster build, moderate recall) or
   HNSW (slower build, better recall)? HNSW is generally recommended for
   production.
@@ -160,6 +167,7 @@
 ## 4. Indexing Pipeline
 
 ### 4.1 Indexing Triggers
+
 - **Q**: Should embedding generation be synchronous (block the spec update
   until embedded) or asynchronous (queue for background processing)? Async is
   faster for users but means search results have a lag.
@@ -182,6 +190,7 @@
 **A:** Use `contentHash` in `spec.json` (SHA-256 of the content.md file). When the embedding pipeline processes a spec, it compares the `contentHash` in the vector store metadata against the current spec's `contentHash`. If they match, skip embedding. This is more robust than a dirty flag (which can get stuck if the embedding worker crashes) and handles edge cases like reverting content to a previously embedded version.
 
 ### 4.2 Batch Indexing
+
 - **Q**: For initial load of a large knowledge graph, what is the expected
   indexing time? At 100 specs/minute (API) or 1000 specs/minute (local), a
   10K-spec graph takes 100 minutes or 10 minutes respectively. Is this
@@ -204,6 +213,7 @@
 ## 5. Query Pipeline
 
 ### 5.1 Query Processing
+
 - **Q**: Should the query pipeline support natural language queries only, or
   also structured queries (e.g., `tag:authentication AND content:"JWT"`)?
 
@@ -226,6 +236,7 @@
 **A:** Not in v1. Reranking adds a second model call (100–500ms) per query. For the target scale and use case (knowledge graph navigation, not open-domain QA), the initial vector similarity ranking is sufficient. The graph-augmented context (expanding results via edges) provides additional precision. Reranking is a future optimization.
 
 ### 5.2 Search Scope
+
 - **Q**: Should RAG search default to the entire knowledge graph, or should it
   scope to the current document/project? Users may expect context-aware results.
 
@@ -310,6 +321,7 @@
 ## 9. Knowledge Graph Integration
 
 ### 9.1 RAG + Graph Relationship
+
 - **Q**: The PRD states that graph crawling is the primary discovery mechanism
   and RAG is for loose relevance. How should the system determine when to use
   RAG vs. graph traversal? Should the agent decide, or should there be
@@ -328,6 +340,7 @@
 **A:** Enabled by default for agent queries; disabled for user UI searches. When enabled, the RAG returns top-10 vector results, then expands each by one hop of graph edges, deduplicates, and returns the merged set (up to 25 results). This provides richer context for agents. User UI searches return the raw top-10 vector results for simplicity and speed.
 
 ### 9.2 Edge Discovery
+
 - **Q**: Should RAG-based edge discovery run automatically on new spec creation,
   or only when an agent or user requests it?
 
@@ -368,6 +381,7 @@
 ## 11. Operational Concerns
 
 ### 11.1 Cost Management
+
 - **Q**: What is the expected monthly cost for API-based embeddings? At $0.02
   per 1M tokens (OpenAI v3 small) and ~500 tokens per spec, 10K specs costs
   ~$0.10 for initial indexing. Re-indexing frequency determines ongoing costs.
@@ -385,6 +399,7 @@
 **A:** No hard cap in v1. The costs are too low to justify budget enforcement infrastructure. A soft monitoring alert (log warning) triggers if monthly cost exceeds $10/project — this would indicate a runaway process, not normal usage. If enterprise customers with massive graphs need budgets, add it in a future iteration.
 
 ### 11.2 Reliability
+
 - **Q**: What should happen when the embedding provider is unavailable?
   Queue for retry? Fall back to local model? Return degraded search results
   (exclude unembedded specs)?
@@ -402,6 +417,7 @@
 **A:** Each spec is independently embedded. Failures for individual specs do not affect others. The embedding queue tracks per-spec status: `pending`, `processing`, `completed`, `failed`. Failed specs are retried on the next queue processing cycle. The `/rag/indexing-status` endpoint reports failed specs so admins can investigate.
 
 ### 11.3 Data Consistency
+
 - **Q**: How should the system handle the window between content update and
   embedding update? During this window, search results may not reflect the
   latest content.
@@ -450,5 +466,5 @@
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

@@ -1,0 +1,36 @@
+---
+description: Branch naming, commit format, and PR conventions
+alwaysApply: true
+---
+
+# Git Workflow
+
+## Branch Naming
+
+- `feature/{id}-{short-desc}` — new functionality
+- `fix/{id}-{short-desc}` — bug fixes
+- `chore/{short-desc}` — maintenance, tooling, config
+
+Examples: `feature/KG-42-spec-editor`, `fix/KG-88-auth-cookie-expiry`, `chore/upgrade-bun`.
+
+## Commit Format
+
+```
+type(scope): description
+```
+
+Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `style`, `perf`.
+
+Scope matches the workspace or module: `client`, `server`, `shared`, `auth`, `graph`, `db`.
+
+Examples:
+- `feat(graph): add bidirectional edge creation`
+- `fix(auth): refresh token on 401 before retry`
+- `test(server): add integration tests for spec CRUD`
+
+## PR Conventions
+
+- Small, focused PRs — one feature or fix per PR.
+- Always include tests for changed behavior.
+- PR title follows commit format. Body explains *why*, not *what*.
+- Link related issues in the PR description.

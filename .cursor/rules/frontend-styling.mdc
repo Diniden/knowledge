@@ -1,0 +1,61 @@
+---
+description: BEM SCSS conventions and theming patterns
+globs:
+  - "client/ui/src/**/*.scss"
+alwaysApply: false
+---
+
+# Frontend Styling (BEM SCSS)
+
+## Naming Convention
+
+Block names use PascalCase matching the component name. Elements use `__`, modifiers use `--`.
+
+## Correct
+
+```scss
+.SpecCard {
+  padding: 1rem;
+  background: var(--surface-primary);
+
+  &__Title {
+    font-size: 1.25rem;
+    color: var(--text-primary);
+  }
+
+  &__Badge {
+    font-size: 0.75rem;
+  }
+
+  &--draft {
+    border-left: 3px solid var(--color-warning);
+  }
+
+  &--published {
+    border-left: 3px solid var(--color-success);
+  }
+}
+```
+
+## Incorrect — nested elements
+
+```scss
+// WRONG: never nest elements inside elements
+.SpecCard {
+  &__Header {
+    &__Title { font-size: 1rem; }  // BAD: &__Header &__Title
+    &__Icon { width: 16px; }       // BAD: &__Header &__Icon
+  }
+}
+```
+
+Flatten nested elements: use `&__HeaderTitle` or restructure the component.
+
+## Rules
+
+- Single-level nesting only. Never `&__Item` inside another `&__Item`.
+- Use CSS custom properties (`var(--*)`) for theming and dark mode.
+- SCSS variables (`$var`) for compile-time values only (breakpoints, z-indices).
+- No `!important` unless overriding third-party CSS (add a comment explaining why).
+- Co-locate styles: `ComponentName.module.scss` next to `ComponentName.tsx`.
+- Global variables and mixins live in `client/ui/src/styles/`.

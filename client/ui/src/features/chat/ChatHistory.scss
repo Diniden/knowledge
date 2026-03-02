@@ -1,0 +1,112 @@
+.ChatHistory {
+  @include flex-column;
+  background-color: var(--color-bg);
+  border-bottom: $border-width-thin solid var(--color-border);
+  max-height: 320px;
+  animation: slideDown $duration-normal $ease-out;
+
+  &__header {
+    @include flex-between;
+    padding: $space-2 $space-3;
+    border-bottom: $border-width-thin solid var(--color-border);
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  &__new {
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+    color: var(--color-primary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: $space-1 $space-2;
+    border-radius: $radius-md;
+    @include transition(background-color);
+
+    &:hover {
+      background-color: var(--color-interactive-hover);
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  &__list {
+    @include flex-column;
+    overflow-y: auto;
+    @include scrollbar-thin;
+  }
+
+  &__item {
+    @include flex-column;
+    gap: 2px;
+    padding: $space-2 $space-3;
+    cursor: pointer;
+    border-bottom: $border-width-thin solid var(--color-border);
+    @include transition(background-color);
+
+    &:hover {
+      background-color: var(--color-interactive-hover);
+    }
+
+    &--active {
+      background-color: var(--color-interactive-selected);
+      border-left: $border-width-medium solid var(--color-primary);
+
+      &:hover {
+        background-color: var(--color-interactive-selected);
+      }
+    }
+  }
+
+  &__title {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    color: var(--color-text);
+    @include truncate-text;
+  }
+
+  &__preview {
+    font-size: $font-size-xs;
+    color: var(--color-text-tertiary);
+    @include truncate-text;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    font-size: $font-size-xs;
+    color: var(--color-text-tertiary);
+    margin-top: 2px;
+  }
+
+  &__delete {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    font-size: $font-size-xs;
+    padding: 0 $space-1;
+    border-radius: $radius-sm;
+    @include transition(color, background-color);
+
+    &:hover {
+      color: var(--color-error);
+      background-color: #{$error-100};
+    }
+  }
+
+  &__empty {
+    padding: $space-4;
+    text-align: center;
+    color: var(--color-text-tertiary);
+    font-size: $font-size-sm;
+  }
+}

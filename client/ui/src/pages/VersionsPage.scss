@@ -1,0 +1,66 @@
+.VersionsPage {
+  @include flex-column;
+  height: 100%;
+  overflow: hidden;
+
+  &__toolbar {
+    @include flex-row;
+    align-items: center;
+    gap: $space-3;
+    padding: $space-3 $space-4;
+    border-bottom: $border-width-thin solid var(--color-border);
+    background: var(--color-bg-secondary);
+    flex-shrink: 0;
+  }
+
+  &__body {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  &__sidebar {
+    @include flex-column;
+    border-right: $border-width-thin solid var(--color-border);
+    background: var(--color-surface-sidebar);
+    overflow-y: auto;
+    @include scrollbar-thin;
+  }
+
+  &__main {
+    overflow-y: auto;
+    padding: $space-6;
+    @include scrollbar-thin;
+  }
+
+  &__empty {
+    @include flex-center;
+    flex-direction: column;
+    gap: $space-4;
+    height: 100%;
+    color: var(--color-text-tertiary);
+    text-align: center;
+    padding: $space-6;
+
+    &Title {
+      @include heading-3;
+      color: var(--color-text-secondary);
+    }
+
+    &Description {
+      @include body-text;
+      max-width: 400px;
+    }
+  }
+
+  @include respond-below(md) {
+    &__body {
+      grid-template-columns: 1fr;
+    }
+
+    &__sidebar {
+      display: none;
+    }
+  }
+}

@@ -1,0 +1,50 @@
+---
+description: REST API conventions, DTOs, and controller patterns
+globs:
+  - "server/src/**/*.controller.ts"
+  - "server/src/**/dto/**/*.ts"
+alwaysApply: false
+---
+
+# Server API Conventions
+
+## REST Design
+
+- Resource-oriented URLs: `/api/specs`, `/api/specs/:id`, `/api/specs/:id/edges`.
+- HTTP methods: `GET` (read), `POST` (create), `PUT` (full replace), `PATCH` (partial update), `DELETE` (remove).
+- Controllers handle HTTP concerns only — delegate business logic to services.
+
+## DTO Naming
+
+- `Create{Resource}Dto` — request body for creation.
+- `Update{Resource}Dto` — request body for updates (all fields optional via `PartialType`).
+- `{Resource}ResponseDto` — shaped response sent to clients.
+
+## Validation & Documentation
+
+- All DTOs use `class-validator` decorators (`@IsString`, `@IsOptional`, `@MinLength`, etc.).
+- Add Swagger decorators: `@ApiTags`, `@ApiOperation`, `@ApiResponse` on controllers.
+- Consistent response envelope: `{ data, meta? }` for collections, plain object for singles.
+
+## Example
+
+```typescript
+import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import { CreateSpecDto } from './dto/create-spec.dto.js';
+import { SpecService } from './spec.service.js';
+
+@ApiTags('specs')
+@Controller('api/specs')
+export class SpecController {
+  constructor(private readonly specService: SpecService) {}
+
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Create a new spec' })
+  async create(@Body() dto: CreateSpecDto) {
+    return this.specService.create(dto);
+  }
+}
+```

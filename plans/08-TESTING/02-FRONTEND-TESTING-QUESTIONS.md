@@ -10,6 +10,7 @@
 ## 1. Component Testing Approach
 
 ### 1.1 Testing Library vs Direct DOM
+
 - **Q**: Should the project exclusively use `@testing-library/react` for
   component tests, or are there cases where direct DOM manipulation
   (`container.querySelector`) is acceptable? Testing Library encourages
@@ -31,6 +32,7 @@
 **A:** Do **not** assert on BEM class names in component tests. Test behavior and content only. BEM class correctness is a visual concern — catch it via visual regression screenshots in E2E. Asserting class names couples tests to CSS implementation details and breaks on every refactor.
 
 ### 1.2 Component Isolation
+
 - **Q**: How should heavy third-party components (Markdown editor, graph
   visualization library) be handled in tests? Mock entirely, shallow render,
   or full render? Full render is more realistic but slow and may have
@@ -46,6 +48,7 @@
 **A:** **Always include all providers** in `renderWithProviders`. The providers are lightweight (MobX RootStore with domain/session/UI stores via React Context, router memory history, theme context), and including all of them avoids boilerplate in every test. If a test needs a specific store state or route, pass it as an option: `renderWithProviders(<Component />, { rootStore: customRootStore, route: '/specs/1' })`. This is simpler and closer to the real app environment.
 
 ### 1.3 Async Component Testing
+
 - **Q**: How should components that fetch data on mount be tested? Should
   tests mock the API layer and verify render after data arrives, or should
   tests mock the store and pre-populate data? The former tests the full
@@ -64,6 +67,7 @@
 ## 2. State Management Testing
 
 ### 2.1 Store Testing Strategy
+
 - **Q**: Should MobX stores be tested directly (instantiate store class, call actions,
   assert state) or indirectly through component tests (render component,
   interact, verify UI state)? Direct testing is faster and more isolated;
@@ -83,6 +87,7 @@
 **A:** **Each store tests its own cleanup independently** (unit tests verify that calling `authStore.logout()` triggers `specsStore.reset()`, etc.). Add **one integration-level component test** that verifies the full logout flow clears all visible UI state. This avoids N×M cross-store test explosion while still catching integration issues.
 
 ### 2.2 Persistence Testing
+
 - **Q**: How should localStorage/sessionStorage be tested? Use a real
   in-memory implementation (happy-dom provides this) or mock Storage?
 
@@ -99,6 +104,7 @@
 ## 3. API & Network Mocking
 
 ### 3.1 Mock Strategy
+
 - **Q**: Should the project use Mock Service Worker (MSW) for network mocking
   (intercepts at the network level, realistic) or mock `fetch` directly
   (simpler, less realistic)? MSW works in both tests and development; direct
@@ -119,6 +125,7 @@
 **A:** **Verify request parameters** for critical operations (create, update, delete) — assert that the correct body/params were sent. For read operations (GET requests), canned responses are sufficient. MSW handlers can capture and expose request data for assertion in the test.
 
 ### 3.2 Error Scenario Coverage
+
 - **Q**: How comprehensively should API error scenarios be tested? Every
   endpoint × every HTTP error code is exhaustive but expensive. Should tests
   cover only common errors (400, 401, 403, 404, 500) per service, or every
@@ -157,6 +164,7 @@
 ## 5. E2E Testing
 
 ### 5.1 E2E Scope
+
 - **Q**: Should E2E tests cover every user flow, or only the critical 10-15
   flows? Comprehensive E2E is expensive to write and maintain; critical-only
   may miss edge cases.
@@ -175,6 +183,7 @@
 **A:** **Both.** Pre-seed common reference data (test users, base project) via a seed script that runs once before the E2E suite. Each test creates its own test-specific data via API calls in `beforeEach` (using Playwright's `request` context). This gives a stable foundation while keeping tests independent. Use a naming convention (e.g., `e2e-test-*` prefix) to identify and clean up test-created data.
 
 ### 5.2 E2E Reliability
+
 - **Q**: How should E2E test flakiness be handled? Auto-retry on failure?
   Quarantine flaky tests? Delete and rewrite?
 
@@ -311,5 +320,5 @@
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

@@ -1,0 +1,86 @@
+.Toast {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+  min-width: 280px;
+  max-width: 420px;
+  padding: $space-3 $space-4;
+  border-radius: $radius-lg;
+  box-shadow: var(--shadow-lg);
+  animation: slideUp $duration-normal $ease-out;
+  background-color: var(--color-surface-card);
+  border: $border-width-thin solid var(--color-border);
+  color: var(--color-text);
+
+  &--exiting {
+    animation: fadeOut $duration-normal $ease-in forwards;
+  }
+
+  &__icon {
+    @include flex-center;
+    width: 24px;
+    height: 24px;
+    border-radius: $radius-full;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-bold;
+    flex-shrink: 0;
+  }
+
+  &--success {
+    border-left: $border-width-thick solid var(--color-success);
+
+    .Toast__icon {
+      background-color: var(--color-success-bg);
+      color: var(--color-success);
+    }
+  }
+
+  &--error {
+    border-left: $border-width-thick solid var(--color-error);
+
+    .Toast__icon {
+      background-color: var(--color-error-bg);
+      color: var(--color-error);
+    }
+  }
+
+  &--warning {
+    border-left: $border-width-thick solid var(--color-warning);
+
+    .Toast__icon {
+      background-color: var(--color-warning-bg);
+      color: var(--color-warning);
+    }
+  }
+
+  &--info {
+    border-left: $border-width-thick solid var(--color-info);
+
+    .Toast__icon {
+      background-color: var(--color-info-bg);
+      color: var(--color-info);
+    }
+  }
+
+  &__message {
+    flex: 1;
+    font-size: $font-size-sm;
+    line-height: $line-height-normal;
+  }
+
+  &__close {
+    @include flex-center;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    font-size: $font-size-lg;
+    color: var(--color-text-tertiary);
+    border-radius: $radius-md;
+    @include transition(background-color, color);
+
+    &:hover {
+      background-color: var(--color-interactive-hover);
+      color: var(--color-text);
+    }
+  }
+}

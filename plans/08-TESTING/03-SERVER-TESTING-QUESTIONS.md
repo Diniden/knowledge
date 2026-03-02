@@ -10,6 +10,7 @@
 ## 1. NestJS Test Module Patterns
 
 ### 1.1 Module Compilation
+
 - **Q**: NestJS test modules use `Test.createTestingModule()` which compiles
   decorators at runtime. Does this compilation work correctly under Bun, or
   are there decorator metadata issues (reflect-metadata, emitDecoratorMetadata)?
@@ -28,6 +29,7 @@
 **A:** Measure in the bootstrap PR. Expected: 50–150ms per file, which is acceptable. If compilation exceeds 300ms, create a `TestModuleBuilder` helper that pre-configures common providers and allows per-test overrides, reducing boilerplate without sharing compiled instances. Do not cache compiled modules — the invalidation logic would be more complex than the time saved.
 
 ### 1.2 Dependency Injection Mocking
+
 - **Q**: Should mock providers be created with `jest.fn()`-style mocking
   (bun's `mock()`) or as plain objects with implemented methods? `mock()`
   enables call tracking and assertions; plain objects are simpler.
@@ -52,6 +54,7 @@
 ## 2. Database Testing
 
 ### 2.1 Test Database Strategy
+
 - **Q**: Should integration tests use a dedicated test PostgreSQL container
   (separate from dev), or share the dev container with a different database?
   Separate container is more isolated; shared container is easier to manage.
@@ -71,6 +74,7 @@
 **A:** **Yes, verify on startup** but keep it fast. Run `drizzle-kit check` (or equivalent schema diff) once at suite startup in CI. Locally, skip by default but enable with an env flag `VERIFY_SCHEMA=1`. This catches migration drift in CI without slowing local iteration.
 
 ### 2.2 Test Data Management
+
 - **Q**: Should test data factories live in the test directory or in a shared
   package? If factories are needed by both server tests and E2E tests, they
   should be shared.
@@ -90,6 +94,7 @@
 **A:** **Yes, auto-create related entities by default** with the ability to override. `createTestProject()` auto-creates an owner user unless one is passed explicitly. This reduces boilerplate dramatically. `fishery` supports this via `associations`. The auto-created entities use minimal defaults. Tests that care about the related entity's properties pass it explicitly.
 
 ### 2.3 Database Test Performance
+
 - **Q**: Running migrations before each test file is slow. Should migrations
   run once per test suite (share database state across files) or once per
   file? Once per suite is faster but requires careful cleanup.
@@ -106,6 +111,7 @@
 ## 3. Git Integration Testing
 
 ### 3.1 Git Test Environment
+
 - **Q**: Should git integration tests use real git (exec `git` commands in
   temp directories) or a git library (isomorphic-git, simple-git)? Real git
   is most accurate; libraries are faster and more portable.
@@ -128,6 +134,7 @@
 **A:** **Local bare repository** (`git init --bare` in a temp directory). The test repo's remote points to this bare repo. This tests push/pull/fetch operations realistically without network dependency. No mock git server needed — the bare repo serves the same purpose locally. Mock git only in unit tests of services that call git as a dependency.
 
 ### 3.2 Merge & Conflict Testing
+
 - **Q**: How should merge conflicts be reliably created in tests? Manual file
   manipulation, then force-merge? Is there a pattern for deterministically
   creating specific conflict scenarios?
@@ -145,6 +152,7 @@
 ## 4. WebSocket Testing
 
 ### 4.1 WebSocket Test Infrastructure
+
 - **Q**: Should WebSocket tests start a real NestJS server with a real
   WebSocket gateway, or should the gateway be tested in isolation with a
   mock socket? Real server tests the full flow; mock testing is faster.
@@ -163,6 +171,7 @@
 **A:** **Wait for specific events with timeout.** Create a helper: `await waitForEvent(socket, 'event-name', { timeout: 2000 })` that returns the event data or throws on timeout. This is precise, readable, and avoids the ambiguity of collecting all events. For ordering assertions, use `collectEvents(socket, ['event-a', 'event-b'])` that resolves when all expected events arrive in order.
 
 ### 4.2 WebSocket State Testing
+
 - **Q**: How should tests verify that WebSocket events are NOT sent? (e.g.,
   verify that a notification is NOT sent to the wrong user.) Should there be
   a "no events in N milliseconds" assertion pattern?
@@ -180,6 +189,7 @@
 ## 5. Agent Orchestration Testing
 
 ### 5.1 Mock Agent Strategy
+
 - **Q**: Should the Claude Code wrapper be mocked at the subprocess level
   (mock `spawn()` to return predefined stdout) or at the wrapper interface
   level (mock the wrapper service to return predefined responses)? Subprocess
@@ -200,6 +210,7 @@
 **A:** **Mock agent returns tool call instructions; orchestrator executes against mock tools.** This tests the full orchestration loop: agent requests tool → orchestrator parses → orchestrator calls tool → tool returns result → orchestrator feeds result back to agent. Mock the tools themselves (return canned results), but let the orchestrator's tool dispatch logic run for real. This catches routing and serialization bugs.
 
 ### 5.2 Agent Error Scenarios
+
 - **Q**: How should agent timeout be tested? Use real timers with short
   timeout (slow, realistic) or fake timers that advance past the timeout
   (fast, may miss real timing issues)?
@@ -221,6 +232,7 @@
 ## 6. Authentication Testing
 
 ### 6.1 JWT Testing
+
 - **Q**: Should authentication tests use real JWT signing (with test secret)
   or mock the JWT verification? Real signing tests the full flow; mocking
   isolates the code under test.
@@ -239,6 +251,7 @@
 **A:** Test whatever mechanism the auth module implements. If refresh tokens are used, test: valid refresh → new access token, expired refresh → 401, revoked refresh → 401, reuse of consumed refresh → 401 (rotation). If re-login only, test: expired access token → 401 → client redirects to login. The tests verify the implemented flow, not prescribe one.
 
 ### 6.2 Session Security
+
 - **Q**: Should tests verify http-only cookie attributes (httpOnly, secure,
   sameSite)? These are critical for security but may require inspecting raw
   HTTP headers.
@@ -255,6 +268,7 @@
 ## 7. API Contract Testing
 
 ### 7.1 Contract Verification
+
 - **Q**: Should the project use contract testing (e.g., Pact) between
   frontend and backend? Contract tests catch API changes that break the
   client but add maintenance overhead.
@@ -272,6 +286,7 @@
 **A:** **Yes, for security headers.** Test CORS headers (allowed origins, methods, credentials), Content-Security-Policy, and X-Frame-Options in a dedicated `security-headers.integration.test.ts`. Cache-Control is tested only for endpoints where caching behavior is explicitly designed (static assets, public data). Don't test headers on every endpoint.
 
 ### 7.2 Backward Compatibility
+
 - **Q**: How should API backward compatibility be tested? Should there be
   tests that verify old request formats still work after API changes?
 
@@ -327,5 +342,5 @@
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

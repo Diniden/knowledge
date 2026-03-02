@@ -1,0 +1,140 @@
+@use 'reset';
+@use 'animations';
+@use 'utilities';
+
+// ==========================================================================
+// CSS Custom Properties — Light Theme (default)
+// ==========================================================================
+
+:root {
+  // Background
+  --color-bg: #{$neutral-50};
+  --color-bg-secondary: #{$neutral-100};
+  --color-bg-tertiary: #{$neutral-200};
+  --color-bg-inverse: #{$neutral-900};
+
+  // Text
+  --color-text: #{$neutral-900};
+  --color-text-secondary: #{$neutral-600};
+  --color-text-tertiary: #{$neutral-400};
+  --color-text-inverse: #{$neutral-50};
+
+  // Primary
+  --color-primary: #{$primary-600};
+  --color-primary-hover: #{$primary-700};
+  --color-primary-light: #{$primary-100};
+  --color-primary-text: #fff;
+
+  // Secondary
+  --color-secondary: #{$secondary-600};
+  --color-secondary-hover: #{$secondary-700};
+  --color-secondary-light: #{$secondary-100};
+
+  // Border
+  --color-border: #{$neutral-200};
+  --color-border-focus: #{$primary-500};
+  --color-border-error: #{$error-500};
+
+  // Surfaces
+  --color-surface-card: #fff;
+  --color-surface-modal: #fff;
+  --color-surface-tooltip: #{$neutral-900};
+  --color-surface-popover: #fff;
+  --color-surface-sidebar: #{$neutral-50};
+
+  // Interactive
+  --color-interactive-hover: #{$neutral-100};
+  --color-interactive-active: #{$neutral-200};
+  --color-interactive-selected: #{$primary-50};
+  --color-interactive-disabled: #{$neutral-100};
+
+  // Focus
+  --color-focus-ring: #{rgba($primary-500, 0.3)};
+
+  // Semantic
+  --color-success: #{$success-500};
+  --color-success-bg: #{$success-100};
+  --color-warning: #{$warning-500};
+  --color-warning-bg: #{$warning-100};
+  --color-error: #{$error-500};
+  --color-error-bg: #{$error-100};
+  --color-info: #{$info-500};
+  --color-info-bg: #{$info-100};
+
+  // Shadows (themeable)
+  --shadow-sm: #{$shadow-sm};
+  --shadow-md: #{$shadow-md};
+  --shadow-lg: #{$shadow-lg};
+  --shadow-xl: #{$shadow-xl};
+}
+
+// ==========================================================================
+// CSS Custom Properties — Dark Theme
+// ==========================================================================
+
+.dark-theme {
+  --color-bg: #{$neutral-900};
+  --color-bg-secondary: #{$neutral-800};
+  --color-bg-tertiary: #{$neutral-700};
+  --color-bg-inverse: #{$neutral-50};
+
+  --color-text: #{$neutral-50};
+  --color-text-secondary: #{$neutral-300};
+  --color-text-tertiary: #{$neutral-500};
+  --color-text-inverse: #{$neutral-900};
+
+  --color-primary: #{$primary-400};
+  --color-primary-hover: #{$primary-300};
+  --color-primary-light: #{$primary-950};
+  --color-primary-text: #fff;
+
+  --color-secondary: #{$secondary-400};
+  --color-secondary-hover: #{$secondary-300};
+  --color-secondary-light: #{$secondary-950};
+
+  --color-border: #{$neutral-700};
+  --color-border-focus: #{$primary-400};
+  --color-border-error: #{$error-300};
+
+  --color-surface-card: #{$neutral-800};
+  --color-surface-modal: #{$neutral-800};
+  --color-surface-tooltip: #{$neutral-200};
+  --color-surface-popover: #{$neutral-800};
+  --color-surface-sidebar: #{$neutral-900};
+
+  --color-interactive-hover: #{$neutral-700};
+  --color-interactive-active: #{$neutral-600};
+  --color-interactive-selected: #{rgba($primary-400, 0.15)};
+  --color-interactive-disabled: #{$neutral-800};
+
+  --color-focus-ring: #{rgba($primary-400, 0.3)};
+
+  --color-success: #{$success-300};
+  --color-success-bg: #{rgba($success-500, 0.15)};
+  --color-warning: #{$warning-300};
+  --color-warning-bg: #{rgba($warning-500, 0.15)};
+  --color-error: #{$error-300};
+  --color-error-bg: #{rgba($error-500, 0.15)};
+  --color-info: #{$info-300};
+  --color-info-bg: #{rgba($info-500, 0.15)};
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
+}
+
+// ==========================================================================
+// Base Styles
+// ==========================================================================
+
+html,
+body {
+  height: 100%;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}

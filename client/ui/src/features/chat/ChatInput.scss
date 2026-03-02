@@ -1,0 +1,116 @@
+.ChatInput {
+  @include flex-column;
+  gap: $space-1;
+  padding: $space-2 $space-3;
+  border-top: $border-width-thin solid var(--color-border);
+
+  &--disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  &--working {
+    .ChatInput__textarea {
+      border-color: var(--color-warning, #{$warning-500});
+    }
+  }
+
+  &__hint {
+    @include caption;
+    color: var(--color-text-tertiary);
+    padding: $space-1 $space-1;
+    background-color: var(--color-bg-secondary);
+    border-radius: $radius-md;
+    animation: slideUp $duration-fast $ease-out;
+  }
+
+  &__row {
+    display: flex;
+    align-items: flex-end;
+    gap: $space-2;
+    background-color: var(--color-bg-secondary);
+    border: $border-width-thin solid var(--color-border);
+    border-radius: $radius-lg;
+    padding: $space-2;
+    @include transition(border-color, box-shadow);
+
+    &:focus-within {
+      border-color: var(--color-border-focus);
+      box-shadow: 0 0 0 3px var(--color-focus-ring);
+    }
+  }
+
+  &__textarea {
+    flex: 1;
+    resize: none;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--color-text);
+    font-size: $font-size-sm;
+    font-family: inherit;
+    line-height: $line-height-normal;
+    padding: 0;
+    @include scrollbar-thin;
+
+    &::placeholder {
+      color: var(--color-text-tertiary);
+    }
+  }
+
+  &__actions {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: $space-1;
+  }
+
+  &__send {
+    @include flex-center;
+    width: 28px;
+    height: 28px;
+    border-radius: $radius-full;
+    border: none;
+    background-color: var(--color-primary);
+    color: var(--color-primary-text);
+    font-size: $font-size-sm;
+    font-weight: $font-weight-bold;
+    cursor: pointer;
+    @include transition(background-color, opacity);
+
+    &:hover:not(:disabled) {
+      background-color: var(--color-primary-hover);
+    }
+
+    &:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  &__cancel {
+    @include flex-center;
+    height: 28px;
+    padding: 0 $space-2;
+    border-radius: $radius-full;
+    border: $border-width-thin solid var(--color-error);
+    background: transparent;
+    color: var(--color-error);
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+    cursor: pointer;
+    @include transition(background-color);
+
+    &:hover {
+      background-color: #{$error-100};
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+}

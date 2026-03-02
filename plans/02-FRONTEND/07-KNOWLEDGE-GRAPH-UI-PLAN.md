@@ -41,17 +41,17 @@ breadcrumb cards peeking from the top.
 
 ### Core Concepts
 
-| Concept | Description |
-|---------|-------------|
-| **Tree view** | Primary visualization. Rows = depth levels. Each row contains nodes at that BFS depth from the root. Virtual-scrolled vertically, horizontally scrollable within rows. |
-| **Isolated trees** | When the selected node set contains disconnected subgraphs, each gets its own tab/page. |
-| **Primary node** | Root of a tree. Explicitly provided, or auto-detected via leaf-BFS algorithm. |
-| **Row merge rule** | If >2 rows, merge the solo primary-node row into the second row. If ≤2 rows, primary stays solo in row 1. |
-| **Expanded document** | Clicking a card expands it to fill most of the screen with its specs rendered as markdown blocks. Tree fades behind. |
-| **Connected nodes bar** | Below the expanded document, horizontally scrolling cards of linked nodes peek up from the bottom edge. |
-| **Breadcrumb trail** | Previously visited nodes peek down from the top as cards. Clicking one navigates back. |
-| **Resource side panel** | When a spec with associated resources is clicked inside the expanded document, a side panel shows linked UIs, images, and attachments. |
-| **Scroll model** | Mac trackpad two-finger scroll for vertical and horizontal movement. No pinch-to-zoom (future). |
+| Concept                 | Description                                                                                                                                                            |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Tree view**           | Primary visualization. Rows = depth levels. Each row contains nodes at that BFS depth from the root. Virtual-scrolled vertically, horizontally scrollable within rows. |
+| **Isolated trees**      | When the selected node set contains disconnected subgraphs, each gets its own tab/page.                                                                                |
+| **Primary node**        | Root of a tree. Explicitly provided, or auto-detected via leaf-BFS algorithm.                                                                                          |
+| **Row merge rule**      | If >2 rows, merge the solo primary-node row into the second row. If ≤2 rows, primary stays solo in row 1.                                                              |
+| **Expanded document**   | Clicking a card expands it to fill most of the screen with its specs rendered as markdown blocks. Tree fades behind.                                                   |
+| **Connected nodes bar** | Below the expanded document, horizontally scrolling cards of linked nodes peek up from the bottom edge.                                                                |
+| **Breadcrumb trail**    | Previously visited nodes peek down from the top as cards. Clicking one navigates back.                                                                                 |
+| **Resource side panel** | When a spec with associated resources is clicked inside the expanded document, a side panel shows linked UIs, images, and attachments.                                 |
+| **Scroll model**        | Mac trackpad two-finger scroll for vertical and horizontal movement. No pinch-to-zoom (future).                                                                        |
 
 ---
 
@@ -1023,24 +1023,24 @@ breadcrumb cards peeking from the top.
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. Tree Layout Engine | 12 (FE-GRAPH-001 through FE-GRAPH-012) |
-| 2. Virtual Row Rendering | 9 (FE-GRAPH-013 through FE-GRAPH-021) |
-| 3. Node Card Design | 10 (FE-GRAPH-022 through FE-GRAPH-031) |
-| 4. Connecting Lines | 9 (FE-GRAPH-032 through FE-GRAPH-040) |
-| 5. Tree Tab System | 8 (FE-GRAPH-041 through FE-GRAPH-048) |
-| 6. Expanded Document View | 10 (FE-GRAPH-049 through FE-GRAPH-058) |
-| 7. Spec Block Rendering | 9 (FE-GRAPH-059 through FE-GRAPH-067) |
-| 8. Resource Side Panel | 9 (FE-GRAPH-068 through FE-GRAPH-076) |
-| 9. Connected Nodes Bar | 9 (FE-GRAPH-077 through FE-GRAPH-085) |
-| 10. Breadcrumb Navigation | 9 (FE-GRAPH-086 through FE-GRAPH-094) |
-| 11. Tree Data Management | 9 (FE-GRAPH-095 through FE-GRAPH-103) |
+| Section                      | Tasks                                  |
+| ---------------------------- | -------------------------------------- |
+| 1. Tree Layout Engine        | 12 (FE-GRAPH-001 through FE-GRAPH-012) |
+| 2. Virtual Row Rendering     | 9 (FE-GRAPH-013 through FE-GRAPH-021)  |
+| 3. Node Card Design          | 10 (FE-GRAPH-022 through FE-GRAPH-031) |
+| 4. Connecting Lines          | 9 (FE-GRAPH-032 through FE-GRAPH-040)  |
+| 5. Tree Tab System           | 8 (FE-GRAPH-041 through FE-GRAPH-048)  |
+| 6. Expanded Document View    | 10 (FE-GRAPH-049 through FE-GRAPH-058) |
+| 7. Spec Block Rendering      | 9 (FE-GRAPH-059 through FE-GRAPH-067)  |
+| 8. Resource Side Panel       | 9 (FE-GRAPH-068 through FE-GRAPH-076)  |
+| 9. Connected Nodes Bar       | 9 (FE-GRAPH-077 through FE-GRAPH-085)  |
+| 10. Breadcrumb Navigation    | 9 (FE-GRAPH-086 through FE-GRAPH-094)  |
+| 11. Tree Data Management     | 9 (FE-GRAPH-095 through FE-GRAPH-103)  |
 | 12. Graph Filtering & Search | 10 (FE-GRAPH-104 through FE-GRAPH-113) |
-| 13. Interaction & Keyboard | 9 (FE-GRAPH-114 through FE-GRAPH-122) |
-| 14. Performance | 8 (FE-GRAPH-123 through FE-GRAPH-130) |
-| 15. Accessibility | 7 (FE-GRAPH-131 through FE-GRAPH-137) |
-| **TOTAL** | **137** |
+| 13. Interaction & Keyboard   | 9 (FE-GRAPH-114 through FE-GRAPH-122)  |
+| 14. Performance              | 8 (FE-GRAPH-123 through FE-GRAPH-130)  |
+| 15. Accessibility            | 7 (FE-GRAPH-131 through FE-GRAPH-137)  |
+| **TOTAL**                    | **137**                                |
 
 > Note: Many tasks contain detailed sub-items covering animation specs, edge
 > cases, keyboard interactions, and state management. The effective
@@ -1050,6 +1050,7 @@ breadcrumb cards peeking from the top.
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] Tree layout engine correctly isolates subgraphs, selects primary nodes, and generates BFS rows
 - [ ] Row merging rule applies correctly (merge root into row 2 when >2 rows)
 - [ ] Virtual row rendering handles 200+ depth levels without performance degradation

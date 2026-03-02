@@ -107,6 +107,7 @@
 ### 2.2 Success Response Envelope
 
 - [ ] **SV-API-007**: Define standard success response format
+
   ```typescript
   interface ApiResponse<T> {
     data: T;
@@ -126,6 +127,7 @@
     hasPrevious: boolean;
   }
   ```
+
 - [ ] **SV-API-008**: Implement `TransformInterceptor` to wrap all responses
   - Wrap controller return values in `{ data: ... }` envelope
   - Attach `meta.requestId` from request context
@@ -136,6 +138,7 @@
 ### 2.3 Error Response Format
 
 - [ ] **SV-API-009**: Define standard error response format
+
   ```typescript
   interface ApiErrorResponse {
     error: {
@@ -154,6 +157,7 @@
     constraint: string;
   }
   ```
+
 - [ ] **SV-API-010**: Map HTTP status codes to error categories
   - `400` — validation errors, malformed requests
   - `401` — authentication required / invalid token
@@ -1340,23 +1344,23 @@
 
 ## Summary
 
-| Section | Task Range | Count |
-|---------|-----------|-------|
-| 1. API Conventions & Versioning | SV-API-001 – 004 | 4 |
-| 2. Request & Response Standards | SV-API-005 – 012 | 8 |
-| 3. Pagination, Filtering & Sorting | SV-API-013 – 022 | 10 |
-| 4. Auth Endpoints | SV-API-023 – 033 | 11 |
-| 5. Users Endpoints | SV-API-034 – 042 | 9 |
-| 6. Projects Endpoints | SV-API-043 – 055 | 13 |
-| 7. Spec Documents Endpoints | SV-API-056 – 064 | 9 |
-| 8. Specs Endpoints | SV-API-065 – 085 | 21 |
-| 9. Knowledge Graph Endpoints | SV-API-086 – 100 | 15 |
-| 10. Agent Endpoints | SV-API-101 – 114 | 14 |
-| 11. Generated UI Endpoints | SV-API-115 – 120 | 6 |
-| 12. Collaboration Endpoints | SV-API-121 – 133 | 13 |
-| 13. Plans Endpoints | SV-API-134 – 140 | 7 |
-| 14. File Upload Endpoints | SV-API-141 – 146 | 6 |
-| 15. Health & Admin Endpoints | SV-API-147 – 154 | 8 |
-| 16. API Documentation (Swagger) | SV-API-155 – 163 | 9 |
-| 17. Rate Limiting Rules | SV-API-164 – 168 | 5 |
-| **TOTAL** | | **168** |
+| Section                            | Task Range       | Count   |
+| ---------------------------------- | ---------------- | ------- |
+| 1. API Conventions & Versioning    | SV-API-001 – 004 | 4       |
+| 2. Request & Response Standards    | SV-API-005 – 012 | 8       |
+| 3. Pagination, Filtering & Sorting | SV-API-013 – 022 | 10      |
+| 4. Auth Endpoints                  | SV-API-023 – 033 | 11      |
+| 5. Users Endpoints                 | SV-API-034 – 042 | 9       |
+| 6. Projects Endpoints              | SV-API-043 – 055 | 13      |
+| 7. Spec Documents Endpoints        | SV-API-056 – 064 | 9       |
+| 8. Specs Endpoints                 | SV-API-065 – 085 | 21      |
+| 9. Knowledge Graph Endpoints       | SV-API-086 – 100 | 15      |
+| 10. Agent Endpoints                | SV-API-101 – 114 | 14      |
+| 11. Generated UI Endpoints         | SV-API-115 – 120 | 6       |
+| 12. Collaboration Endpoints        | SV-API-121 – 133 | 13      |
+| 13. Plans Endpoints                | SV-API-134 – 140 | 7       |
+| 14. File Upload Endpoints          | SV-API-141 – 146 | 6       |
+| 15. Health & Admin Endpoints       | SV-API-147 – 154 | 8       |
+| 16. API Documentation (Swagger)    | SV-API-155 – 163 | 9       |
+| 17. Rate Limiting Rules            | SV-API-164 – 168 | 5       |
+| **TOTAL**                          |                  | **168** |

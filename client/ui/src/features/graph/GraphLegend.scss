@@ -1,0 +1,50 @@
+.GraphLegend {
+  position: absolute;
+  bottom: $space-4;
+  right: $space-4;
+  display: flex;
+  flex-direction: column;
+  gap: $space-1;
+  padding: $space-2 $space-3;
+  border-radius: $radius-lg;
+  background: var(--color-bg, #{$neutral-50});
+  border: $border-width-thin solid var(--color-border, #{$neutral-200});
+  box-shadow: $shadow-md;
+  z-index: $z-index-dropdown;
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    padding: $space-1 $space-2;
+    border: none;
+    border-radius: $radius-md;
+    background: transparent;
+    cursor: pointer;
+    @include body-sm;
+    color: var(--color-text);
+    @include transition(opacity, background-color);
+
+    &:hover {
+      background: var(--color-bg-secondary, #{$neutral-100});
+    }
+
+    &--hidden {
+      opacity: 0.4;
+    }
+  }
+
+  &__color {
+    display: inline-block;
+    width: 20px;
+    height: 3px;
+    border-radius: $radius-full;
+    flex-shrink: 0;
+    border-width: 0;
+  }
+
+  &__label {
+    @include caption;
+    white-space: nowrap;
+  }
+}

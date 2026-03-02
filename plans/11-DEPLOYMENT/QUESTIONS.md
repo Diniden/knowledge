@@ -9,6 +9,7 @@
 ## 1. Hosting & Infrastructure
 
 ### 1.1 Hosting Platform
+
 - **Q**: Should the application be hosted on a VPS (DigitalOcean, Hetzner,
   Linode), a cloud platform (AWS, GCP, Azure), or a PaaS (Railway, Render,
   Fly.io)? Each has different cost, complexity, and scaling characteristics.
@@ -30,6 +31,7 @@
 - **A:** Region depends on the deployer's user base. For self-hosted, the user chooses. For any reference deployment, US East or EU West (where most cloud providers have cheapest capacity). Multi-region is not planned — the system is local-only.
 
 ### 1.2 Database Hosting
+
 - **Q**: Should PostgreSQL be self-hosted (Docker container on the same server)
   or use a managed service (RDS, Cloud SQL, Supabase)? Managed services cost
   more but provide automated backups, failover, and scaling.
@@ -48,6 +50,7 @@
 - **A:** No. Same database, separate schema/table with append-only permissions. At the expected volume (~365 MB/year), audit logs do not meaningfully impact performance. Partition the audit table by month for efficient archival and querying. Separate database is overkill for launch.
 
 ### 1.3 Git Repository Hosting
+
 - **Q**: Should knowledge graph git repositories be hosted on the same server
   as the application, or on an external git hosting service (GitHub, GitLab)?
   Local hosting is simpler and has no API rate limits; external hosting
@@ -69,6 +72,7 @@
 ## 2. Build & Runtime
 
 ### 2.1 Bun Runtime
+
 - **Q**: Is Bun stable enough for production use, or should there be a Node.js
   fallback plan? Bun is newer and may have compatibility issues with some npm
   packages or NestJS features.
@@ -84,6 +88,7 @@
 - **A:** Vite with Bun as the runtime, per the PRD (Bun runtime, Vite builds). `bun run vite build` uses Vite's build pipeline with Bun's speed. This is well-supported and provides maximum compatibility with Vite's plugin ecosystem.
 
 ### 2.2 Build Strategy
+
 - **Q**: Should the build process produce a single monolithic Docker image
   (frontend + server) or separate images? Separate images allow independent
   scaling and deployment but add orchestration complexity.
@@ -104,6 +109,7 @@
 ## 3. Docker
 
 ### 3.1 Container Architecture
+
 - **Q**: Should Docker Compose be the production orchestration tool, or should
   we use Kubernetes, Docker Swarm, or a PaaS? Docker Compose is simplest
   but limited for multi-node scaling.
@@ -124,6 +130,7 @@
 - **A:** Non-root user (UID 1000). The Dockerfile creates a `botnet` user. Volume permissions are handled by setting the volume ownership in the Docker entrypoint script. This follows container security best practices without sacrificing usability.
 
 ### 3.2 Image Optimization
+
 - **Q**: What base image should the server use? `oven/bun:1-slim` (smaller),
   `oven/bun:1` (full), or `oven/bun:1-alpine` (smallest but may have
   compatibility issues)?
@@ -139,6 +146,7 @@
 ## 4. CI/CD Pipeline
 
 ### 4.1 CI Platform
+
 - **Q**: Should the CI/CD platform be GitHub Actions, GitLab CI, or something
   else? If the repository is on GitHub, GitHub Actions is the natural choice.
   Are there reasons to prefer another platform?
@@ -154,6 +162,7 @@
 - **A:** GitHub-hosted runners at launch (`ubuntu-latest`). Simpler, no maintenance, and the free tier is sufficient for a small team. Self-hosted runners are a cost optimization if CI minutes become expensive (Phase 3+).
 
 ### 4.2 Deployment Strategy
+
 - **Q**: Should production deployment be triggered automatically on merge to
   `main`, or require manual approval? Automatic deployment enables continuous
   delivery; manual approval adds a safety gate.
@@ -175,6 +184,7 @@
 - **A:** Simple restart (stop old, start new). With a single server and Docker Compose, blue-green/rolling/canary are unnecessary complexity. Downtime during deployment is measured in seconds (Bun startup is sub-second + migration time). If zero-downtime is required later, a blue-green approach with two container instances behind Caddy is the Phase 4+ path.
 
 ### 4.3 Testing in CI
+
 - **Q**: Should E2E tests run on every PR, or only on merge to `main`? E2E
   tests are slow and flaky; running on every PR provides early feedback but
   slows the pipeline.
@@ -193,6 +203,7 @@
 ## 5. Monitoring & Logging
 
 ### 5.1 Monitoring Stack
+
 - **Q**: Should we use a SaaS monitoring solution (Datadog, New Relic,
   Better Stack) or self-hosted (Prometheus + Grafana, Uptime Kuma)? SaaS is
   simpler but costs money; self-hosted is free but requires maintenance.
@@ -208,6 +219,7 @@
 - **A:** Uptime Kuma and Sentry are accessible to all team members (developers need visibility for debugging). Log files on the server are accessible only to the instance admin (SSH access). No role-based monitoring access at launch.
 
 ### 5.2 Logging Strategy
+
 - **Q**: Should logs be stored locally (on the server's disk) or sent to a
   centralized logging service? Centralized logging is better for debugging
   but adds infrastructure.
@@ -228,6 +240,7 @@
 - **A:** Yes. The server exposes an admin-only endpoint (`POST /admin/log-level`) that changes the Pino log level at runtime (e.g., from `info` to `debug`). The change persists until the next restart (reverts to the env var default). This is essential for diagnosing production issues.
 
 ### 5.3 Alerting
+
 - **Q**: What alerting channels should be supported? Email, Slack, PagerDuty,
   Discord? What is the team's primary communication tool?
 - **A:** Uptime Kuma supports all major channels. At launch: webhook to Slack or Discord (configured by the deployer). Email alerts as a fallback. PagerDuty is overkill for a 20–50 user deployment. The specific channel is deployment-dependent.
@@ -365,5 +378,5 @@
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

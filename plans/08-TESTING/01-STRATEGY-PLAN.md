@@ -908,27 +908,28 @@
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. Testing Philosophy | 5 (TS-STR-001 through TS-STR-005) |
-| 2. Test Pyramid & Layer Definitions | 8 (TS-STR-006 through TS-STR-013) |
-| 3. Tooling Selection | 15 (TS-STR-014 through TS-STR-028) |
-| 4. Test Organization & Naming | 7 (TS-STR-029 through TS-STR-035) |
-| 5. Code Coverage Configuration | 7 (TS-STR-036 through TS-STR-042) |
-| 6. CI Integration | 8 (TS-STR-043 through TS-STR-050) |
-| 7. Test Data Management | 11 (TS-STR-051 through TS-STR-061) |
-| 8. Testing Environment Setup | 9 (TS-STR-062 through TS-STR-070) |
-| 9. Snapshot Testing Strategy | 5 (TS-STR-071 through TS-STR-075) |
-| 10. Performance Testing | 7 (TS-STR-076 through TS-STR-082) |
-| 11. Accessibility Testing | 5 (TS-STR-083 through TS-STR-087) |
-| 12. Security Testing | 4 (TS-STR-088 through TS-STR-091) |
-| 13. Cross-Cutting Test Utilities | 10 (TS-STR-092 through TS-STR-101) |
-| 14. Test Documentation | 6 (TS-STR-102 through TS-STR-107) |
-| **TOTAL** | **107** |
+| Section                             | Tasks                              |
+| ----------------------------------- | ---------------------------------- |
+| 1. Testing Philosophy               | 5 (TS-STR-001 through TS-STR-005)  |
+| 2. Test Pyramid & Layer Definitions | 8 (TS-STR-006 through TS-STR-013)  |
+| 3. Tooling Selection                | 15 (TS-STR-014 through TS-STR-028) |
+| 4. Test Organization & Naming       | 7 (TS-STR-029 through TS-STR-035)  |
+| 5. Code Coverage Configuration      | 7 (TS-STR-036 through TS-STR-042)  |
+| 6. CI Integration                   | 8 (TS-STR-043 through TS-STR-050)  |
+| 7. Test Data Management             | 11 (TS-STR-051 through TS-STR-061) |
+| 8. Testing Environment Setup        | 9 (TS-STR-062 through TS-STR-070)  |
+| 9. Snapshot Testing Strategy        | 5 (TS-STR-071 through TS-STR-075)  |
+| 10. Performance Testing             | 7 (TS-STR-076 through TS-STR-082)  |
+| 11. Accessibility Testing           | 5 (TS-STR-083 through TS-STR-087)  |
+| 12. Security Testing                | 4 (TS-STR-088 through TS-STR-091)  |
+| 13. Cross-Cutting Test Utilities    | 10 (TS-STR-092 through TS-STR-101) |
+| 14. Test Documentation              | 6 (TS-STR-102 through TS-STR-107)  |
+| **TOTAL**                           | **107**                            |
 
 ### Dependencies (What This Plan Enables)
 
 Completion of this plan unblocks:
+
 - `08-TESTING/02-FRONTEND-TESTING-PLAN.md` — inherits tooling, conventions, coverage targets
 - `08-TESTING/03-SERVER-TESTING-PLAN.md` — inherits tooling, test database setup, mock patterns
 - `08-TESTING/04-AGENT-TESTING-PLAN.md` — inherits tooling, mock patterns, CI integration
@@ -936,6 +937,7 @@ Completion of this plan unblocks:
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] `bun test` runs successfully from root, client, and server workspaces
 - [ ] Test file discovery finds all `*.test.ts` and `*.test.tsx` files
 - [ ] DOM environment works for React component tests

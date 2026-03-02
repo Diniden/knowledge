@@ -1,0 +1,57 @@
+.EditorToolbar {
+  @include flex-row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $space-1;
+  padding: $space-2 $space-3;
+  border-bottom: $border-width-thin solid var(--color-border);
+  background: var(--color-surface-card);
+  border-radius: $radius-lg $radius-lg 0 0;
+
+  &__group {
+    @include flex-row;
+    align-items: center;
+    gap: $space-1;
+  }
+
+  &__divider {
+    width: $border-width-thin;
+    height: 24px;
+    margin: 0 $space-1;
+    background: var(--color-border);
+  }
+
+  &__button {
+    @include flex-center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: $radius-md;
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-bold;
+    @include transition(background, color);
+
+    &:hover {
+      background: var(--color-interactive-hover);
+      color: var(--color-text);
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+
+    &--active {
+      background: var(--color-primary-light);
+      color: var(--color-primary);
+
+      &:hover {
+        background: var(--color-primary-light);
+        color: var(--color-primary-hover);
+      }
+    }
+  }
+}

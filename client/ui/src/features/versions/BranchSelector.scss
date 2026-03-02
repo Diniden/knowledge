@@ -1,0 +1,179 @@
+.BranchSelector {
+  position: relative;
+  display: inline-block;
+
+  &__trigger {
+    @include body-sm;
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    background: var(--color-surface-card);
+    border: $border-width-thin solid var(--color-border);
+    padding: $space-2 $space-3;
+    border-radius: $radius-md;
+    cursor: pointer;
+    color: var(--color-text);
+    @include transition(background, border-color);
+
+    &:hover {
+      background: var(--color-interactive-hover);
+    }
+  }
+
+  &__icon {
+    flex-shrink: 0;
+    color: var(--color-text-secondary);
+  }
+
+  &__dropdown {
+    position: absolute;
+    top: calc(100% + $space-1);
+    left: 0;
+    min-width: 280px;
+    background: var(--color-surface-popover);
+    border: $border-width-thin solid var(--color-border);
+    border-radius: $radius-lg;
+    box-shadow: $shadow-lg;
+    z-index: $z-index-dropdown;
+    @include flex-column;
+    overflow: hidden;
+  }
+
+  &__search {
+    @include body-sm;
+    padding: $space-3;
+    border: none;
+    border-bottom: $border-width-thin solid var(--color-border);
+    background: transparent;
+    color: var(--color-text);
+    outline: none;
+
+    &::placeholder {
+      color: var(--color-text-tertiary);
+    }
+  }
+
+  &__list {
+    @include flex-column;
+    max-height: 240px;
+    overflow-y: auto;
+    @include scrollbar-thin;
+  }
+
+  &__item {
+    @include flex-between;
+    padding: $space-2 $space-3;
+    @include transition(background);
+
+    &:hover {
+      background: var(--color-interactive-hover);
+    }
+
+    &--current {
+      background: var(--color-interactive-selected);
+    }
+  }
+
+  &__itemName {
+    @include body-sm;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: var(--color-text);
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    text-align: left;
+    flex: 1;
+    min-width: 0;
+
+    &:hover {
+      color: var(--color-primary);
+    }
+  }
+
+  &__badge {
+    @include caption;
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+    padding: 0 $space-1;
+    border-radius: $radius-sm;
+    flex-shrink: 0;
+  }
+
+  &__actions {
+    display: flex;
+    gap: $space-1;
+    flex-shrink: 0;
+  }
+
+  &__actionBtn {
+    @include caption;
+    background: none;
+    border: $border-width-thin solid var(--color-border);
+    padding: $space-1 $space-2;
+    border-radius: $radius-sm;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+
+    &:hover {
+      background: var(--color-interactive-hover);
+      color: var(--color-text);
+    }
+
+    &--danger {
+      &:hover {
+        background: var(--color-error-bg);
+        color: var(--color-error);
+        border-color: var(--color-error);
+      }
+    }
+  }
+
+  &__create {
+    display: flex;
+    gap: $space-2;
+    padding: $space-3;
+    border-top: $border-width-thin solid var(--color-border);
+    background: var(--color-bg-secondary);
+  }
+
+  &__createInput {
+    @include body-sm;
+    flex: 1;
+    padding: $space-1 $space-2;
+    border: $border-width-thin solid var(--color-border);
+    border-radius: $radius-md;
+    background: var(--color-surface-card);
+    color: var(--color-text);
+    outline: none;
+
+    &:focus {
+      border-color: var(--color-border-focus);
+    }
+
+    &::placeholder {
+      color: var(--color-text-tertiary);
+    }
+  }
+
+  &__createBtn {
+    @include body-sm;
+    background: var(--color-primary);
+    color: var(--color-primary-text);
+    border: none;
+    padding: $space-1 $space-3;
+    border-radius: $radius-md;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--color-primary-hover);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}

@@ -10,6 +10,7 @@
 ## 1. API Design Conventions
 
 ### 1.1 URL Structure
+
 - **Q**: Should nested resources use full paths
   (`/projects/:projectId/specs/:specId`) or flat paths with query params
   (`/specs/:specId?projectId=xxx`)? Nested paths are RESTful but create deep
@@ -29,6 +30,7 @@
 **A:** Plural resource names confirmed. `/specs/`, `/users/`, `/projects/`, `/sessions/`, `/documents/`, `/edges/`. This is the most common REST convention and reads naturally for both collections (`GET /specs`) and individual resources (`GET /specs/:id`).
 
 ### 1.2 Versioning
+
 - **Q**: Is URL-based versioning (`/api/v1/`) the right choice, or should the
   API use header-based versioning (`Accept: application/vnd.kg.v1+json`)? URL
   versioning is simpler but clutters URLs.
@@ -45,6 +47,7 @@
 ## 2. Response Format
 
 ### 2.1 Envelope Structure
+
 - **Q**: Should all responses use the `{ data, meta }` envelope, or should
   simple endpoints return the resource directly? Envelopes add consistency but
   increase payload size for simple operations.
@@ -63,6 +66,7 @@
 **A:** Use `{ data: T[], meta: { pagination, requestId } }`. The flat structure is simpler, and pagination metadata belongs in `meta` alongside other response metadata. `data` is always the resource(s). The client can destructure `const { data: specs, meta } = response` uniformly.
 
 ### 2.2 Error Details
+
 - **Q**: Should validation errors return the attempted value in the error
   details (helpful for debugging) or omit it (more secure, no reflection of
   potentially sensitive input)?
@@ -85,6 +89,7 @@
 ## 3. Authentication API
 
 ### 3.1 Token Strategy
+
 - **Q**: Should the access token be returned in the response body AND set as
   a cookie, or cookie only? Returning in the body allows non-browser clients
   (CLI tools, API consumers) to use the API without cookies.
@@ -109,6 +114,7 @@
 **A:** Yes, but deferred to phase 2. The initial release supports JWT cookie + Bearer token from login. API keys (long-lived, user-generated, scoped) are a phase 2 feature. The auth middleware should already support Bearer tokens, so API keys will slot in naturally by storing them in a `api_keys` table and validating them in the same auth guard.
 
 ### 3.2 Registration & Verification
+
 - **Q**: Should email verification be required before the user can log in, or
   should the account be immediately usable with a "verify email" reminder?
 
@@ -129,6 +135,7 @@
 ## 4. Resource Design
 
 ### 4.1 Specs vs Documents
+
 - **Q**: Should specs always belong to a document, or can specs exist
   independently (orphan specs not assigned to any document)? The PRD implies
   specs are grouped into documents, but orphan specs may occur during agent
@@ -149,6 +156,7 @@
 **A:** Option (b): specs are moved to the "Inbox" document. Users must explicitly delete individual specs if they want to remove them. Bulk operations (move all specs, delete all specs in document) are available as separate actions. Document deletion is a reorganization operation, not a data destruction operation.
 
 ### 4.2 Knowledge Graph
+
 - **Q**: Should the graph API expose raw file paths (for debugging) or only
   abstract IDs? Exposing paths leaks file system structure.
 
@@ -174,6 +182,7 @@
 **A:** Cache aggressively. Maintain a stats object in the in-memory graph index that updates on every mutation (node/edge create, update, delete). The `GET /graph/stats` endpoint returns the cached stats instantly. Stats include: node count, edge count, edge count by type, spec count by status. Since all mutations go through the server, the cache is always consistent.
 
 ### 4.3 Agent Sessions
+
 - **Q**: Should agent sessions be scoped to a project, or can a session span
   multiple projects? The current design scopes to a project, but users may
   want to discuss cross-project topics.
@@ -202,6 +211,7 @@
 ## 5. Pagination
 
 ### 5.1 Strategy
+
 - **Q**: Should the API use offset-based (`page` + `limit`) or cursor-based
   pagination as the primary pattern? Offset is simpler but has issues with
   concurrent inserts. Cursor is more robust but requires ordered data.
@@ -220,6 +230,7 @@
 **A:** Not applicable with cursor-based pagination — there's no concept of "page depth." Every cursor lookup is an indexed seek, equally fast regardless of position. The cursor approach eliminates this problem entirely.
 
 ### 5.2 Defaults
+
 - **Q**: What should the default page size be? 20 items is common but may be
   too many for agent sessions (heavy objects) or too few for spec lists.
 
@@ -235,6 +246,7 @@
 ## 6. Filtering & Search
 
 ### 6.1 Search Capabilities
+
 - **Q**: Should the text search endpoint use full-text search (PostgreSQL
   `tsvector`) or simple `LIKE` matching? Full-text is better for natural
   language queries but requires indexing setup.
@@ -252,6 +264,7 @@
 **A:** No negation in query parameters. Use explicit filter values instead: `?status=draft,active` (include listed values). If "everything except archived" is needed, the client lists the desired statuses. This keeps URL parsing simple and avoids ambiguous encoding issues with `!=` in URLs.
 
 ### 6.2 Complex Queries
+
 - **Q**: Should the API support complex graph queries (e.g., "find all specs
   that depend-on a spec that contradicts another spec") or keep queries simple
   and let the frontend combine multiple API calls?
@@ -269,6 +282,7 @@
 ## 7. Collaboration & Sync
 
 ### 7.1 Sync Strategy
+
 - **Q**: Should collaboration endpoints be project-scoped (sync entire project)
   or support file-level granularity (sync specific specs)? Project-level is
   simpler but may sync unnecessary data.
@@ -287,6 +301,7 @@
 **A:** Via the API. The server detects conflicts and returns a structured conflict object: `{ file, ours, theirs, base }` with the full content of each version. The client renders a diff/merge UI. The user chooses a resolution (ours, theirs, or manual edit). The client sends the resolution back: `POST /projects/:id/sync/resolve { file, resolution }`. The server writes the resolved content and completes the merge commit.
 
 ### 7.2 Branch Management
+
 - **Q**: Should branches be a first-class API concept, or should collaboration
   be branch-agnostic (always work on main, merge via pull requests)?
 
@@ -307,6 +322,7 @@
 ## 8. File Uploads
 
 ### 8.1 Upload Strategy
+
 - **Q**: Should uploaded files be stored in the git repository (version
   controlled but increases repo size) or in a separate storage location
   (lighter repo but separate backup/sync needs)?
@@ -334,6 +350,7 @@
 ## 9. Rate Limiting
 
 ### 9.1 Strategy
+
 - **Q**: Should rate limits be per-IP, per-user, or both? Per-IP protects
   against anonymous abuse, per-user prevents authenticated abuse. Both is
   most secure but complex.
@@ -360,6 +377,7 @@
 ## 10. Performance
 
 ### 10.1 Response Optimization
+
 - **Q**: Should the API support field selection (e.g., `?fields=id,title,status`)
   to reduce response size? This reduces bandwidth but complicates serialization.
 
@@ -378,6 +396,7 @@
 **A:** Yes, support `?expand=` on key endpoints. `GET /specs/:id?expand=edges` returns the spec with its edges inline. `GET /documents/:id?expand=specs` returns the document with its specs. Allowed expand values are documented per endpoint in Swagger. Default is no expansion. This reduces N+1 round trips for common UI patterns without the complexity of GraphQL.
 
 ### 10.2 Batch Operations
+
 - **Q**: What is the maximum batch size for bulk spec operations (create,
   update)? 50 specs per batch is proposed — is this appropriate?
 

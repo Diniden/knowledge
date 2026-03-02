@@ -1,0 +1,250 @@
+@use 'sass:list';
+@use 'variables' as *;
+
+// ==========================================================================
+// Mixins
+// ==========================================================================
+
+// --------------------------------------------------------------------------
+// Responsive Design
+// --------------------------------------------------------------------------
+
+@mixin respond-to($breakpoint) {
+  @if $breakpoint == sm {
+    @media (min-width: $breakpoint-sm) {
+      @content;
+    }
+  }
+  @if $breakpoint == md {
+    @media (min-width: $breakpoint-md) {
+      @content;
+    }
+  }
+  @if $breakpoint == lg {
+    @media (min-width: $breakpoint-lg) {
+      @content;
+    }
+  }
+  @if $breakpoint == xl {
+    @media (min-width: $breakpoint-xl) {
+      @content;
+    }
+  }
+  @if $breakpoint == 2xl {
+    @media (min-width: $breakpoint-2xl) {
+      @content;
+    }
+  }
+}
+
+@mixin respond-below($breakpoint) {
+  @if $breakpoint == sm {
+    @media (max-width: #{$breakpoint-sm  - 1px}) {
+      @content;
+    }
+  }
+  @if $breakpoint == md {
+    @media (max-width: #{$breakpoint-md  - 1px}) {
+      @content;
+    }
+  }
+  @if $breakpoint == lg {
+    @media (max-width: #{$breakpoint-lg  - 1px}) {
+      @content;
+    }
+  }
+  @if $breakpoint == xl {
+    @media (max-width: #{$breakpoint-xl  - 1px}) {
+      @content;
+    }
+  }
+  @if $breakpoint == 2xl {
+    @media (max-width: #{$breakpoint-2xl - 1px}) {
+      @content;
+    }
+  }
+}
+
+// --------------------------------------------------------------------------
+// Typography
+// --------------------------------------------------------------------------
+
+@mixin heading-1 {
+  font-size: $font-size-4xl;
+  font-weight: $font-weight-bold;
+  line-height: $line-height-tight;
+  letter-spacing: -0.025em;
+}
+
+@mixin heading-2 {
+  font-size: $font-size-3xl;
+  font-weight: $font-weight-bold;
+  line-height: $line-height-tight;
+  letter-spacing: -0.025em;
+}
+
+@mixin heading-3 {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-semibold;
+  line-height: $line-height-tight;
+}
+
+@mixin heading-4 {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  line-height: $line-height-normal;
+}
+
+@mixin heading-5 {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+}
+
+@mixin heading-6 {
+  font-size: $font-size-base;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+}
+
+@mixin body-text {
+  font-size: $font-size-base;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+}
+
+@mixin body-sm {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+}
+
+@mixin caption {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+}
+
+// --------------------------------------------------------------------------
+// Flexbox Helpers
+// --------------------------------------------------------------------------
+
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@mixin flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+@mixin flex-row {
+  display: flex;
+  flex-direction: row;
+}
+
+@mixin flex-wrap {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+// --------------------------------------------------------------------------
+// Text Utilities
+// --------------------------------------------------------------------------
+
+@mixin truncate-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@mixin line-clamp($lines) {
+  display: -webkit-box;
+  -webkit-line-clamp: $lines;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// --------------------------------------------------------------------------
+// Focus & Interaction
+// --------------------------------------------------------------------------
+
+@mixin focus-ring {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@mixin focus-ring-inset {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+// --------------------------------------------------------------------------
+// Surfaces
+// --------------------------------------------------------------------------
+
+@mixin surface-elevated {
+  background: var(--color-surface-card);
+  border: $border-width-thin solid var(--color-border);
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+}
+
+// --------------------------------------------------------------------------
+// Scrollbars
+// --------------------------------------------------------------------------
+
+@mixin scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: $radius-full;
+
+    &:hover {
+      background: var(--color-text-tertiary);
+    }
+  }
+}
+
+// --------------------------------------------------------------------------
+// Transition Helper
+// --------------------------------------------------------------------------
+
+@mixin transition($properties...) {
+  $result: ();
+  @each $prop in $properties {
+    $result: list.append($result, $prop $duration-normal $ease-in-out, comma);
+  }
+  transition: $result;
+}
+
+// --------------------------------------------------------------------------
+// Reduced Motion
+// --------------------------------------------------------------------------
+
+@mixin reduced-motion {
+  @media (prefers-reduced-motion: reduce) {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

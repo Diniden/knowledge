@@ -1,0 +1,48 @@
+---
+description: Project-wide coding standards for the Knowledge Graph Agent System
+alwaysApply: true
+---
+
+# General Coding Standards
+
+## Project Overview
+
+This is the Knowledge Graph Agent System — a monorepo with `client/`, `server/`, `shared/`, and `packages/` workspaces managed by Bun.
+
+## TypeScript
+
+- Strict mode is enabled everywhere. Do not use `any` unless absolutely necessary (and add a comment explaining why).
+- Prefer `type` imports: `import type { Foo } from './foo.js'`.
+- Use `.js` extensions in relative imports (ESM resolution).
+- Use `const` by default. Never use `var`.
+- Use strict equality (`===`) everywhere.
+- Enable `noUncheckedIndexedAccess` — always handle potentially undefined index access.
+
+## File Organization
+
+- Co-locate tests with source files: `foo.test.ts` next to `foo.ts`.
+- Co-locate styles with components: `Component.module.scss` next to `Component.tsx`.
+- Barrel files (`index.ts`) re-export public API only. Keep them minimal.
+
+## Naming
+
+- Files: `kebab-case.ts` for utilities, `PascalCase.tsx` for React components, `kebab-case.module.scss` for styles.
+- Types/Interfaces: PascalCase. Prefix interfaces with context, not `I`.
+- Functions: camelCase. Use descriptive verb-first names.
+- Constants: UPPER_SNAKE_CASE for true constants, camelCase for derived values.
+
+## Error Handling
+
+- Use the project's shared error types from `@kg/shared`.
+- Never swallow errors silently. Always log or re-throw.
+- Use typed errors, not string throws.
+
+## Testing
+
+- Use `bun:test` (`describe`, `test`, `expect`).
+- Follow AAA pattern: Arrange, Act, Assert.
+- Name tests as behavior descriptions: `test('returns 401 when JWT is expired')`.
+
+## Domain Boundary
+
+This is **development-time** configuration. Do NOT confuse it with the application's runtime agent system in `server/src/modules/agent/`. See `BOUNDARY.md` for details.

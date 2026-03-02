@@ -737,21 +737,21 @@ indications."
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. Diff View Implementation | 10 (FE-VC-001 through FE-VC-010) |
-| 2. Version History Timeline | 8 (FE-VC-011 through FE-VC-018) |
-| 3. Spec-Level Version Navigation | 6 (FE-VC-019 through FE-VC-024) |
-| 4. Document-Level Version Navigation | 4 (FE-VC-025 through FE-VC-028) |
-| 5. Branch Management UI | 6 (FE-VC-029 through FE-VC-034) |
-| 6. Merge Interface | 5 (FE-VC-035 through FE-VC-039) |
-| 7. Conflict Resolution UI | 9 (FE-VC-040 through FE-VC-048) |
-| 8. Revert Flows | 6 (FE-VC-049 through FE-VC-054) |
-| 9. Commit Hash Display & Navigation | 6 (FE-VC-055 through FE-VC-060) |
-| 10. Version Control Integration Points | 6 (FE-VC-061 through FE-VC-066) |
-| 11. Sync & Pull UI | 7 (FE-VC-067 through FE-VC-073) |
-| 12. Accessibility | 4 (FE-VC-074 through FE-VC-077) |
-| **TOTAL** | **77** |
+| Section                                | Tasks                            |
+| -------------------------------------- | -------------------------------- |
+| 1. Diff View Implementation            | 10 (FE-VC-001 through FE-VC-010) |
+| 2. Version History Timeline            | 8 (FE-VC-011 through FE-VC-018)  |
+| 3. Spec-Level Version Navigation       | 6 (FE-VC-019 through FE-VC-024)  |
+| 4. Document-Level Version Navigation   | 4 (FE-VC-025 through FE-VC-028)  |
+| 5. Branch Management UI                | 6 (FE-VC-029 through FE-VC-034)  |
+| 6. Merge Interface                     | 5 (FE-VC-035 through FE-VC-039)  |
+| 7. Conflict Resolution UI              | 9 (FE-VC-040 through FE-VC-048)  |
+| 8. Revert Flows                        | 6 (FE-VC-049 through FE-VC-054)  |
+| 9. Commit Hash Display & Navigation    | 6 (FE-VC-055 through FE-VC-060)  |
+| 10. Version Control Integration Points | 6 (FE-VC-061 through FE-VC-066)  |
+| 11. Sync & Pull UI                     | 7 (FE-VC-067 through FE-VC-073)  |
+| 12. Accessibility                      | 4 (FE-VC-074 through FE-VC-077)  |
+| **TOTAL**                              | **77**                           |
 
 > Note: Many tasks contain detailed sub-items covering states, edge cases,
 > and UI variants. The diff view alone has multiple modes, navigation features,
@@ -761,6 +761,7 @@ indications."
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] Diff view shows changes with light indications (not heavy GitHub-style)
 - [ ] Version history timeline loads, paginates, and filters correctly
 - [ ] Per-spec version navigation works (view, compare, revert)

@@ -9,6 +9,7 @@
 ## 1. Panel Behavior
 
 ### 1.1 "Always Visible"
+
 - **Q**: The PRD says the chat dialog "will always be visible." Does this mean
   the panel takes up screen space at all times, or can it be minimized to an
   icon? On a 1280px-wide screen, a 380px chat panel leaves only 900px for
@@ -25,6 +26,7 @@
 - **A:** The minimized chat tab (40px) remains visible in all modes — including focus mode. This is the "always visible" contract. Cmd+K expands the chat as an overlay on top of the fullscreen content rather than shrinking the content. Pressing Escape or clicking outside the overlay returns to the minimized tab.
 
 ### 1.2 Docking Position
+
 - **Q**: Should the chat panel always be on the right side, or should users
   be able to dock it on the left or bottom?
 - **A:** Always on the right side. The left side is occupied by the document tree sidebar, and the bottom position doesn't work well for a chat interface (vertical message lists need height, not width). Fixed positioning simplifies the layout system and creates a consistent spatial model: sidebar left, content center, chat right.
@@ -42,6 +44,7 @@
 ## 2. Chat Sessions
 
 ### 2.1 Session Model
+
 - **Q**: Should there be one active session at a time, or can the user have
   multiple concurrent sessions (tabbed)? The PRD seems to imply single
   session, but multiple might be useful.
@@ -56,6 +59,7 @@
 - **A:** Auto-generated title from the first message (truncated to 60 chars), plus the start date. Users can rename sessions from the history list. The agent can also suggest a title when the session reaches a natural conclusion. Session titles make history browsable: "Refactoring auth specs - Feb 28" is more useful than a timestamp alone.
 
 ### 2.2 Session Context
+
 - **Q**: What context data should be sent with each message? Only the current
   view (document/spec/graph), or also recent navigation history?
 - **A:** Current view context (active document ID, selected spec ID, visible graph viewport bounds) plus the last 5 navigation events (so the agent knows what the user just looked at). Also include: current branch name, any active inquiry queue items, and whether the user has unsaved editor changes. This gives the agent rich situational awareness without overwhelming the context window.
@@ -73,6 +77,7 @@
 ## 3. Message Types
 
 ### 3.1 Message Complexity
+
 - **Q**: What is the full enumeration of message types the system needs to
   support? The plan lists 8+ types. Are there others we haven't considered?
 - **A:** Full message type list: `text` (markdown), `interactive` (buttons/forms from agent), `graph-link` (clickable spec/edge references), `code-block` (syntax-highlighted code), `gen-ui-embed` (iframe gen UI), `spec-proposal` (diff with accept/reject), `image` (attached/generated), `file` (downloadable attachment), `status` (system events: "Branch switched to feature-x"), `inquiry` (agent-flagged issue needing input), `gen-ui-output` (data received from gen UI interaction), and `error` (agent error with retry option).
@@ -87,6 +92,7 @@
 - **A:** Streamed delivery for text blocks. Agent text appears token-by-token as it's generated, via incremental WebSocket messages. Non-text blocks (interactive, spec-proposal, gen-ui-embed) arrive complete after the text stream finishes. The streaming creates a responsive feel and lets users start reading before the full response is generated. A "Stop generating" button appears during streaming.
 
 ### 3.2 Interactive Messages
+
 - **Q**: When the user clicks an action button (e.g., "Accept spec proposal"),
   should the action happen immediately or show a confirmation first?
   Immediate is faster; confirmation is safer.
@@ -107,6 +113,7 @@
 ## 4. Agent Interaction
 
 ### 4.1 Agent Behavior
+
 - **Q**: Should the agent proactively send messages (without user prompt)?
   For example: "I noticed you modified Spec A, which is related to Spec B.
   Would you like me to review the impact?" This is powerful but could be
@@ -123,6 +130,7 @@
 - **A:** Both. Default is a bouncing dots animation. When the agent reports progress steps via WebSocket (e.g., "Analyzing dependencies...", "Generating proposal...", "Building gen UI..."), the dots are replaced with the current step label and a subtle progress animation. The agent is encouraged to report steps for operations >5 seconds, but the UI gracefully falls back to dots if no steps are reported.
 
 ### 4.2 Error Handling
+
 - **Q**: If the agent crashes mid-response, should the chat show a partial
   message (what was generated so far) or a clean error message?
 - **A:** Show the partial message (what was streamed so far) with a clear error footer: "[Response interrupted] The agent encountered an error. [Retry] [Copy partial response]". This preserves any useful content already generated. The partial message is styled with a subtle red-orange left border to indicate it's incomplete.
@@ -140,6 +148,7 @@
 ## 5. User Input
 
 ### 5.1 Input Capabilities
+
 - **Q**: Should the chat input support rich text formatting (bold, italic
   via toolbar), or only plain text / markdown?
 - **A:** Plain text with markdown syntax support. Users type markdown (e.g., `**bold**`, `` `code` ``) which renders in the sent message. No formatting toolbar — it takes up space and the target audience (technical professionals) is comfortable with markdown. The input area is a plain textarea with monospace font for markdown editing comfort.
@@ -152,6 +161,7 @@
 - **A:** Soft limit of 4,000 characters per message, displayed as a counter in the bottom-right of the input area (shows "234 / 4000" when approaching the limit). Exceeding the limit shows a warning but allows sending — the server/agent handles truncation if needed. This prevents users from accidentally pasting enormous content while allowing flexibility.
 
 ### 5.2 Slash Commands
+
 - **Q**: What is the complete set of slash commands? Should commands be
   hardcoded, or should the agent be able to register custom commands?
 - **A:** Hardcoded initial set with agent-extensible custom commands. Built-in: `/new-spec`, `/split-spec`, `/link [specId]`, `/graph [specId]`, `/version [specId]`, `/gen-ui [action]`, `/help`, `/clear` (clear chat display, history preserved), `/export`. The agent can register project-specific commands via the WebSocket protocol, which appear in the autocomplete menu with an "Agent" badge.
@@ -164,6 +174,7 @@
 - **A:** No separate admin commands in chat. Admin functions (user management, system settings, gen UI quarantine) are in the Settings page. The chat is for knowledge work, not system administration. Power-user commands (like `/export` or `/clear`) are available to all users.
 
 ### 5.3 File Attachments
+
 - **Q**: What file types should be supported for attachment? The PRD mentions
   mixed media (images, video, audio, documents). Should all be supported in
   chat?
@@ -182,6 +193,7 @@
 ## 6. Graph Integration
 
 ### 6.1 Spec Links
+
 - **Q**: How should spec references in messages be formatted? As plain text
   links, as styled chips/badges, or as expandable cards?
 - **A:** Styled chips/badges. Spec references render as inline pills showing the spec title (truncated to 30 chars) with a small node icon. Hovering a chip shows a tooltip with: full title, parent document name, and tag list. Clicking navigates to the spec in the editor. The chip color matches the spec's category/type color from the graph. This is more scannable than plain links or heavyweight cards.
@@ -195,6 +207,7 @@
 - **A:** Yes. The agent can include citation references in its messages: numbered inline citations [1], [2] that correspond to spec chips at the bottom of the message (like footnotes). Each citation chip is clickable and navigable. This makes the agent's reasoning traceable back to the knowledge graph, which is central to the system's value.
 
 ### 6.2 Graph Visualization
+
 - **Q**: Should the chat be able to embed a mini graph visualization
   (showing a few nodes and edges inline)? This adds significant complexity
   but could be very useful for graph-related discussions.
@@ -209,6 +222,7 @@
 ## 7. Multi-User
 
 ### 7.1 Dialog Visibility
+
 - **Q**: Per the PRD, users can see other users' dialogs. Should this be opt-in
   (user chooses to share), opt-out (shared by default, can hide), or always
   visible?
@@ -223,6 +237,7 @@
 - **A:** No per-message privacy. The granularity is per-session (public or private). Individual message privacy is too complex to manage and creates a confusing experience when reading a conversation with gaps. If a user needs to discuss sensitive content, they start a private session. This keeps the model simple and predictable.
 
 ### 7.2 Dialog Forking
+
 - **Q**: When forking a dialog, should the fork include only the messages, or
   also the agent's internal state (so the forked session can continue from
   the same context)?
@@ -281,5 +296,5 @@
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

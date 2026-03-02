@@ -121,7 +121,7 @@
   - Track overall pipeline progress (steps completed / total steps)
 - [ ] **CG-PE-015**: Implement pipeline state machine
   - States: `pending`, `running`, `paused`, `completed`, `failed`, `cancelled`
-  - Transitions: pending→running, running→paused (on failure or user action), paused→running (resume), running→completed, running→failed, *→cancelled
+  - Transitions: pending→running, running→paused (on failure or user action), paused→running (resume), running→completed, running→failed, \*→cancelled
   - Persist state to database for recovery after server restart
   - Resume from the last completed step on recovery
 - [ ] **CG-PE-016**: Implement pipeline pause and resume

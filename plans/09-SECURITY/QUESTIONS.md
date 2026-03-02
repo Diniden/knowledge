@@ -9,6 +9,7 @@
 ## 1. Authentication
 
 ### 1.1 Password Policy
+
 - **Q**: Should the password complexity requirements be configurable per
   deployment, or fixed? Some organizations may have stricter requirements.
 - **A:** Fixed at launch following NIST 800-63B: 12-character minimum, no composition rules, checked against a breached-password list (Have I Been Pwned top-100k). A future admin-settings panel can expose override knobs if self-hosted users request it, but the defaults are non-negotiable.
@@ -28,6 +29,7 @@
 - **A:** Not at launch. SSO adds significant surface area and the system is local-only through Phase 3 targeting 20–50 users. OIDC integration (Google, GitHub) is a Phase 4+ enhancement when hosted/enterprise deployments are considered.
 
 ### 1.2 Account Security
+
 - **Q**: Should account lockout be per-IP, per-username, or both? Per-IP
   prevents distributed brute force; per-username prevents targeted attacks.
 - **A:** Both. Per-username: lock the account for 15 minutes after 5 consecutive failed attempts. Per-IP: block login attempts for 15 minutes after 20 failed attempts across any username. Rate limiting (sliding window) enforces this at the NestJS guard level.
@@ -50,6 +52,7 @@
 ## 2. JWT & Session Management
 
 ### 2.1 Token Configuration
+
 - **Q**: Should we use RS256 (asymmetric) or HS256 (symmetric) for JWT
   signing? RS256 allows separate signing and verification keys (useful for
   microservices); HS256 is simpler for a single server.
@@ -71,6 +74,7 @@
 - **A:** The 15-minute lifetime is sufficient for most cases. On explicit logout, the refresh token is revoked server-side (deleted from the database). An in-memory deny list for access tokens is overkill at 20–50 users and is deferred until Redis is introduced.
 
 ### 2.2 Session Model
+
 - **Q**: Should we support concurrent sessions (logged in on multiple
   devices)? If so, should there be a maximum concurrent session count?
 - **A:** Yes, concurrent sessions are allowed. Maximum 5 active refresh tokens per user. When a 6th session is created, the oldest refresh token is revoked. This is enforced at the database level.
@@ -90,6 +94,7 @@
 ## 3. Authorization & Permissions
 
 ### 3.1 Permission Model
+
 - **Q**: The PRD says there is never "no access" — always at least a summary.
   Does this apply to ALL authenticated users, or only users within the same
   project? Can a user in Project A see summaries of specs in Project B?
@@ -114,6 +119,7 @@
 - **A:** Only project Owners and the spec creator can delete a spec. Users with FULL access can edit but not delete. Deletion is soft-delete (marked deleted, recoverable by owner for 30 days). Once a spec has been shared, the system tracks that exposure permanently regardless of deletion.
 
 ### 3.2 Project Roles
+
 - **Q**: Should a project support multiple owners, or exactly one? If the
   owner leaves, how is ownership transferred?
 - **A:** Multiple owners (minimum 1). Any owner can promote an Editor to Owner. If the last owner tries to leave, the system blocks the action and requires ownership transfer first. An instance admin can reassign ownership if the sole owner is unreachable.
@@ -132,6 +138,7 @@
 ## 4. Encryption Token System
 
 ### 4.1 Architecture
+
 - **Q**: Is client-side encryption (encrypt before sending to server)
   preferable to server-side encryption? Client-side is more secure (server
   never sees plaintext) but prevents server-side search/indexing of encrypted
@@ -154,6 +161,7 @@
 - **A:** Agents inherit the token set of the user who initiated the session. If the user has the decryption token, the agent can read the decrypted content during that session. The agent's MCP access to the KG is scoped to exactly what the initiating user can see. Agents never persist decrypted content outside the session.
 
 ### 4.2 Token Management
+
 - **Q**: Should encryption tokens be per-spec or per-group (e.g., one token
   for all private specs in a document)? Per-spec is more granular but
   creates more tokens to manage.
@@ -176,6 +184,7 @@
 - **A:** Permanent grant by default. Per the PRD, once a spec is shared, exposure cannot be undone — the system tracks who had access. Time-limited grants contradict the "exposure is permanent" principle. If revocation is needed, the owner can rotate the token (re-encrypt the spec), which invalidates all existing grants.
 
 ### 4.3 User Experience
+
 - **Q**: How should the "mark as private" flow work in the UI? Is it a
   toggle on the spec editor, a right-click option, or a dedicated privacy
   settings panel?
@@ -220,6 +229,7 @@
 ## 6. CSRF & Rate Limiting
 
 ### 6.1 CSRF
+
 - **Q**: Is the SameSite=Strict cookie approach sufficient for CSRF
   protection, or should we also implement the double-submit cookie pattern
   as defense-in-depth? SameSite=Strict can break legitimate cross-site
@@ -232,6 +242,7 @@
 - **A:** Yes, SameSite=Lax is confirmed (see above). Combined with double-submit cookie CSRF tokens, this provides equivalent protection to Strict without breaking inbound link navigation.
 
 ### 6.2 Rate Limiting
+
 - **Q**: Should authenticated users have higher rate limits than
   unauthenticated users? The plan treats them equally per IP — should
   per-user limits be separate?
@@ -255,6 +266,7 @@
 ## 7. Iframe & Agent Sandboxing
 
 ### 7.1 Iframe Security
+
 - **Q**: Should generated UI iframes have network access at all? The plan
   allows `connect-src` to the API, but should generated UIs be completely
   offline (static rendering only)?
@@ -274,6 +286,7 @@
 - **A:** CSP + sandbox is sufficient for launch. The null-origin sandbox prevents any meaningful attack against the parent frame. Static analysis of generated code is a nice-to-have for Phase 4+ (e.g., detecting obviously malicious patterns), but the security boundary is enforced by the browser, not by scanning.
 
 ### 7.2 Agent Sandboxing
+
 - **Q**: Should agents run in Docker containers for stronger isolation, or
   are OS-level process restrictions sufficient? Docker adds overhead but
   provides better isolation (filesystem, network, PID namespace).
@@ -297,6 +310,7 @@
 ## 8. Operational Security
 
 ### 8.1 Secret Management
+
 - **Q**: Should we require a vault (HashiCorp Vault, AWS Secrets Manager)
   for production, or are environment variables sufficient? Vaults add
   complexity but provide rotation, auditing, and access control for secrets.
@@ -312,6 +326,7 @@
 - **A:** Not at launch. A server restart is acceptable for secret rotation at 20–50 users. The restart is brief (Bun startup is sub-second). Runtime rotation is a Phase 4+ enhancement.
 
 ### 8.2 Audit & Monitoring
+
 - **Q**: How long should audit logs be retained? 90 days? 1 year? Forever?
   Longer retention uses more storage but provides better forensic capability.
   Regulatory requirements may dictate minimums.
@@ -332,6 +347,7 @@
 - **A:** Append-only at the database permission level (see above). Hash-chaining is deferred — it adds complexity and the threat model for a local-only deployment is lower. If regulatory compliance requires it, hash-chaining can be added to the audit log pipeline.
 
 ### 8.3 Incident Response
+
 - **Q**: What is the expected team size for incident response? A single
   developer or a dedicated security team? This affects the complexity of
   procedures.
@@ -396,5 +412,5 @@
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

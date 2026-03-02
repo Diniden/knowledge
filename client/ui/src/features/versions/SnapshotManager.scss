@@ -1,0 +1,110 @@
+.SnapshotManager {
+  @include flex-column;
+  gap: $space-3;
+  padding: $space-4;
+
+  &__title {
+    @include heading-6;
+    color: var(--color-text);
+    margin: 0;
+  }
+
+  &__create {
+    display: flex;
+    gap: $space-2;
+  }
+
+  &__input {
+    @include body-sm;
+    flex: 1;
+    padding: $space-2 $space-3;
+    border: $border-width-thin solid var(--color-border);
+    border-radius: $radius-md;
+    background: var(--color-surface-card);
+    color: var(--color-text);
+    outline: none;
+
+    &:focus {
+      border-color: var(--color-border-focus);
+    }
+
+    &::placeholder {
+      color: var(--color-text-tertiary);
+    }
+  }
+
+  &__btn {
+    @include body-sm;
+    background: var(--color-primary);
+    color: var(--color-primary-text);
+    border: none;
+    padding: $space-2 $space-4;
+    border-radius: $radius-md;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--color-primary-hover);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  &__list {
+    @include flex-column;
+    gap: $space-2;
+  }
+
+  &__empty {
+    @include body-sm;
+    color: var(--color-text-tertiary);
+    text-align: center;
+    padding: $space-4;
+    margin: 0;
+  }
+
+  &__item {
+    @include flex-between;
+    padding: $space-3;
+    background: var(--color-surface-card);
+    border: $border-width-thin solid var(--color-border);
+    border-radius: $radius-md;
+  }
+
+  &__itemInfo {
+    @include flex-column;
+    gap: $space-1;
+    min-width: 0;
+  }
+
+  &__itemName {
+    @include body-sm;
+    font-weight: $font-weight-medium;
+    color: var(--color-text);
+    @include truncate-text;
+  }
+
+  &__itemMeta {
+    @include caption;
+    color: var(--color-text-tertiary);
+    font-family: $font-family-mono;
+  }
+
+  &__restoreBtn {
+    @include caption;
+    background: none;
+    border: $border-width-thin solid var(--color-border);
+    padding: $space-1 $space-3;
+    border-radius: $radius-sm;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+
+    &:hover {
+      background: var(--color-interactive-hover);
+      color: var(--color-text);
+    }
+  }
+}

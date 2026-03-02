@@ -9,11 +9,12 @@
 ## 1. BEM & CSS Strategy
 
 ### 1.1 BEM vs. CSS Modules
+
 - **Q**: Should the project use global BEM class names or CSS Modules? Global
   BEM is conventional and aligns with the PRD's BEM requirement, but CSS
   Modules provide automatic scoping. Can both coexist (global for shared,
   modules for feature components)?
-- **A:** Use global BEM class names exclusively. The PRD mandates BEM SCSS with PascalCase naming, and mixing CSS Modules with BEM creates inconsistency in how developers think about scoping. BEM's naming convention (PascalCase__Item) already provides practical uniqueness. Each component's SCSS file is imported globally, and the BEM naming prevents collisions without module hashing.
+- **A:** Use global BEM class names exclusively. The PRD mandates BEM SCSS with PascalCase naming, and mixing CSS Modules with BEM creates inconsistency in how developers think about scoping. BEM's naming convention (PascalCase\_\_Item) already provides practical uniqueness. Each component's SCSS file is imported globally, and the BEM naming prevents collisions without module hashing.
 
 - **Q**: Should there be a namespace prefix on BEM blocks (e.g., `kg-Button`)
   to prevent collisions with third-party CSS, or is PascalCase sufficient?
@@ -24,6 +25,7 @@
 - **A:** Gen UI projects are entirely independent CSS scopes. They run in sandboxed iframes and bundle their own CSS. They do not share the host app's stylesheet. Gen UI projects can use any CSS approach (BEM, CSS Modules, Tailwind, etc.) — the iframe boundary provides complete isolation.
 
 ### 1.2 BEM Enforcement
+
 - **Q**: Should Stylelint enforce BEM naming strictly (fail build on
   violations), or should it be a warning?
 - **A:** Fail the build on BEM naming violations. Use `stylelint-selector-bem-pattern` configured for the PascalCase convention (`/^[A-Z][a-zA-Z]+(__[A-Z][a-zA-Z]+)?(--[a-z][a-zA-Z]+)?$/`). Strict enforcement prevents naming drift over time. Developers learn the pattern quickly, and Stylelint's auto-fix handles common mistakes.
@@ -31,6 +33,7 @@
 - **Q**: How should pseudo-element nesting work within BEM? Are `::before` and
   `::after` allowed to nest inside `&__Element` blocks?
 - **A:** Yes, pseudo-elements nest inside their element block. This is the natural SCSS pattern and the only place where deeper nesting is acceptable:
+
   ```scss
   .Card {
     &__Header {
@@ -39,6 +42,7 @@
     }
   }
   ```
+
   State pseudo-classes (`:hover`, `:focus`, `:disabled`) also nest inside elements. The single-level BEM nesting rule applies to BEM blocks/elements/modifiers, not CSS pseudo-selectors.
 
 - **Q**: Should the project allow state classes (e.g., `.is-active`) alongside
@@ -50,6 +54,7 @@
 ## 2. Design System
 
 ### 2.1 Design Tokens
+
 - **Q**: Should the project use a formal design token specification (like
   Style Dictionary) to generate tokens for multiple platforms, or are SCSS
   variables + CSS custom properties sufficient?
@@ -64,6 +69,7 @@
 - **A:** Created from scratch, inspired by proven systems. Use Radix Colors as the foundation for the color palette (perceptually uniform, dark mode tested). Spacing and typography follow an 8px grid and modular type scale. The result should feel like a modern productivity tool (similar aesthetic to Linear, Notion, or Raycast).
 
 ### 2.2 Color Palette
+
 - **Q**: What is the primary brand color? If not defined, should the project
   use a blue-based primary (conventional for productivity tools) or something
   more distinctive?
@@ -79,6 +85,7 @@
 - **A:** Based on Radix Colors with custom primary (indigo) and neutral (slate) ramps. Radix Colors are designed for UI use cases: they're perceptually uniform, have guaranteed contrast ratios, and provide pre-built dark mode counterparts. Using Radix as a foundation saves significant design effort while producing professional results.
 
 ### 2.3 Dark Theme
+
 - **Q**: How should the dark theme be designed? True dark (#000 background),
   soft dark (dark gray #1a1a2e), or dimmed (reduced brightness)?
 - **A:** Soft dark. Background: #0F172A (slate-900), surface: #1E293B (slate-800), elevated surface: #334155 (slate-700). True dark (#000) causes excessive contrast and OLED smearing. The soft dark palette uses Radix Colors' dark theme algorithm, ensuring text contrast ratios meet WCAG AA. The overall feel is similar to VS Code's default dark theme.
@@ -96,6 +103,7 @@
 ## 3. Typography
 
 ### 3.1 Font Selection
+
 - **Q**: Should the project use a web font (Inter, Geist, IBM Plex) or
   a system font stack? Web fonts are more consistent but add load time.
 - **A:** Use Inter as the primary web font. Inter is designed for screens, has excellent readability at small sizes, supports a wide character set, and is free. It's the standard for modern productivity tools (Linear, Vercel, Figma use it). The load time (~20KB for woff2 variable font) is acceptable for a desktop-first app on broadband.
@@ -113,6 +121,7 @@
 - **A:** Variable fonts for both Inter and JetBrains Mono. Variable fonts reduce total file size (one file covers all weights vs. multiple files) and enable fine-grained weight control. Inter variable is ~100KB (all weights) vs. ~200KB+ for separate regular/medium/semibold/bold static files. Use `font-variation-settings` for precise weight control.
 
 ### 3.2 Scale
+
 - **Q**: Should the type scale be modular (based on a ratio like 1.250 or
   1.333) or custom-defined? Modular scales create visual harmony but may not
   fit all needs.
@@ -127,6 +136,7 @@
 ## 4. Spacing & Layout
 
 ### 4.1 Grid System
+
 - **Q**: Should the project use a formal grid system (12-column, 16-column)
   or flexible CSS Grid/Flexbox layouts without a column system?
 - **A:** Flexible CSS Grid/Flexbox without a column system. The app layout is panel-based (sidebar, editor, chat, graph), not content-column-based. A 12-column grid doesn't map to resizable split panes. Use an 8px spacing grid (all spacing values are multiples of 8px: 4, 8, 12, 16, 24, 32, 48, 64) for consistent internal spacing.
@@ -136,6 +146,7 @@
 - **A:** CSS custom properties for all layout dimensions. Define `--sidebar-width: 260px`, `--chat-width: 380px`, `--header-height: 48px`, `--graph-panel-width: 400px` in `:root`. JavaScript (MobX UILayoutStore via `@action` methods) updates these properties when panels are resized. This enables CSS-based layout calculations (`calc(100vw - var(--sidebar-width) - var(--chat-width))`) without JS layout thrashing.
 
 ### 4.2 Content Width
+
 - **Q**: What should the maximum content width be for the spec document
   editor? 700px (like a typical reading column), 900px (wider), or full-width?
 - **A:** 760px max-width for the content column, centered within the editor pane. This is optimal for reading long-form text (65-80 characters per line at 14px). Metadata bars and left borders extend slightly beyond the content column. In focus mode, the content column remains 760px centered in the full viewport.
@@ -149,6 +160,7 @@
 ## 5. Animations & Transitions
 
 ### 5.1 Animation Budget
+
 - **Q**: How animation-heavy should the UI be? Minimal (only essential
   transitions like open/close), moderate (transitions on hover, route changes,
   panel toggles), or rich (micro-interactions on every element)?
@@ -163,6 +175,7 @@
 - **A:** All animations must use only GPU-compositable properties (`transform`, `opacity`). No animations on `width`, `height`, `top`, `left`, or `margin`. Respect `prefers-reduced-motion: reduce` by disabling all transitions and animations for users who request it. No explicit low-end device detection — the `prefers-reduced-motion` media query is the standard mechanism.
 
 ### 5.2 Specific Animations
+
 - **Q**: Should route transitions be animated? If so, what style — crossfade,
   slide, or none?
 - **A:** None. Route transitions are instant. This is a professional tool — speed of navigation is more important than visual polish on page changes. Panel transitions within a route (expand/collapse sidebar, open graph panel) use 150ms ease-out slide animations for spatial continuity.
@@ -180,6 +193,7 @@
 ## 6. Responsive Design
 
 ### 6.1 Mobile Strategy
+
 - **Q**: Is the application mobile-first (design for mobile, enhance for
   desktop) or desktop-first (design for desktop, adapt for mobile)? Given the
   knowledge authoring use case, desktop-first is typical.
@@ -194,6 +208,7 @@
 - **A:** Hamburger menu for the sidebar (slide-over drawer), FAB for chat (full-screen overlay), and tab bar for switching between Editor and Graph views. This is a simplified navigation paradigm for <1024px viewports. Not a priority for MVP — implement only enough to prevent the app from being broken on smaller screens.
 
 ### 6.2 Tablet Considerations
+
 - **Q**: Should the tablet layout be a "mini desktop" (scaled down desktop
   layout) or a unique layout optimized for touch?
 - **A:** Mini desktop. At 1024px–1279px, the desktop layout adapts by narrowing panels (sidebar at 200px, chat at 300px) and hiding the graph side panel by default (accessible via toggle). No touch-specific optimizations (larger tap targets, swipe gestures) for MVP. Touch targets are naturally ≥44px due to the component design.
@@ -280,5 +295,5 @@
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

@@ -1832,23 +1832,24 @@ grows, new features are added, conventions change, and new domains emerge.
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. Sandboxing & Directory Strategy | 15 (DEV-AI-001 through DEV-AI-015) |
-| 2. Master Development CLAUDE.md | 25 (DEV-AI-016 through DEV-AI-040) |
-| 3. Cursor Rules Configuration | 29 (DEV-AI-041 through DEV-AI-069) |
-| 4. Claude Code Skills for Development | 18 (DEV-AI-070 through DEV-AI-087) |
-| 5. Cursor Skills for Development | 20 (DEV-AI-088 through DEV-AI-107) |
-| 6. Development Agent Types | 30 (DEV-AI-108 through DEV-AI-137) |
+| Section                                       | Tasks                              |
+| --------------------------------------------- | ---------------------------------- |
+| 1. Sandboxing & Directory Strategy            | 15 (DEV-AI-001 through DEV-AI-015) |
+| 2. Master Development CLAUDE.md               | 25 (DEV-AI-016 through DEV-AI-040) |
+| 3. Cursor Rules Configuration                 | 29 (DEV-AI-041 through DEV-AI-069) |
+| 4. Claude Code Skills for Development         | 18 (DEV-AI-070 through DEV-AI-087) |
+| 5. Cursor Skills for Development              | 20 (DEV-AI-088 through DEV-AI-107) |
+| 6. Development Agent Types                    | 30 (DEV-AI-108 through DEV-AI-137) |
 | 7. Self-Updating Configuration (Back-feeding) | 15 (DEV-AI-138 through DEV-AI-152) |
-| 8. Master Planner Configuration | 13 (DEV-AI-153 through DEV-AI-165) |
-| 9. "Always On" Configuration Strategy | 11 (DEV-AI-166 through DEV-AI-176) |
-| 10. Configuration for Evolving Project | 26 (DEV-AI-177 through DEV-AI-202) |
-| **TOTAL** | **202** |
+| 8. Master Planner Configuration               | 13 (DEV-AI-153 through DEV-AI-165) |
+| 9. "Always On" Configuration Strategy         | 11 (DEV-AI-166 through DEV-AI-176) |
+| 10. Configuration for Evolving Project        | 26 (DEV-AI-177 through DEV-AI-202) |
+| **TOTAL**                                     | **202**                            |
 
 ### Dependencies (What This Plan Enables)
 
 Completion of this plan unblocks or enhances:
+
 - **All other plans** — every plan benefits from consistent AI-assisted development
 - `01-PROJECT-STRUCTURE/PLAN.md` — needs AI config directories in the monorepo layout
 - `06-AGENT-SYSTEM/04-SKILLS-CONFIG-PLAN.md` — clear boundary between dev skills and runtime skills
@@ -1862,6 +1863,7 @@ Completion of this plan unblocks or enhances:
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] Root `CLAUDE.md` exists, is within token budget, and covers all required sections
 - [ ] `.cursor/rules/` contains all defined rule files, each with valid frontmatter and glob patterns
 - [ ] `.cursor/skills/` contains all defined skill directories with valid `SKILL.md` files

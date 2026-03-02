@@ -324,12 +324,16 @@
   - `- ` or `* ` → unordered list
   - `1. ` → ordered list
   - `> ` → blockquote
-  - ``` → code block
+  - ```→ code block
+
+    ```
+
   - `---` → horizontal rule
   - `[ ] ` → task list item
   - `**text**` → bold
   - `*text*` → italic
   - `` `text` `` → inline code
+
 - [ ] **FE-EDIT-034**: Implement paste handling
   - Paste plain text: preserve as-is
   - Paste rich text (from Word, etc.): convert to editor format, strip excessive formatting
@@ -802,23 +806,23 @@
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. Editor Library & Architecture | 6 (FE-EDIT-001 through FE-EDIT-006) |
-| 2. Spec Document Structure | 6 (FE-EDIT-007 through FE-EDIT-012) |
-| 3. Spec Boundary Visualization | 9 (FE-EDIT-013 through FE-EDIT-021) |
-| 4. Rich Text Editing | 13 (FE-EDIT-022 through FE-EDIT-034) |
-| 5. Toolbar & Formatting Controls | 5 (FE-EDIT-035 through FE-EDIT-039) |
-| 6. Spec CRUD Operations | 10 (FE-EDIT-040 through FE-EDIT-049) |
-| 7. Auto-Save & Manual Save | 7 (FE-EDIT-050 through FE-EDIT-056) |
-| 8. Inline Spec Metadata | 7 (FE-EDIT-057 through FE-EDIT-063) |
-| 9. Collaboration Indicators | 4 (FE-EDIT-064 through FE-EDIT-067) |
-| 10. Agent-Assisted Editing | 6 (FE-EDIT-068 through FE-EDIT-073) |
-| 11. Spec Status & Sync Indicators | 3 (FE-EDIT-074 through FE-EDIT-076) |
-| 12. Keyboard Shortcuts | 3 (FE-EDIT-077 through FE-EDIT-079) |
-| 13. Performance & Virtualization | 4 (FE-EDIT-080 through FE-EDIT-083) |
-| 14. Accessibility | 4 (FE-EDIT-084 through FE-EDIT-087) |
-| **TOTAL** | **87** |
+| Section                           | Tasks                                |
+| --------------------------------- | ------------------------------------ |
+| 1. Editor Library & Architecture  | 6 (FE-EDIT-001 through FE-EDIT-006)  |
+| 2. Spec Document Structure        | 6 (FE-EDIT-007 through FE-EDIT-012)  |
+| 3. Spec Boundary Visualization    | 9 (FE-EDIT-013 through FE-EDIT-021)  |
+| 4. Rich Text Editing              | 13 (FE-EDIT-022 through FE-EDIT-034) |
+| 5. Toolbar & Formatting Controls  | 5 (FE-EDIT-035 through FE-EDIT-039)  |
+| 6. Spec CRUD Operations           | 10 (FE-EDIT-040 through FE-EDIT-049) |
+| 7. Auto-Save & Manual Save        | 7 (FE-EDIT-050 through FE-EDIT-056)  |
+| 8. Inline Spec Metadata           | 7 (FE-EDIT-057 through FE-EDIT-063)  |
+| 9. Collaboration Indicators       | 4 (FE-EDIT-064 through FE-EDIT-067)  |
+| 10. Agent-Assisted Editing        | 6 (FE-EDIT-068 through FE-EDIT-073)  |
+| 11. Spec Status & Sync Indicators | 3 (FE-EDIT-074 through FE-EDIT-076)  |
+| 12. Keyboard Shortcuts            | 3 (FE-EDIT-077 through FE-EDIT-079)  |
+| 13. Performance & Virtualization  | 4 (FE-EDIT-080 through FE-EDIT-083)  |
+| 14. Accessibility                 | 4 (FE-EDIT-084 through FE-EDIT-087)  |
+| **TOTAL**                         | **87**                               |
 
 > Note: Many tasks contain numerous sub-items covering formatting options,
 > edge cases, and keyboard behaviors. The effective implementation effort
@@ -827,6 +831,7 @@
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] TipTap editor renders spec documents with clear spec boundaries
 - [ ] All rich text formatting works (headings, lists, code, tables, links, images)
 - [ ] Spec CRUD operations work within the editor

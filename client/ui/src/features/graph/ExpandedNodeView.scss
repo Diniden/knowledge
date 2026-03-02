@@ -1,0 +1,218 @@
+.ExpandedNodeView {
+  position: fixed;
+  inset: 0;
+  z-index: $z-index-modal;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  animation: expandedNodeFadeIn $duration-slow $ease-out forwards;
+
+  &__container {
+    position: relative;
+    width: calc(100vw - 64px);
+    height: calc(100vh - 64px);
+    max-width: 900px;
+    background: var(--color-bg, #{$neutral-50});
+    border-radius: $radius-xl;
+    box-shadow: $shadow-xl;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: expandedNodeSlideUp $duration-slow $ease-out forwards;
+
+    @include respond-below(lg) {
+      width: calc(100vw - 32px);
+      height: calc(100vh - 32px);
+    }
+  }
+
+  &__breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: $space-1;
+    padding: $space-3 $space-4;
+    padding-right: $space-12;
+    border-bottom: $border-width-thin solid var(--color-border, #{$neutral-200});
+    overflow-x: auto;
+    @include scrollbar-thin;
+    flex-shrink: 0;
+  }
+
+  &__breadcrumb {
+    @include caption;
+    color: var(--color-primary, #{$primary-600});
+    background: none;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    padding: $space-1 $space-2;
+    border-radius: $radius-md;
+    @include transition(background-color, color);
+
+    &:hover {
+      background: var(--color-primary-light, #{$primary-50});
+    }
+
+    &--current {
+      color: var(--color-text);
+      cursor: default;
+      font-weight: $font-weight-medium;
+
+      &:hover {
+        background: transparent;
+      }
+    }
+  }
+
+  &__breadcrumbSep {
+    color: var(--color-text-tertiary, #{$neutral-400});
+    margin-left: $space-1;
+    user-select: none;
+  }
+
+  &__close {
+    position: absolute;
+    top: $space-3;
+    right: $space-3;
+    @include flex-center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: $radius-md;
+    background: transparent;
+    cursor: pointer;
+    color: var(--color-text-secondary, #{$neutral-600});
+    z-index: 1;
+    @include transition(background-color, color);
+
+    &:hover {
+      background: var(--color-bg-secondary, #{$neutral-100});
+      color: var(--color-text);
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  &__header {
+    padding: $space-4 $space-6;
+    border-bottom: $border-width-thin solid var(--color-border, #{$neutral-200});
+    flex-shrink: 0;
+  }
+
+  &__title {
+    @include heading-3;
+    color: var(--color-text);
+    margin: 0 0 $space-2;
+  }
+
+  &__summary {
+    @include body-sm;
+    color: var(--color-text-secondary, #{$neutral-600});
+    margin: 0;
+  }
+
+  &__content {
+    flex: 1;
+    overflow-y: auto;
+    padding: $space-6;
+    @include scrollbar-thin;
+    @include body-text;
+    color: var(--color-text);
+    line-height: $line-height-relaxed;
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      margin: $space-4 0 $space-2;
+      color: var(--color-text);
+    }
+
+    p {
+      margin: 0 0 $space-3;
+    }
+
+    ul,
+    ol {
+      margin: 0 0 $space-3;
+      padding-left: $space-6;
+    }
+
+    code {
+      font-family: $font-family-mono;
+      font-size: $font-size-sm;
+      background: var(--color-bg-secondary, #{$neutral-100});
+      padding: 1px $space-1;
+      border-radius: $radius-sm;
+    }
+
+    pre {
+      background: var(--color-bg-secondary, #{$neutral-100});
+      padding: $space-4;
+      border-radius: $radius-lg;
+      overflow-x: auto;
+      margin: 0 0 $space-3;
+
+      code {
+        background: none;
+        padding: 0;
+      }
+    }
+  }
+
+  &__connections {
+    flex-shrink: 0;
+    border-top: $border-width-thin solid var(--color-border, #{$neutral-200});
+    padding: $space-3 $space-4;
+    background: var(--color-bg-secondary, #{$neutral-100});
+  }
+
+  &__connectionsTitle {
+    @include caption;
+    font-weight: $font-weight-semibold;
+    color: var(--color-text-secondary, #{$neutral-600});
+    margin: 0 0 $space-2;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  &__connectionsList {
+    display: flex;
+    gap: $space-3;
+    overflow-x: auto;
+    padding-bottom: $space-2;
+    @include scrollbar-thin;
+  }
+
+  &__connectionCard {
+    flex-shrink: 0;
+  }
+
+  @include reduced-motion;
+}
+
+@keyframes expandedNodeFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes expandedNodeSlideUp {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

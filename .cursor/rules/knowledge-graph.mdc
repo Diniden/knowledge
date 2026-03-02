@@ -1,0 +1,40 @@
+---
+description: Knowledge graph data structure and conventions
+globs:
+  - "knowledge-graph/**/*.{ts,json}"
+  - "server/src/modules/knowledge-graph/**/*.ts"
+alwaysApply: false
+---
+
+# Knowledge Graph
+
+## Directory Layout
+
+```
+knowledge-graph/
+├── specs/           # Individual spec JSON files
+├── edges/           # Relationship definitions
+├── templates/       # Spec templates
+└── schema/          # JSON schema definitions
+```
+
+The `knowledge-graph/` directory is git-backed runtime data. Changes are committed automatically by the application.
+
+## Spec JSON Structure
+
+Each spec is a JSON file with at minimum: `id`, `title`, `content`, `status`, `tags`, `createdAt`, `updatedAt`.
+
+## Validation
+
+- All spec JSON must validate against the schema in `knowledge-graph/schema/`.
+- Edge references must point to existing spec IDs.
+- Tags are lowercase, hyphenated strings.
+
+## Git Conventions for KG Changes
+
+- Automated commits from the app use the format: `kg: {action} {spec-title}` (e.g., `kg: create spec "Auth Flow"`).
+- Manual edits to `knowledge-graph/` should use: `kg(manual): description`.
+
+## Sandbox Note
+
+The knowledge graph module in `server/src/modules/knowledge-graph/` handles CRUD operations, validation, and git integration. Changes to the `knowledge-graph/` data directory should always flow through this module — never edit spec files directly from other modules.

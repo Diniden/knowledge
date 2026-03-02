@@ -1,0 +1,45 @@
+.ConnectionStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: $space-2;
+
+  &__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: $radius-full;
+    flex-shrink: 0;
+  }
+
+  &__label {
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+  }
+
+  &--connected {
+    .ConnectionStatus__dot {
+      background-color: var(--color-success);
+    }
+    .ConnectionStatus__label {
+      color: var(--color-success);
+    }
+  }
+
+  &--disconnected {
+    .ConnectionStatus__dot {
+      background-color: var(--color-error);
+    }
+    .ConnectionStatus__label {
+      color: var(--color-error);
+    }
+  }
+
+  &--reconnecting {
+    .ConnectionStatus__dot {
+      background-color: var(--color-warning);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    .ConnectionStatus__label {
+      color: var(--color-warning);
+    }
+  }
+}

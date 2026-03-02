@@ -10,6 +10,7 @@
 ## 1. Claude Code Integration
 
 ### 1.1 Communication Protocol
+
 - **Q**: How exactly does the server communicate with Claude Code? Via CLI
   stdin/stdout, an HTTP API, or the Claude Code SDK? The plan assumes
   stdin/stdout but Claude Code may have a more structured API.
@@ -33,6 +34,7 @@
 **A:** Both. Claude Code reads MCP server configuration from its settings file (`~/.claude/settings.json` or project-level `.claude/settings.json`). The server creates a project-level `.claude/settings.json` in each project directory specifying the MCP servers (stdio transport) to use. MCP servers can also be specified via the `--mcp-config` CLI flag. Use the project-level config file approach — it persists across sessions and is version-controllable.
 
 ### 1.2 Process Lifecycle
+
 - **Q**: Should Claude Code processes be long-lived (one per user session,
   stays running between messages) or short-lived (spawn per request, terminate
   after response)? Long-lived preserves conversation state natively but
@@ -58,6 +60,7 @@
 **A:** Yes, multiple instances run concurrently. Each instance operates in its own working directory (project path) with its own session ID. Claude Code does not use machine-level locks. However, two instances writing to the same project directory can cause file conflicts — the server's per-project write queue prevents this by serializing agent operations per project.
 
 ### 1.3 Resource Requirements
+
 - **Q**: How much memory does a typical Claude Code process consume? This
   determines the max concurrent sessions the server can support.
 
@@ -79,6 +82,7 @@
 ## 2. Session Management
 
 ### 2.1 Session Persistence
+
 - **Q**: Should agent sessions survive server restarts? If so, the session
   state and conversation history need to be persisted to a database. If not,
   all sessions are terminated on restart.
@@ -97,6 +101,7 @@
 **A:** PostgreSQL for session metadata and conversation history (persistent, queryable, consistent with the rest of the data model). In-memory for active session runtime state (process reference, WebSocket connections, current operation status). On restart, in-memory state is lost but PostgreSQL state survives. No Redis needed — PostgreSQL handles the persistence, and runtime state is reconstructed from the database on resume.
 
 ### 2.2 Session Limits
+
 - **Q**: What should the per-user concurrent session limit be? 3 sessions
   seems reasonable, but users working on multiple documents simultaneously
   might need more.
@@ -120,6 +125,7 @@
 **A:** No, same limits for all roles. 3 concurrent active sessions per user regardless of role. The system-wide limit (10) is the real constraint. Differentiating by role adds configuration complexity for marginal benefit. If an admin needs more capacity, increase the system-wide limit.
 
 ### 2.3 Session Scope
+
 - **Q**: Can a single session be used across multiple documents within the
   same project, or should each document get its own session?
 
@@ -141,6 +147,7 @@
 ## 3. Request Routing & Intent Classification
 
 ### 3.1 Classification Approach
+
 - **Q**: Should intent classification happen server-side (before sending to
   Claude Code) or should Claude Code handle routing internally via its system
   prompt? Server-side classification adds latency but gives more control.
@@ -160,6 +167,7 @@
 **A:** Handled as a single complex operation by Claude Code. Claude naturally decomposes multi-intent requests into sequential tool calls. For "Create a spec about authentication AND show me related specs," Claude will: (1) call the spec creation MCP tool, (2) call the graph query MCP tool, (3) synthesize both results in its response. No splitting needed — this is what LLMs are good at.
 
 ### 3.2 Routing Flexibility
+
 - **Q**: Should simple graph queries (e.g., "show me all specs tagged 'auth'")
   bypass the agent entirely and go directly to the graph service? This would
   be faster but means the user doesn't get an agent-enhanced response.
@@ -182,6 +190,7 @@
 ## 4. MCP Tool Delegation
 
 ### 4.1 Tool Design
+
 - **Q**: How granular should MCP tools be? Should there be one `graph_mutate`
   tool or separate `create_node`, `create_edge`, `update_node`, `delete_edge`
   tools? Granular tools are more explicit but Claude may need more guidance
@@ -201,6 +210,7 @@
 **A:** Synchronous. MCP tools over stdio are request-response: the agent sends a tool call, the MCP server processes it, returns the result, and the agent continues. Claude Code's tool-calling flow is inherently synchronous (call tool, get result, decide next step). Async patterns add complexity without benefit since the agent needs the result before deciding what to do next.
 
 ### 4.2 Sub-Agent Architecture
+
 - **Q**: Should sub-agents be separate Claude Code processes, or should they
   be separate prompts sent to the same process? Separate processes provide
   better isolation but are more expensive.
@@ -220,6 +230,7 @@
 **A:** The MCP tool returns an error result to Claude Code, which decides the next step. Claude naturally handles tool errors: it may retry with corrected parameters, try an alternative approach, or inform the user that the operation failed and why. The server does not implement retry logic at the MCP layer — that's the orchestrator's job. If a tool fails 3 times in a row (Claude keeps retrying), the system prompt instructs Claude to stop and inform the user.
 
 ### 4.3 Tool Security
+
 - **Q**: Should MCP tools have their own authentication (tool-level API keys)
   or inherit the user's session? Separate auth is more secure but complex.
 
@@ -241,6 +252,7 @@
 ## 5. Context Management
 
 ### 5.1 Context Strategy
+
 - **Q**: What is the effective context window size for Claude Code? This
   determines how much project context can be included.
 
@@ -264,6 +276,7 @@
 **A:** Claude Code manages its own conversation history internally, including summarization when the context gets long. The server does not need to manage this — `--resume` handles it. For the server's PostgreSQL copy of the history (the reference log), store messages verbatim. If Claude Code's internal context management proves insufficient, implement server-side summarization as an optimization later.
 
 ### 5.2 Context Updates
+
 - **Q**: When the user navigates to a new spec while the agent is processing,
   should the context update be queued until processing completes, or interrupt
   the current operation?
@@ -281,6 +294,7 @@
 ## 6. Error Handling & Recovery
 
 ### 6.1 Failure Modes
+
 - **Q**: What should happen when the Claude API returns a 500 error? Retry
   immediately, wait and retry, or notify the user and abort?
 
@@ -299,6 +313,7 @@
 **A:** Yes. Implement a simple circuit breaker: if 5 consecutive Claude API calls fail (across all sessions) within a 2-minute window, trip the circuit breaker. While tripped, new agent messages return immediately with: "AI agent is temporarily unavailable due to service issues. Trying again in [X] seconds." The circuit breaker resets after 30 seconds and allows one test request through (half-open state). If the test succeeds, resume normal operation.
 
 ### 6.2 Data Integrity
+
 - **Q**: If an agent is in the middle of a multi-step operation (e.g., create
   3 specs and 5 edges) and fails partway through, should the completed steps
   be rolled back, kept as-is, or kept but flagged as incomplete?
@@ -322,6 +337,7 @@
 ## 7. Cost & Resource Management
 
 ### 7.1 Cost Controls
+
 - **Q**: Should there be hard spending limits that immediately stop agent
   operations, or soft limits that warn but allow continuation?
 
@@ -338,6 +354,7 @@
 **A:** No pre-estimation. Token costs are unpredictable before execution (depends on agent reasoning, tool calls, retries). Instead, show running cost after completion: each agent response includes `meta.usage: { tokensIn, tokensOut, estimatedCostUsd }` in the WebSocket event. The UI displays cumulative session cost. This is more accurate and less disruptive than speculative estimates.
 
 ### 7.2 Performance Optimization
+
 - **Q**: Should the server cache Claude Code responses for identical or
   similar requests? This reduces API costs but may return stale information.
 
@@ -360,6 +377,7 @@
 ## 8. User Experience
 
 ### 8.1 Interaction Patterns
+
 - **Q**: Should the agent always ask for confirmation before making changes,
   or should some operations be auto-approved? The "confirm before mutation"
   behavior is configurable, but what should the default be?
@@ -378,6 +396,7 @@
 **A:** Present 2-3 options for the user to choose from. "I can interpret your request in a few ways: (A) Create a new spec about authentication, (B) Find existing specs related to authentication, (C) Update the current spec with authentication details. Which would you prefer?" This is faster than sequential clarifying questions and gives the user control. The system prompt instructs Claude to ask at most one round of clarification before proceeding with the most likely interpretation.
 
 ### 8.2 Agent Personality
+
 - **Q**: Should the agent's personality/tone be configurable per project?
   (e.g., formal for enterprise knowledge, casual for personal projects)
 
@@ -394,6 +413,7 @@
 ## 9. Monitoring & Observability
 
 ### 9.1 Metrics
+
 - **Q**: What are the key metrics for monitoring agent health? Response
   latency, error rate, session count, queue depth — are there others?
 
@@ -410,6 +430,7 @@
 **A:** Log-based monitoring with Prometheus metrics for the initial release. Use Grafana dashboards connected to Prometheus for visualizing agent metrics. No custom admin dashboard — Grafana provides all the visualization needed. An admin API endpoint `GET /admin/agents/status` returns current system state (active sessions, queue depth, circuit breaker state) for quick checks.
 
 ### 9.2 Debugging
+
 - **Q**: Should admin users be able to view another user's agent session
   transcript for debugging/support purposes?
 

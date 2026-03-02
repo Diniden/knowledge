@@ -1,0 +1,99 @@
+.AppearanceSettings {
+  @include flex-column;
+  gap: $space-8;
+  max-width: 480px;
+
+  &__section {
+    @include flex-column;
+    gap: $space-4;
+  }
+
+  &__sectionTitle {
+    @include heading-6;
+    color: var(--color-text);
+  }
+
+  &__toggle {
+    @include flex-row;
+    gap: $space-3;
+  }
+
+  &__option {
+    flex: 1;
+    padding: $space-4;
+    border: $border-width-medium solid var(--color-border);
+    border-radius: $radius-lg;
+    cursor: pointer;
+    text-align: center;
+    @include transition(border-color, background-color);
+    background-color: var(--color-surface-card);
+
+    &:hover {
+      border-color: var(--color-text-tertiary);
+    }
+
+    &--active {
+      border-color: var(--color-primary);
+      background-color: var(--color-interactive-selected);
+    }
+  }
+
+  &__optionIcon {
+    display: block;
+    font-size: $font-size-2xl;
+    margin-bottom: $space-2;
+  }
+
+  &__optionLabel {
+    @include body-sm;
+    font-weight: $font-weight-medium;
+    color: var(--color-text);
+  }
+
+  &__slider {
+    @include flex-column;
+    gap: $space-2;
+  }
+
+  &__sliderHeader {
+    @include flex-between;
+  }
+
+  &__sliderLabel {
+    @include body-sm;
+    color: var(--color-text-secondary);
+  }
+
+  &__sliderValue {
+    @include body-sm;
+    font-weight: $font-weight-semibold;
+    color: var(--color-primary);
+    font-family: $font-family-mono;
+  }
+
+  &__sliderInput {
+    width: 100%;
+    accent-color: var(--color-primary);
+    cursor: pointer;
+  }
+
+  &__preview {
+    @include surface-elevated;
+    padding: $space-5;
+    border-radius: $radius-lg;
+  }
+
+  &__previewTitle {
+    @include body-sm;
+    font-weight: $font-weight-semibold;
+    color: var(--color-text-secondary);
+    margin-bottom: $space-3;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  &__previewText {
+    color: var(--color-text);
+    line-height: $line-height-relaxed;
+  }
+}

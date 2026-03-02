@@ -10,6 +10,7 @@
 ## 1. CLI Integration
 
 ### 1.1 Binary & Version
+
 - **Q**: Should the wrapper support multiple Claude Code binary versions
   simultaneously (e.g., v1 for stable agents, v2-beta for experimental)?
   This adds complexity but enables safe version testing.
@@ -34,6 +35,7 @@
 **A:** Claude Code's primary interface is the CLI. The wrapper uses CLI subprocess spawning (`claude --print --output-format stream-json`) because this is the documented and supported integration path. If Anthropic releases a Node.js SDK for Claude Code with library mode, we can migrate — but the subprocess model works well, provides natural process isolation, and is consistent with the PRD's architecture. Don't over-engineer for a hypothetical API.
 
 ### 1.2 Invocation Model
+
 - **Q**: Should the wrapper use `--print` mode (single prompt → single
   response) or interactive mode (multi-turn within one process)? Print
   mode is simpler; interactive mode could be more efficient for
@@ -58,6 +60,7 @@
 ## 2. Process Management
 
 ### 2.1 Process Lifecycle
+
 - **Q**: What is the typical cold-start time for a Claude Code process?
   If it's > 3 seconds, the warm process pool becomes more important. Has
   this been benchmarked?
@@ -85,6 +88,7 @@
 **A:** Hard limit of 10 concurrent Claude Code processes per server instance, as specified in the PRD. This is enforced at the process pool level. The limit is a server config value that can be adjusted per deployment (e.g., a beefy server might support 15, a constrained one might be capped at 5). Dynamic scaling based on memory/CPU is over-engineering for launch — the hard limit is predictable and easy to reason about. Each Claude Code process typically uses ~100–200MB of memory, so 10 processes ≈ 1–2GB.
 
 ### 2.2 Process Pool
+
 - **Q**: Is a warm process pool technically feasible with Claude Code?
   Does the CLI support being spawned in a "waiting" state, or must it
   receive the prompt at invocation time?
@@ -106,6 +110,7 @@
 ## 3. Sandboxing
 
 ### 3.1 Directory Isolation
+
 - **Q**: Does Claude Code respect `--working-directory` as a hard sandbox
   boundary, or can the agent still access files outside it? If not a hard
   boundary, additional OS-level sandboxing (chroot, containers) may be
@@ -132,6 +137,7 @@
 **A:** No. The audit trail is captured at the MCP tool call level (every tool call is logged with inputs and outputs). File operations within the sandbox are not audited — they're ephemeral working files. Adding a virtual filesystem layer (e.g., FUSE) would add latency, complexity, and a Linux-only dependency. MCP-level auditing is sufficient.
 
 ### 3.2 Security
+
 - **Q**: Should the Claude Code process run as a separate OS user with
   restricted permissions? This provides OS-level isolation but complicates
   process management.
@@ -155,6 +161,7 @@
 ## 4. Prompt Construction
 
 ### 4.1 Template Design
+
 - **Q**: Should prompt templates be stored as TypeScript files (type-safe,
   compiled) or as external files (Handlebars, Markdown, editable without
   rebuild)? TypeScript is safer; external files enable faster iteration.
@@ -179,6 +186,7 @@
 **A:** Target 300–500 tokens per system prompt. System prompts define the agent's role, core behavior rules, output format requirements, and 2–3 critical constraints. Detailed operational procedures (e.g., how to create a well-structured spec) go in skills files, not the system prompt. MCP tool descriptions are provided by Claude Code's tool discovery, not duplicated in the prompt. This keeps the system prompt concise while offloading detail to skills files that are loaded on demand.
 
 ### 4.2 Context Assembly
+
 - **Q**: Should the prompt include full spec content or just spec summaries
   plus IDs (with the agent fetching full content via MCP tools if needed)?
   Full content is faster but uses more tokens; IDs + fetch is leaner but
@@ -204,6 +212,7 @@
 ## 5. Output Parsing
 
 ### 5.1 Output Format
+
 - **Q**: Which Claude Code output format should be the primary format:
   `json`, `stream-json`, or `text`? JSON is easiest to parse; stream-json
   provides real-time feedback; text is a fallback.
@@ -229,6 +238,7 @@
 **A:** Chronological order as received from the stream. Text is streamed directly to the user. Tool calls are shown as collapsible "action cards" in the chat UI (e.g., "Searched for related specs → found 3 results" with an expand option to see details). Error messages are shown as inline error indicators. The frontend renders each stream event in order, so the user sees the agent's reasoning flow naturally: text → tool call → tool result → more text. This matches the ChatGPT/Claude.ai UX pattern that users expect.
 
 ### 5.2 Tool Call Handling
+
 - **Q**: When Claude Code makes multiple MCP tool calls in sequence,
   should the wrapper intercept each call individually (for monitoring)
   or let them execute transparently? Interception enables monitoring
@@ -281,6 +291,7 @@
 ## 7. Cost & Rate Limiting
 
 ### 7.1 Cost Model
+
 - **Q**: What is the expected per-request cost range for each agent type?
   This determines reasonable daily/monthly budgets. Has the cost model
   been estimated based on expected token usage?
@@ -306,6 +317,7 @@
 **A:** Warn and allow. When the user is at 80% of their daily budget, the UI shows a warning: "You've used 80% of your daily token budget." At 95%, the warning becomes more prominent. The request is still allowed to proceed — blocking a user at 95% when they need Plan Generation would be frustrating. The in-progress request completes even if it pushes the user over 100%. The next request after exceeding the budget is blocked with a "limit reached" message. This allows graceful completion of the current task.
 
 ### 7.2 Rate Limiting
+
 - **Q**: Should rate limiting be per-user, per-API-key, or per-server?
   Per-user is fairest; per-API-key protects the key; per-server prevents
   overload.
@@ -413,5 +425,5 @@
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

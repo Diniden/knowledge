@@ -1,0 +1,253 @@
+.ChatMessage {
+  display: flex;
+  gap: $space-2;
+  padding: $space-2 $space-3;
+  animation: slideUp $duration-normal $ease-out;
+
+  &--user {
+    flex-direction: row-reverse;
+
+    .ChatMessage__body {
+      align-items: flex-end;
+    }
+
+    .ChatMessage__content {
+      background-color: var(--color-primary);
+      color: var(--color-primary-text);
+      border-radius: $radius-xl $radius-xl $radius-sm $radius-xl;
+    }
+
+    .ChatMessage__avatar {
+      background-color: var(--color-primary);
+      color: var(--color-primary-text);
+    }
+  }
+
+  &--assistant {
+    .ChatMessage__markdown {
+      background-color: var(--color-bg-secondary);
+      color: var(--color-text);
+      border-radius: $radius-xl $radius-xl $radius-xl $radius-sm;
+    }
+
+    .ChatMessage__avatar {
+      background-color: var(--color-secondary, #{$secondary-600});
+      color: #fff;
+    }
+  }
+
+  &--system {
+    justify-content: center;
+    padding: $space-1 $space-3;
+
+    .ChatMessage__body {
+      align-items: center;
+    }
+
+    .ChatMessage__markdown {
+      background: none;
+      color: var(--color-text-tertiary);
+      font-size: $font-size-xs;
+      text-align: center;
+      padding: $space-1 $space-2;
+    }
+  }
+
+  &--error {
+    .ChatMessage__body {
+      border-left: $border-width-medium solid var(--color-error);
+      padding-left: $space-2;
+    }
+  }
+
+  &--streaming {
+    .ChatMessage__markdown {
+      border-bottom-right-radius: $radius-sm;
+    }
+  }
+
+  &__avatar {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: $radius-full;
+    @include flex-center;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    margin-top: $space-1;
+  }
+
+  &__body {
+    @include flex-column;
+    gap: $space-1;
+    max-width: 80%;
+    min-width: 0;
+  }
+
+  &__content {
+    padding: $space-2 $space-3;
+    font-size: $font-size-sm;
+    line-height: $line-height-normal;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+  }
+
+  &__markdown {
+    padding: $space-2 $space-3;
+    font-size: $font-size-sm;
+    line-height: $line-height-normal;
+    word-wrap: break-word;
+
+    p {
+      margin: 0 0 $space-2;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    code {
+      font-family: $font-family-mono;
+      font-size: 0.85em;
+      background-color: var(--color-interactive-hover);
+      padding: 1px $space-1;
+      border-radius: $radius-sm;
+    }
+
+    pre {
+      margin: $space-2 0;
+      padding: $space-2 $space-3;
+      background-color: var(--color-bg);
+      border-radius: $radius-md;
+      overflow-x: auto;
+      @include scrollbar-thin;
+
+      code {
+        background: none;
+        padding: 0;
+        font-size: $font-size-xs;
+      }
+    }
+
+    strong {
+      font-weight: $font-weight-semibold;
+    }
+
+    a {
+      color: var(--color-primary);
+      text-decoration: underline;
+
+      &:hover {
+        text-decoration: none;
+      }
+    }
+
+    ul {
+      margin: $space-1 0;
+      padding-left: $space-5;
+    }
+
+    li {
+      margin-bottom: $space-1;
+    }
+  }
+
+  &__timestamp {
+    @include caption;
+    color: var(--color-text-tertiary);
+    padding: 0 $space-1;
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-1;
+    padding-top: $space-1;
+  }
+
+  &__action {
+    display: inline-flex;
+    align-items: center;
+    padding: $space-1 $space-2;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+    border: $border-width-thin solid var(--color-border);
+    border-radius: $radius-md;
+    background: var(--color-bg);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    @include transition(background-color, color, border-color);
+
+    &:hover {
+      background-color: var(--color-interactive-hover);
+      color: var(--color-text);
+    }
+
+    &--accept {
+      border-color: #{$success-500};
+      color: #{$success-700};
+
+      &:hover {
+        background-color: #{$success-100};
+      }
+    }
+
+    &--reject {
+      border-color: #{$error-500};
+      color: #{$error-700};
+
+      &:hover {
+        background-color: #{$error-100};
+      }
+    }
+  }
+
+  &__link {
+    display: inline-flex;
+    align-items: center;
+    padding: $space-1 $space-2;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+    border: $border-width-thin solid var(--color-primary);
+    border-radius: $radius-full;
+    background: transparent;
+    color: var(--color-primary);
+    cursor: pointer;
+    @include transition(background-color);
+
+    &:hover {
+      background-color: #{$primary-50};
+    }
+  }
+
+  &__typing {
+    display: flex;
+    gap: 4px;
+    padding: $space-1 $space-2;
+
+    span {
+      width: 6px;
+      height: 6px;
+      border-radius: $radius-full;
+      background-color: var(--color-text-tertiary);
+      animation: pulse $duration-slower ease-in-out infinite;
+
+      &:nth-child(2) {
+        animation-delay: 150ms;
+      }
+
+      &:nth-child(3) {
+        animation-delay: 300ms;
+      }
+    }
+  }
+
+  &__error {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    font-size: $font-size-xs;
+    color: var(--color-error);
+    padding: $space-1 0;
+  }
+}

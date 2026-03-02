@@ -1,0 +1,138 @@
+.GenUiProjectList {
+  &--empty {
+    @include flex-center;
+    flex-direction: column;
+    gap: $space-2;
+    padding: $space-12;
+    color: var(--color-text-secondary, $neutral-500);
+    @include body-text;
+    text-align: center;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: $space-4;
+  }
+
+  &__card {
+    @include surface-elevated;
+    @include flex-column;
+    gap: $space-3;
+    padding: $space-4;
+    cursor: pointer;
+    @include transition(box-shadow, border-color, transform);
+
+    &:hover {
+      box-shadow: $shadow-md;
+      border-color: var(--color-primary, $primary-400);
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+
+    &--ready {
+      border-left: $border-width-thick solid $success-500;
+    }
+
+    &--building {
+      border-left: $border-width-thick solid $warning-500;
+    }
+
+    &--error {
+      border-left: $border-width-thick solid $error-500;
+    }
+  }
+
+  &__cardHeader {
+    @include flex-between;
+    align-items: flex-start;
+  }
+
+  &__name {
+    @include heading-6;
+    color: var(--color-text-primary, $neutral-900);
+    @include truncate-text;
+    flex: 1;
+    margin-right: $space-2;
+  }
+
+  &__status {
+    @include caption;
+    font-weight: $font-weight-medium;
+    padding: $space-1 $space-2;
+    border-radius: $radius-full;
+    flex-shrink: 0;
+
+    &--ready {
+      background: $success-100;
+      color: $success-700;
+    }
+
+    &--building {
+      background: $warning-100;
+      color: $warning-700;
+    }
+
+    &--error {
+      background: $error-100;
+      color: $error-700;
+    }
+  }
+
+  &__description {
+    @include body-sm;
+    color: var(--color-text-secondary, $neutral-500);
+    @include line-clamp(2);
+    margin: 0;
+  }
+
+  &__footer {
+    @include flex-between;
+    margin-top: auto;
+    padding-top: $space-2;
+    border-top: $border-width-thin solid var(--color-border, $neutral-200);
+  }
+
+  &__date {
+    @include caption;
+    color: var(--color-text-tertiary, $neutral-400);
+  }
+
+  &__actions {
+    @include flex-row;
+    gap: $space-2;
+  }
+
+  &__btn {
+    @include caption;
+    font-weight: $font-weight-medium;
+    padding: $space-1 $space-2;
+    border: $border-width-thin solid var(--color-border, $neutral-300);
+    border-radius: $radius-md;
+    background: var(--color-surface, white);
+    color: var(--color-text-secondary, $neutral-600);
+    cursor: pointer;
+    @include transition(background-color, color);
+
+    &:hover:not(:disabled) {
+      background: var(--color-interactive-hover, $neutral-100);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    &--danger {
+      color: $error-500;
+      border-color: $error-300;
+
+      &:hover:not(:disabled) {
+        background: $error-100;
+        color: $error-700;
+      }
+    }
+  }
+}

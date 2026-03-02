@@ -9,6 +9,7 @@
 ## 1. Diff View Design
 
 ### 1.1 "Light Indications"
+
 - **Q**: The PRD says diffs should use "light colored indications" and should
   "otherwise look EXACTLY how it was." Can we get mockups or more specific
   guidance? The plan proposes subtle background tints and margin indicators —
@@ -30,6 +31,7 @@
 - **A:** Word-level highlighting. Within a modified line, the specific changed words get a stronger background tint (10% opacity vs. 5% for the line-level tint). This is critical for long paragraphs where a single word change would otherwise require the user to visually scan the entire line. Use `diff-match-patch` for accurate word-level diff computation.
 
 ### 1.2 Diff Modes
+
 - **Q**: Should the default diff view be unified (single column) or split
   (side-by-side)? The PRD seems to favor unified, but should split be
   available as an option?
@@ -45,6 +47,7 @@
 - **A:** Client-side. Both the before and after versions are fetched from the server as full content, and the diff is computed in the browser using `diff-match-patch` (fast, handles word-level diffs). Client-side avoids a server round-trip for diff computation and allows real-time diff mode toggling. The content payload for two spec versions is small (typically <50KB total).
 
 ### 1.3 Diff Scope
+
 - **Q**: Should the diff show changes to metadata (tags, permissions, title)
   in addition to content changes? If so, how should metadata changes be
   displayed?
@@ -59,6 +62,7 @@
 ## 2. Version History
 
 ### 2.1 History Granularity
+
 - **Q**: The PRD says "each change to a spec is a commit hash." Does this
   mean the version history shows one entry per auto-save, or are auto-saves
   grouped into larger "versions"? One entry per auto-save could create a
@@ -75,6 +79,7 @@
 - **A:** Summary by default: entry shows timestamp, author avatar, action type icon, and a one-line change summary ("Modified 2 paragraphs, added 1 heading"). Clicking an entry opens the full diff view for that version. This keeps the timeline scannable — loading diffs for all entries would be slow and overwhelming.
 
 ### 2.2 History Display
+
 - **Q**: Should the version history be a vertical timeline, a horizontal
   timeline, a simple list, or a table? Vertical timeline is most common,
   but a table might be more compact for power users.
@@ -93,6 +98,7 @@
 ## 3. Spec vs. Document Versioning
 
 ### 3.1 Interaction Model
+
 - **Q**: Should the default version history view show per-spec history or
   per-document history? The PRD emphasizes spec-level versioning, but users
   may think in terms of documents.
@@ -108,6 +114,7 @@
 - **A:** The revert dialog shows added specs with a "Will be removed" warning and a checkbox to keep them. By default, newly added specs are marked for removal (true revert), but the user can uncheck to preserve them. This prevents accidental loss of new work while defaulting to the expected revert behavior.
 
 ### 3.2 Version Identification
+
 - **Q**: How should versions be identified to users? Git commit hashes are
   opaque. Should there be version numbers (v1, v2, v3) or dates, or
   user-friendly labels?
@@ -122,6 +129,7 @@
 ## 4. Branch Management
 
 ### 4.1 Branch UX
+
 - **Q**: How prominently should the current branch be displayed? Always
   visible in the header, or only in version control views?
 - **A:** Always visible in the app header. A branch chip (git branch icon + branch name) appears next to the project name. It uses subtle styling (muted text, no background) to avoid dominating the header. The "main" branch uses default styling; other branches show a colored dot matching the branch color from the branch graph. This constant visibility prevents "which branch am I on?" confusion.
@@ -139,6 +147,7 @@
 - **A:** Yes, on the project version control page (`/versions`). A simplified branch graph shows branch creation points, merge points, and the current HEAD of each branch. The graph uses horizontal lanes per branch with vertical connections for merges. It's not as detailed as `gitk` — it shows branch lifecycle, not individual commits. Individual commits are viewed per-spec or per-document.
 
 ### 4.2 Branch Workflow
+
 - **Q**: Should switching branches be as simple as a dropdown selection, or
   should there be a confirmation step? Unsaved changes could be lost.
 - **A:** Dropdown selection with a conditional confirmation. If there are no unsaved changes, the switch is instant. If there are unsaved changes, a confirmation dialog appears: "You have unsaved changes in [Spec Name]. [Save and switch] [Discard and switch] [Cancel]". This is fast for the common case (no unsaved changes) and safe for the edge case.
@@ -156,6 +165,7 @@
 ## 5. Merge & Conflict Resolution
 
 ### 5.1 Merge UX
+
 - **Q**: Should the merge UI use a three-way merge view (base, ours, theirs)
   or a two-way view (ours, theirs)? Three-way is more accurate but more
   complex.
@@ -171,6 +181,7 @@
 - **A:** Yes. A "Suggest resolution" button on each conflict sends both versions to the agent, which proposes a merged version that preserves the intent of both changes. The suggestion appears as a third option alongside "ours" and "theirs." The user can accept the agent's suggestion, edit it, or ignore it. This is optional — the merge UI works without agent involvement.
 
 ### 5.2 Conflict UX
+
 - **Q**: How should conflicts within a single spec be presented? As one
   conflict per changed section, or as one conflict per spec?
 - **A:** One conflict per changed section (paragraph, heading, list, or contiguous block of changes). This gives users fine-grained control: they can accept "ours" for one paragraph and "theirs" for another within the same spec. Each conflict section is visually bounded with a conflict header ("Conflict 1 of 3") and resolution buttons.
@@ -188,6 +199,7 @@
 ## 6. Sync & Collaboration
 
 ### 6.1 Sync Model
+
 - **Q**: How often should the client check for remote changes? On a timer
   (every 30 seconds? every 5 minutes?), on user action (pull button), or
   via WebSocket push notification?
@@ -204,6 +216,7 @@
 - **A:** Prompt for resolution. If the pull includes changes to a spec with unsaved local edits, the pull completes for all other specs, and the conflicting spec shows a merge prompt: "This spec has both local changes and remote changes. [View diff] [Keep mine] [Accept theirs] [Merge]". The editor remains usable — only the affected spec needs resolution.
 
 ### 6.2 Push Model
+
 - **Q**: Should "push" be automatic after each commit, or manual? Automatic
   push simplifies the workflow but could cause more conflicts. Manual push
   lets users batch changes.
@@ -298,5 +311,5 @@
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

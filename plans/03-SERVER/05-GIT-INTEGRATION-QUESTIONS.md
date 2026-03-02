@@ -10,6 +10,7 @@
 ## 1. Git Library Choice
 
 ### 1.1 Implementation Approach
+
 - **Q**: Should the project use `simple-git` (wraps CLI), `isomorphic-git`
   (pure JS), or direct shell commands via Bun? `simple-git` is most mature but
   requires git binary. `isomorphic-git` is portable but has limitations (no
@@ -37,6 +38,7 @@
 **A:** Yes. Define a `GitOperations` interface with methods like `commit()`, `branch()`, `merge()`, `diff()`, `push()`, `pull()`, `log()`, `status()`. The `SimpleGitAdapter` implements this interface. This enables testing (mock the interface), protects against library changes, and provides a clean API for the rest of the server. The interface is thin — it mirrors the operations needed, not the full git API.
 
 ### 1.2 Performance
+
 - **Q**: How will git performance scale with large knowledge graphs (thousands
   of JSON files)? Should the repository structure be designed to avoid
   performance degradation (e.g., limit files per directory to ~1000)?
@@ -53,6 +55,7 @@
 ## 2. Repository Structure
 
 ### 2.1 File Organization
+
 - **Q**: Should each spec be a separate JSON file (e.g., `specs/{specId}.json`)
   or should specs be grouped into fewer larger files (e.g., per-document)?
   Individual files give clean per-spec diffs but create many files. Grouped
@@ -80,6 +83,7 @@
 **A:** Separate directory outside the git repo. Generated UI projects are build artifacts, not source data. Store them in `/data/gen/{projectId}/` on the server filesystem. They can be regenerated from the knowledge graph at any time. Including them in the git repo would bloat the repository and create noisy commits on every regeneration.
 
 ### 2.2 Naming Conventions
+
 - **Q**: Should spec files be named by UUID (`{uuid}.json`) or by a slugified
   title (`authentication-requirements.json`)? UUIDs avoid naming conflicts but
   are unreadable in git logs. Slugs are readable but may collide.
@@ -97,6 +101,7 @@
 ## 3. Commit Strategy
 
 ### 3.1 Commit Granularity
+
 - **Q**: Should every single spec edit create its own commit, or should edits
   be batched? The PRD says "each change to a spec is its own commit hash" but
   this could create very noisy commit histories during active editing sessions.
@@ -117,6 +122,7 @@
 **A:** Batch commit per agent operation. When the agent creates 3 specs and 5 edges in response to a single user message, all changes are committed together: "feat(agent): create specs for authentication module (3 specs, 5 edges)". This is atomic (all changes from one agent action are together) and clean (one commit per user-agent interaction turn). Individual MCP tool calls write files but do not commit; the commit happens after the agent's response is complete.
 
 ### 3.2 Commit Authoring
+
 - **Q**: Should commits made by the agent be attributed to the agent (e.g.,
   "Claude Agent <agent@system>") or to the user who initiated the agent session?
   Agent attribution is transparent but the user "owns" the changes.
@@ -140,6 +146,7 @@
 ## 4. Branching Model
 
 ### 4.1 Branching Strategy
+
 - **Q**: Should the project use a mainline branching model (everyone commits to
   main, merge later) or a feature-branch model (changes on branches, merge to
   main)? The PRD mentions branching for experimentation but doesn't specify
@@ -160,6 +167,7 @@
 **A:** Yes, work directly on `main`. Branches are optional and only used when the user wants to experiment. The UI doesn't push branches — the branch UI is accessible but not the default workflow. Single-user projects have a simple commit-to-main flow.
 
 ### 4.2 Branch Lifecycle
+
 - **Q**: Should branches be automatically deleted after merge, or kept for
   reference? Auto-deletion keeps the repo clean but loses branch history.
 
@@ -180,6 +188,7 @@
 ## 5. Merge & Conflict Resolution
 
 ### 5.1 Merge Strategy
+
 - **Q**: Should the default merge strategy be merge commits or fast-forward
   when possible? Merge commits preserve branch history but create noise;
   fast-forward keeps linear history but loses branch context.
@@ -198,6 +207,7 @@
 **A:** Custom conflict presentation, not custom merge drivers. Let git detect conflicts normally (text-level markers). The server parses the conflicted file to extract `<<<<<<`, `======`, `>>>>>>` sections. The API presents the conflict as structured data: `{ base, ours, theirs }` for each conflicted file. The UI renders a side-by-side comparison. The user resolves in the UI, and the server writes the resolved JSON. No custom git merge driver needed — handling happens at the API/UI layer.
 
 ### 5.2 Conflict UX
+
 - **Q**: Should conflicts be presented to the user as raw git conflicts or as
   structured, field-level differences? Structured is more user-friendly for
   JSON knowledge graph files but requires custom parsing.
@@ -221,6 +231,7 @@
 ## 6. Diff Generation
 
 ### 6.1 Diff Format
+
 - **Q**: Should diffs be generated as standard unified diffs or as structured
   JSON diffs (for knowledge graph files)? The PRD calls for "light colored
   indications" in the diff view, suggesting a custom format.
@@ -238,6 +249,7 @@
 **A:** Line-level diff on the markdown content. Semantic-level diffing (understanding markdown structure) is complex and error-prone. Line-level diffs are simple, well-understood, and sufficient for the "light colored indications" the PRD describes. The frontend renders added/removed/changed lines with green/red/yellow highlighting. Use a standard diff algorithm (Myers or patience diff).
 
 ### 6.2 Diff Performance
+
 - **Q**: For large spec documents with many changes, should diffs be computed
   on demand or pre-computed and cached? On-demand is simpler but may be slow
   for complex histories. Caching requires invalidation logic.
@@ -255,6 +267,7 @@
 ## 7. Synchronization
 
 ### 7.1 Sync Model
+
 - **Q**: Should synchronization be automatic (poll for changes periodically) or
   manual (user explicitly pulls/pushes)? Automatic is more real-time but may
   cause unexpected changes during active editing. The PRD mentions asynchronous
@@ -274,6 +287,7 @@
 **A:** Support as optional configuration but don't require it. If the git remote supports webhooks (GitHub, GitLab), configure a webhook to `POST /webhooks/git/push` which triggers a `git fetch` and updates the "changes available" indicator for all connected users in that project. Fall back to polling when webhooks aren't available. This gives near-instant notification when configured.
 
 ### 7.2 Offline Support
+
 - **Q**: Should the system handle scenarios where the git remote is unreachable?
   Allow local-only work and sync when remote becomes available?
 
@@ -289,6 +303,7 @@
 ## 8. Version Control UX
 
 ### 8.1 History Navigation
+
 - **Q**: Should the spec version history show every commit that touched the
   spec, or only "meaningful" changes (e.g., filter out automated/system
   commits)?
@@ -306,6 +321,7 @@
 **A:** Yes. `GET /specs/:id/diff?from=<commitA>&to=<commitB>` returns the diff between any two versions. This uses `git diff <commitA> <commitB> -- <filepath>`. The endpoint parses the diff into the structured JSON format described above. Essential for comparing a spec before and after a branch merge, or comparing the current version to an arbitrary historical point.
 
 ### 8.2 Revert Behavior
+
 - **Q**: When reverting a spec to a previous version, should the revert
   also revert connected edges, or keep current edges? The plan says "preserve
   current edges" but some edges may no longer be valid after revert.
@@ -328,6 +344,7 @@
 ## 9. Performance & Scalability
 
 ### 9.1 Repository Size
+
 - **Q**: What is the expected repository size after 1 year of active use?
   Estimate: number of specs, number of commits, total JSON file size. This
   determines if git performance will degrade.
@@ -345,6 +362,7 @@
 **A:** Stored outside the git repository (see Repository Structure answer above). Media files live in `/data/uploads/{projectId}/` on the server filesystem. No Git LFS needed. This keeps the git repo lightweight and cloning fast. Media is backed up and managed separately.
 
 ### 9.2 Operation Performance
+
 - **Q**: Which git operations are expected to be slow, and should they run
   asynchronously? Candidates: clone (network), push/pull (network), merge
   (complex), log with full diff (CPU).
@@ -366,6 +384,7 @@
 ## 10. Security
 
 ### 10.1 Access Control
+
 - **Q**: Should the server use project-level git credentials (single identity
   per project) or per-user git credentials (each user's own SSH key/token)?
   Per-user is more auditable but more complex to manage.
@@ -383,6 +402,7 @@
 **A:** Yes. The `GitService` enforces a file whitelist for commits: only files under `specs/`, `graph/`, `documents/`, and `.botnet/` directories can be committed. Any attempt to stage a file outside these directories (including `.env`, `node_modules`, etc.) is rejected. This is enforced at the application level, not via git hooks (since the server controls all git operations).
 
 ### 10.2 History Integrity
+
 - **Q**: Should the system enforce signed commits to prevent tampering? This
   adds trust but requires GPG key management.
 

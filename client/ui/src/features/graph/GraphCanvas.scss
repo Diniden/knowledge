@@ -1,0 +1,54 @@
+.GraphCanvas {
+  position: relative;
+  flex: 1;
+  overflow: auto;
+  background: var(--color-bg, #{$neutral-50});
+  @include scrollbar-thin;
+
+  &--panning {
+    cursor: grabbing;
+    user-select: none;
+  }
+
+  &:not(&--panning) {
+    cursor: grab;
+  }
+
+  &__viewport {
+    min-width: 100%;
+    min-height: 100%;
+  }
+
+  &__edges {
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: $z-index-base;
+  }
+
+  &__nodes {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: #{$z-index-base + 1};
+  }
+
+  &__row {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: $space-6;
+  }
+
+  &__controls {
+    position: absolute;
+    top: $space-4;
+    right: $space-4;
+    z-index: $z-index-dropdown;
+  }
+}

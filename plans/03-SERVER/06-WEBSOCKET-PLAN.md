@@ -849,18 +849,18 @@
 
 ## Summary
 
-| Section | Task Range | Count |
-|---------|-----------|-------|
-| 1. WebSocket Gateway Setup | SV-WS-001 – 006 | 6 |
-| 2. Event Types & Schemas | SV-WS-007 – 021 | 15 |
-| 3. Room & Channel Management | SV-WS-022 – 027 | 6 |
-| 4. Connection Authentication | SV-WS-028 – 034 | 7 |
-| 5. Connection Lifecycle | SV-WS-035 – 042 | 8 |
-| 6. Heartbeat & Reconnection | SV-WS-043 – 047 | 5 |
-| 7. Message Queuing | SV-WS-048 – 053 | 6 |
-| 8. Broadcasting Patterns | SV-WS-054 – 063 | 10 |
-| 9. Binary Data Handling | SV-WS-064 – 067 | 4 |
-| 10. Error Handling & Recovery | SV-WS-068 – 074 | 7 |
-| 11. Monitoring & Debugging | SV-WS-075 – 082 | 8 |
-| 12. Performance & Scaling | SV-WS-083 – 091 | 9 |
-| **TOTAL** | | **91** |
+| Section                       | Task Range      | Count  |
+| ----------------------------- | --------------- | ------ |
+| 1. WebSocket Gateway Setup    | SV-WS-001 – 006 | 6      |
+| 2. Event Types & Schemas      | SV-WS-007 – 021 | 15     |
+| 3. Room & Channel Management  | SV-WS-022 – 027 | 6      |
+| 4. Connection Authentication  | SV-WS-028 – 034 | 7      |
+| 5. Connection Lifecycle       | SV-WS-035 – 042 | 8      |
+| 6. Heartbeat & Reconnection   | SV-WS-043 – 047 | 5      |
+| 7. Message Queuing            | SV-WS-048 – 053 | 6      |
+| 8. Broadcasting Patterns      | SV-WS-054 – 063 | 10     |
+| 9. Binary Data Handling       | SV-WS-064 – 067 | 4      |
+| 10. Error Handling & Recovery | SV-WS-068 – 074 | 7      |
+| 11. Monitoring & Debugging    | SV-WS-075 – 082 | 8      |
+| 12. Performance & Scaling     | SV-WS-083 – 091 | 9      |
+| **TOTAL**                     |                 | **91** |

@@ -57,11 +57,11 @@
   interface AgentTypeConfig {
     type: AgentType;
     description: string;
-    mcpServers: string[];        // MCP servers this agent can access
-    maxConcurrent: number;       // max simultaneous instances
-    defaultTimeout: number;      // ms before kill
-    sandboxPath: string;         // template for working directory
-    systemPromptTemplate: string;// path to system prompt template
+    mcpServers: string[]; // MCP servers this agent can access
+    maxConcurrent: number; // max simultaneous instances
+    defaultTimeout: number; // ms before kill
+    sandboxPath: string; // template for working directory
+    systemPromptTemplate: string; // path to system prompt template
     outputFormat: 'text' | 'json' | 'streaming';
     canDelegateToTypes: AgentType[]; // which sub-agents it can spawn
   }
@@ -75,14 +75,14 @@
   - All other agent types are sub-agents, spawned by the orchestrator or by each other
   - No circular delegation chains allowed (enforced at config level)
 - [ ] **AG-ARCH-005**: Define agent capability matrix
-  | Agent Type | Read Graph | Write Graph | RAG Search | Generate UI | Generate Plans | File Access |
-  |---|---|---|---|---|---|---|
-  | Orchestrator | Yes | No | Yes (light) | No | No | No |
-  | Knowledge Graph | Yes | Yes | Yes | No | No | No |
-  | Dialog | Yes | No | Yes | No | No | No |
-  | Generative UI | Yes | No | Yes | Yes | No | Yes (sandboxed) |
-  | Plan Generation | Yes | No | Yes | No | Yes | Yes (sandboxed) |
-  | Graph Crawler | Yes | Yes (inquiries) | Yes | No | No | No |
+      | Agent Type | Read Graph | Write Graph | RAG Search | Generate UI | Generate Plans | File Access |
+      |---|---|---|---|---|---|---|
+      | Orchestrator | Yes | No | Yes (light) | No | No | No |
+      | Knowledge Graph | Yes | Yes | Yes | No | No | No |
+      | Dialog | Yes | No | Yes | No | No | No |
+      | Generative UI | Yes | No | Yes | Yes | No | Yes (sandboxed) |
+      | Plan Generation | Yes | No | Yes | No | Yes | Yes (sandboxed) |
+      | Graph Crawler | Yes | Yes (inquiries) | Yes | No | No | No |
 
 ### 1.2 Agent Module Structure
 
@@ -146,7 +146,7 @@
     userMessage: string;
     conversationHistory: ConversationMessage[];
     context: AgentContext;
-    parentAgentId?: string;  // if this is a sub-agent call
+    parentAgentId?: string; // if this is a sub-agent call
     delegationChain: string[]; // prevent circular delegation
     metadata: Record<string, unknown>;
   }
@@ -199,17 +199,17 @@
 ### 2.1 Intent Classification
 
 - [ ] **AG-ARCH-011**: Define the intent taxonomy for user requests
-  | Intent | Description | Target Agent |
-  |---|---|---|
-  | `spec-crud` | Create, update, delete, or read specs | Knowledge Graph Agent |
-  | `edge-management` | Create, modify, delete edges between specs | Knowledge Graph Agent |
-  | `graph-query` | Query graph structure, find paths, subgraphs | Knowledge Graph Agent |
-  | `conversational` | General questions, clarifications, discussions | Dialog Agent |
-  | `ui-generation` | Request a custom UI/visualization | Generative UI Agent |
-  | `plan-generation` | Generate execution plans from the graph | Plan Generation Agent |
-  | `graph-analysis` | Crawl graph for implications, contradictions | Graph Crawler Agent |
-  | `multi-intent` | Request spans multiple agent types | Orchestrator (sequential/parallel) |
-  | `clarification-needed` | Ambiguous request needing more info | Dialog Agent (with clarification prompt) |
+      | Intent | Description | Target Agent |
+      |---|---|---|
+      | `spec-crud` | Create, update, delete, or read specs | Knowledge Graph Agent |
+      | `edge-management` | Create, modify, delete edges between specs | Knowledge Graph Agent |
+      | `graph-query` | Query graph structure, find paths, subgraphs | Knowledge Graph Agent |
+      | `conversational` | General questions, clarifications, discussions | Dialog Agent |
+      | `ui-generation` | Request a custom UI/visualization | Generative UI Agent |
+      | `plan-generation` | Generate execution plans from the graph | Plan Generation Agent |
+      | `graph-analysis` | Crawl graph for implications, contradictions | Graph Crawler Agent |
+      | `multi-intent` | Request spans multiple agent types | Orchestrator (sequential/parallel) |
+      | `clarification-needed` | Ambiguous request needing more info | Dialog Agent (with clarification prompt) |
 - [ ] **AG-ARCH-012**: Implement intent classification logic
   - Use Claude Code itself to classify intent (meta-agent pattern)
   - System prompt includes the intent taxonomy with examples
@@ -563,7 +563,15 @@
     error?: string;
     metadata: Record<string, unknown>;
   }
-  type SessionStatus = 'initializing' | 'context-loading' | 'executing' | 'streaming' | 'completed' | 'failed' | 'cancelled' | 'timed-out';
+  type SessionStatus =
+    | 'initializing'
+    | 'context-loading'
+    | 'executing'
+    | 'streaming'
+    | 'completed'
+    | 'failed'
+    | 'cancelled'
+    | 'timed-out';
   ```
 - [ ] **AG-ARCH-061**: Implement `AgentSessionService.createSession()` method
   - Generate unique session ID
@@ -947,6 +955,7 @@
 ### 12.1 Error Taxonomy
 
 - [ ] **AG-ARCH-099**: Define agent error hierarchy
+
   ```typescript
   class AgentError extends Error {
     code: AgentErrorCode;
@@ -970,6 +979,7 @@
     | 'INVALID_INPUT'
     | 'INTERNAL_ERROR';
   ```
+
 - [ ] **AG-ARCH-100**: Define user-facing error messages for each error code
   - Map each `AgentErrorCode` to a friendly, actionable message
   - Never expose internal details (process IDs, stack traces) to users
@@ -1095,14 +1105,14 @@
 ### 14.1 Token Budget Limits
 
 - [ ] **AG-ARCH-115**: Define per-session token limits
-  | Agent Type | Max Prompt Tokens | Max Output Tokens | Max Total |
-  |---|---|---|---|
-  | Orchestrator | 4,000 | 1,000 | 5,000 |
-  | Knowledge Graph | 50,000 | 10,000 | 60,000 |
-  | Dialog | 30,000 | 5,000 | 35,000 |
-  | Generative UI | 80,000 | 30,000 | 110,000 |
-  | Plan Generation | 100,000 | 50,000 | 150,000 |
-  | Graph Crawler | 50,000 | 10,000 | 60,000 |
+      | Agent Type | Max Prompt Tokens | Max Output Tokens | Max Total |
+      |---|---|---|---|
+      | Orchestrator | 4,000 | 1,000 | 5,000 |
+      | Knowledge Graph | 50,000 | 10,000 | 60,000 |
+      | Dialog | 30,000 | 5,000 | 35,000 |
+      | Generative UI | 80,000 | 30,000 | 110,000 |
+      | Plan Generation | 100,000 | 50,000 | 150,000 |
+      | Graph Crawler | 50,000 | 10,000 | 60,000 |
 - [ ] **AG-ARCH-116**: Implement per-session token tracking
   - Count tokens as they are sent to and received from Claude Code
   - Enforce limits: kill process if output exceeds max
@@ -1117,14 +1127,14 @@
 ### 14.2 Time Limits
 
 - [ ] **AG-ARCH-118**: Define per-agent-type execution time limits
-  | Agent Type | Timeout |
-  |---|---|
-  | Orchestrator | 30 seconds |
-  | Knowledge Graph | 120 seconds |
-  | Dialog | 60 seconds |
-  | Generative UI | 300 seconds |
-  | Plan Generation | 600 seconds |
-  | Graph Crawler | 300 seconds |
+      | Agent Type | Timeout |
+      |---|---|
+      | Orchestrator | 30 seconds |
+      | Knowledge Graph | 120 seconds |
+      | Dialog | 60 seconds |
+      | Generative UI | 300 seconds |
+      | Plan Generation | 600 seconds |
+      | Graph Crawler | 300 seconds |
 - [ ] **AG-ARCH-119**: Implement timeout enforcement with warnings
   - At 80% of timeout: emit WebSocket warning to client
   - At 100%: kill process, mark session as timed-out
@@ -1227,27 +1237,28 @@
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. Agent Type Taxonomy | 10 (AG-ARCH-001 through AG-ARCH-010) |
-| 2. Orchestrator Agent | 12 (AG-ARCH-011 through AG-ARCH-022) |
-| 3. Knowledge Graph Agent | 9 (AG-ARCH-023 through AG-ARCH-031) |
-| 4. Dialog Agent | 7 (AG-ARCH-032 through AG-ARCH-038) |
-| 5. Generative UI Agent | 7 (AG-ARCH-039 through AG-ARCH-045) |
-| 6. Plan Generation Agent | 6 (AG-ARCH-046 through AG-ARCH-051) |
-| 7. Graph Crawler Agent | 8 (AG-ARCH-052 through AG-ARCH-059) |
-| 8. Agent Lifecycle Management | 10 (AG-ARCH-060 through AG-ARCH-069) |
-| 9. Context Assembly | 12 (AG-ARCH-070 through AG-ARCH-081) |
+| Section                                 | Tasks                                |
+| --------------------------------------- | ------------------------------------ |
+| 1. Agent Type Taxonomy                  | 10 (AG-ARCH-001 through AG-ARCH-010) |
+| 2. Orchestrator Agent                   | 12 (AG-ARCH-011 through AG-ARCH-022) |
+| 3. Knowledge Graph Agent                | 9 (AG-ARCH-023 through AG-ARCH-031)  |
+| 4. Dialog Agent                         | 7 (AG-ARCH-032 through AG-ARCH-038)  |
+| 5. Generative UI Agent                  | 7 (AG-ARCH-039 through AG-ARCH-045)  |
+| 6. Plan Generation Agent                | 6 (AG-ARCH-046 through AG-ARCH-051)  |
+| 7. Graph Crawler Agent                  | 8 (AG-ARCH-052 through AG-ARCH-059)  |
+| 8. Agent Lifecycle Management           | 10 (AG-ARCH-060 through AG-ARCH-069) |
+| 9. Context Assembly                     | 12 (AG-ARCH-070 through AG-ARCH-081) |
 | 10. Agent Memory & Conversation History | 10 (AG-ARCH-082 through AG-ARCH-091) |
-| 11. Inter-Agent Communication | 7 (AG-ARCH-092 through AG-ARCH-098) |
-| 12. Error Handling & Recovery | 9 (AG-ARCH-099 through AG-ARCH-107) |
-| 13. Concurrency Management | 7 (AG-ARCH-108 through AG-ARCH-114) |
-| 14. Resource Allocation & Limits | 13 (AG-ARCH-115 through AG-ARCH-127) |
-| **TOTAL** | **127** |
+| 11. Inter-Agent Communication           | 7 (AG-ARCH-092 through AG-ARCH-098)  |
+| 12. Error Handling & Recovery           | 9 (AG-ARCH-099 through AG-ARCH-107)  |
+| 13. Concurrency Management              | 7 (AG-ARCH-108 through AG-ARCH-114)  |
+| 14. Resource Allocation & Limits        | 13 (AG-ARCH-115 through AG-ARCH-127) |
+| **TOTAL**                               | **127**                              |
 
 ### Dependencies (What This Plan Enables)
 
 Completion of this plan unblocks:
+
 - `06-AGENT-SYSTEM/02-CLAUDE-CODE-WRAPPER-PLAN.md` — needs agent lifecycle, session model, execution pipeline
 - `06-AGENT-SYSTEM/03-MCP-SERVERS-PLAN.md` — needs agent type capabilities, tool requirements
 - `06-AGENT-SYSTEM/04-SKILLS-CONFIG-PLAN.md` — needs agent types, system prompt structure, context model
@@ -1259,6 +1270,7 @@ Completion of this plan unblocks:
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] All agent type configurations are defined and registered
 - [ ] Orchestrator intent classification is operational with >90% accuracy on test set
 - [ ] All six agent types implement the base `Agent` interface

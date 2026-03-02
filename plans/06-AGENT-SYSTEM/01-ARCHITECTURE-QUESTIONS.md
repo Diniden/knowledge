@@ -10,6 +10,7 @@
 ## 1. Agent Type Design
 
 ### 1.1 Agent Type Boundaries
+
 - **Q**: Should the orchestrator itself be a Claude Code instance (meta-agent
   pattern using an LLM to classify intent), or a deterministic rules-based
   router? LLM classification is more flexible but adds latency and cost;
@@ -43,6 +44,7 @@
 **A:** No explicit agent versioning. Agent behavior is determined by system prompts, skills files, and CLAUDE.md — all of which are files in the project repo. Behavior changes are deployed by updating these files. Active sessions continue with the prompts they started with (prompt is assembled at session start and doesn't change mid-session). New sessions pick up the latest files. This gives us implicit versioning via git history of the prompt/skill files without adding a version management layer.
 
 ### 1.2 Agent Capabilities
+
 - **Q**: Should all agents have read access to the entire knowledge graph,
   or should graph access be scoped per-request (only the relevant subgraph)?
   Full access enables richer context but may include irrelevant or restricted
@@ -67,6 +69,7 @@
 ## 2. Orchestration
 
 ### 2.1 Intent Classification
+
 - **Q**: What is the acceptable latency for intent classification? If using
   Claude Code for classification, this adds 1-3 seconds per request. Would
   a faster, smaller model (or fine-tuned classifier) be appropriate?
@@ -92,6 +95,7 @@
 **A:** If confidence is above 70%, pick the more likely one. If below 70%, route to the Dialog Agent to ask a clarifying question (e.g., "Did you want me to create a new spec or search for an existing one?"). Never run both in parallel — it doubles cost and wastes a Claude Code process slot. The Dialog Agent clarification adds one round-trip but ensures the right agent handles the request.
 
 ### 2.2 Routing Logic
+
 - **Q**: Should the orchestrator support "agent chaining" — automatically
   routing the output of one agent to another? For example: KG Agent creates
   a spec → Graph Crawler automatically analyzes implications.
@@ -116,6 +120,7 @@
 ## 3. Agent Lifecycle
 
 ### 3.1 Session Management
+
 - **Q**: Should agent sessions be tied to a conversation (one session per
   chat conversation) or per-request (new session for each user message)?
   Per-conversation enables richer context but uses more memory.
@@ -141,6 +146,7 @@
 **A:** Not at launch. Session forking is a nice-to-have but adds significant complexity (duplicating conversation history, managing divergent session states). Users can achieve a similar effect by starting a new conversation and referencing the same specs. This can be revisited if user research shows strong demand.
 
 ### 3.2 Process Lifecycle
+
 - **Q**: Should Claude Code processes be long-lived (kept warm for the
   duration of a conversation) or short-lived (fresh process per request)?
   Long-lived reduces startup latency but uses more memory; short-lived is
@@ -165,6 +171,7 @@
 ## 4. Context Assembly
 
 ### 4.1 Context Relevance
+
 - **Q**: How should context relevance be determined? Should the system use
   RAG similarity scores, graph distance from referenced specs, recency of
   access, or a combination? What weights should each signal carry?
@@ -191,6 +198,7 @@
 **A:** The agent sees only what the user is authorized to see. If the user has summary-only access, the MCP tool returns only the summary. The agent reasons over the summary and can note "full content not available" if needed. This respects access control at the MCP tool level — the server enforces permissions before returning data, not the agent. The agent never receives data the user shouldn't see.
 
 ### 4.2 Token Budget
+
 - **Q**: What is the target Claude model for each agent type? Different
   models have different context windows (e.g., 200K vs. 100K tokens). This
   directly affects context budget allocation.
@@ -214,6 +222,7 @@
 ## 5. Agent Memory
 
 ### 5.1 Conversation History
+
 - **Q**: Should conversation history be shared across agent types within a
   conversation? If the user talks to the Dialog Agent and then the KG Agent,
   should the KG Agent see the full dialog history?
@@ -237,6 +246,7 @@
 **A:** Yes. Maximum 100 messages per conversation or when conversation history exceeds 80% of the context window budget (~40K tokens). When the limit is approached, the system compresses older messages (keeping the most recent 20 messages in full and summarizing earlier ones). If compression is insufficient, the system prompts the user: "This conversation is getting long. Would you like to continue in a new session? Your context will carry over via spec references." The `--resume` flag handles the underlying continuity.
 
 ### 5.2 Working Memory
+
 - **Q**: Should working memory persist across sessions? If a user resumes
   work the next day, should the agent remember what specs were being
   discussed?
@@ -259,6 +269,7 @@
 ## 6. Inter-Agent Communication
 
 ### 6.1 Delegation Model
+
 - **Q**: Should delegation be synchronous (parent waits for child) or
   asynchronous (parent continues, child results arrive later)? Synchronous
   is simpler but blocks; asynchronous enables parallelism but complicates
@@ -285,6 +296,7 @@
 **A:** The orchestrator can route to at most 3 agent types per user message (primary + up to 2 secondary intents). Combined with the 50 MCP tool calls per message cap and the 5-minute operation timeout, this effectively bounds cost per request. A separate delegation budget counter is not needed — the existing caps are sufficient.
 
 ### 6.2 Event-Based Communication
+
 - **Q**: Should agent events (spec created, edge created) trigger other
   agents automatically, or should all agent activation go through the
   orchestrator? Automatic triggers are faster but harder to control;
@@ -337,6 +349,7 @@
 ## 8. Concurrency & Resource Limits
 
 ### 8.1 Concurrency Model
+
 - **Q**: Should the system support parallel agent execution within a single
   user request? For example, running KG Agent and Dialog Agent simultaneously
   for a multi-intent request.
@@ -355,6 +368,7 @@
 **A:** Automatically deprioritized. When active Claude Code processes are at 8+ out of 10 (80% capacity), background Graph Crawler spawns are queued and delayed until capacity drops below 6 (60%). User-initiated requests always take priority. The Graph Crawler queue is processed FIFO when capacity is available. If the queue grows beyond 50 items, older items are coalesced (multiple events for the same spec become one crawl).
 
 ### 8.2 Resource Limits
+
 - **Q**: What are reasonable per-user daily token limits? This depends on
   pricing and expected usage patterns. Should there be different tiers
   (free, pro, enterprise)?
@@ -435,5 +449,5 @@
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

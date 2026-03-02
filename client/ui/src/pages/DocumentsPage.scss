@@ -1,0 +1,46 @@
+.DocumentsPage {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  height: 100%;
+  overflow: hidden;
+
+  &__sidebar {
+    border-right: $border-width-thin solid var(--color-border);
+    background: var(--color-surface-sidebar);
+    overflow: hidden;
+  }
+
+  &__main {
+    overflow-y: auto;
+    padding: $space-6;
+    @include scrollbar-thin;
+  }
+
+  &__empty {
+    @include flex-center;
+    flex-direction: column;
+    gap: $space-4;
+    height: 100%;
+    color: var(--color-text-tertiary);
+    text-align: center;
+    padding: $space-6;
+
+    &Title {
+      @include heading-3;
+      color: var(--color-text-secondary);
+    }
+
+    &Description {
+      @include body-text;
+      max-width: 400px;
+    }
+  }
+
+  @include respond-below(md) {
+    grid-template-columns: 1fr;
+
+    &__sidebar {
+      display: none;
+    }
+  }
+}

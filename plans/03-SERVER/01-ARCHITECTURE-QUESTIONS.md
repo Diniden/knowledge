@@ -10,6 +10,7 @@
 ## 1. Bun Runtime
 
 ### 1.1 Compatibility
+
 - **Q**: Has NestJS been fully validated with Bun as the runtime? Are there
   known issues with decorator metadata reflection, TypeORM drivers, or the
   WebSocket adapter under Bun?
@@ -33,6 +34,7 @@
 **A:** Most NestJS core packages work. Known areas of concern: packages with native C++ addons (e.g., `bcrypt` — use `bcryptjs` instead), packages that use `require.resolve` heuristics in non-standard ways, and some older `passport` strategies. Test each dependency as it's added. Use `bun install` which handles CJS/ESM interop transparently for most cases.
 
 ### 1.2 Development Experience
+
 - **Q**: Does `bun --watch` provide reliable hot reload for NestJS, or should
   we use `nodemon` / `tsx watch` as a fallback?
 
@@ -48,6 +50,7 @@
 ## 2. Module Organization
 
 ### 2.1 Module Granularity
+
 - **Q**: Should Specs and Documents be separate NestJS modules, or combined into
   a single module since documents are just groups of specs? Separate modules give
   cleaner boundaries but add import boilerplate.
@@ -67,6 +70,7 @@
 **A:** Split into two sub-modules: `AgentSessionModule` (session lifecycle, history persistence, WebSocket streaming) and `AgentCoreModule` (Claude Code process wrapper, MCP tool registry, orchestration logic). The orchestrator and Claude Code wrapper are tightly coupled and belong together. Session management is a distinct concern. This keeps testability high without excessive fragmentation.
 
 ### 2.2 Shared Code
+
 - **Q**: How should shared types between client and server be consumed? Via a
   workspace package (`@shared/types`), or via path aliases pointing to a common
   `shared/` directory?
@@ -79,6 +83,7 @@
 **A:** Define TypeScript interfaces/types for request/response shapes in `@botnet/shared`. Server-side DTOs (decorated with `class-validator`) live in the server package and implement those shared interfaces. This way the client imports clean types, the server gets validation, and the shapes stay synchronized.
 
 ### 2.3 Lazy Loading
+
 - **Q**: Should non-critical modules (GenUI, Plans, Collaboration) be
   lazy-loaded to improve startup time? NestJS supports lazy module loading but
   it complicates dependency injection.
@@ -95,6 +100,7 @@
 ## 3. Service Layer Patterns
 
 ### 3.1 ORM Choice
+
 - **Q**: Should the project use TypeORM (mature, good NestJS integration) or
   Drizzle ORM (type-safe, lightweight, better Bun compatibility)? TypeORM's
   decorator-heavy approach aligns with NestJS but Drizzle is more performant.
@@ -112,6 +118,7 @@
 **A:** Add a thin repository layer. Each domain entity (User, Project, Session, etc.) gets a repository class that wraps Drizzle queries. This provides a clean seam for testing (mock the repository, not the ORM), encapsulates query logic, and keeps services focused on business logic. Repositories are NestJS `@Injectable()` providers.
 
 ### 3.2 File-Based Data
+
 - **Q**: The knowledge graph uses JSON files in git repos. Should the server
   parse and cache these in memory, or read from disk on every request? Caching
   improves performance but risks stale data.
@@ -130,6 +137,7 @@
 **A:** Operation queuing with per-project write serialization. Use an in-memory async queue (one per project) that serializes all write operations to the knowledge graph. Reads can happen concurrently. This avoids file lock complexity and race conditions. If a write fails, the queue rejects that operation and proceeds to the next. The queue drains naturally; no retry logic needed at the file level since git commit is the atomic boundary.
 
 ### 3.3 Event System
+
 - **Q**: Should module-to-module communication use NestJS's `EventEmitter2`
   (simple, in-process) or a message queue (Redis Pub/Sub, BullMQ) for
   reliability and potential future scaling?
@@ -146,6 +154,7 @@
 ## 4. Configuration & Environment
 
 ### 4.1 Configuration Strategy
+
 - **Q**: Should the project use `@nestjs/config` with Joi validation or a
   custom config loader with `class-validator` DTOs? The latter is more
   consistent with the rest of the validation approach.
@@ -164,6 +173,7 @@
 **A:** Require a restart. Hot-reload for configuration introduces race conditions and complicates reasoning about server state. Bun restarts are fast (<1 second). For zero-downtime deploys, use rolling restarts behind a load balancer.
 
 ### 4.2 Multi-Environment
+
 - **Q**: How many environments should be supported? Just `development` and
   `production`, or also `staging` and `test`?
 
@@ -179,6 +189,7 @@
 ## 5. Middleware & Security
 
 ### 5.1 Security Headers
+
 - **Q**: What CSP directives are needed? The iframe sandbox for generative UI
   and WebSocket connections may require specific CSP exceptions.
 
@@ -197,6 +208,7 @@
 **A:** Both. Apply two layers: (1) per-IP rate limiting via middleware (runs first, before auth) to block brute-force and DDoS — 100 requests/minute per IP. (2) per-user rate limiting via guard (runs after auth) for finer control — 300 requests/minute per authenticated user. Agent session endpoints get stricter per-user limits (20 requests/minute) since each triggers expensive LLM operations.
 
 ### 5.2 Request Processing
+
 - **Q**: Should the server support request body size limits per endpoint (e.g.,
   larger limit for file uploads) or a single global limit?
 
@@ -212,6 +224,7 @@
 ## 6. Error Handling
 
 ### 6.1 Error Strategy
+
 - **Q**: Should error responses include a `help` URL linking to documentation
   for each error code? This aids API consumers but requires maintaining docs.
 
@@ -229,6 +242,7 @@
 **A:** Include stack traces in error responses only in `development` mode (when `NODE_ENV=development`). In `test`, `staging`, and `production`, stack traces are logged server-side only and never returned to the client. The `requestId` in the response allows correlating with server logs.
 
 ### 6.2 Error Recovery
+
 - **Q**: Should the server implement automatic retry for transient database
   errors at the repository level, or should callers handle retries explicitly?
 
@@ -245,6 +259,7 @@
 ## 7. Process Management
 
 ### 7.1 Claude Code Integration
+
 - **Q**: How does the server communicate with Claude Code? Via CLI stdin/stdout,
   a REST API, or the Claude Code SDK? The communication protocol determines the
   wrapper design.
@@ -269,6 +284,7 @@
 **A:** No warm pool. Claude Code startup is fast (~1-2 seconds) and processes are short-lived. A warm pool adds complexity (health checking, recycling, resource waste) for minimal latency improvement. The 1-2 second spawn time is acceptable since the Claude API call itself takes 3-15 seconds. Spawn on demand.
 
 ### 7.2 Resource Limits
+
 - **Q**: Should Claude Code processes have CPU and memory cgroups/limits, or
   run unconstrained? Limits prevent resource exhaustion but may slow agent
   operations.
@@ -290,6 +306,7 @@
 ## 8. Health Checks & Monitoring
 
 ### 8.1 Health Strategy
+
 - **Q**: Should the health check endpoint be used by a load balancer, a
   container orchestrator (Kubernetes), or both? Different consumers need
   different response formats.
@@ -307,6 +324,7 @@
 **A:** Expose Prometheus metrics natively via `GET /metrics` using the `prom-client` package. Instrument: HTTP request count/latency (by route, method, status), WebSocket connection count, active agent sessions, git operation count/latency, and event loop lag. Native exposition is simpler than configuring a sidecar and works with any Prometheus-compatible scraper.
 
 ### 8.2 Alerting
+
 - **Q**: Should the server have built-in alerting (e.g., webhook on critical
   error), or should alerting be handled entirely by the monitoring
   infrastructure?
@@ -323,6 +341,7 @@
 ## 9. File System Operations
 
 ### 9.1 Concurrency
+
 - **Q**: With multiple users potentially modifying the same project's knowledge
   graph files, how should file-level concurrency be managed? File locks,
   database-level locks, or git's built-in conflict resolution?
@@ -342,6 +361,7 @@
 **A:** Write each change immediately, then batch the git commit. Individual writes ensure durability (data is on disk immediately). The git commit is the batching boundary — multiple file writes can be staged and committed together. This gives both safety (no data loss on crash) and clean history (one commit per logical operation).
 
 ### 9.2 File Watching
+
 - **Q**: Should the server watch the knowledge graph directory for external
   changes (e.g., user edits files directly, or git operations modify files)?
   File watching adds complexity but ensures consistency.
@@ -359,6 +379,7 @@
 ## 10. Scalability
 
 ### 10.1 Horizontal Scaling
+
 - **Q**: Should the architecture support running multiple server instances
   behind a load balancer? If so, shared state (sessions, agent processes) needs
   to be externalized.
@@ -377,6 +398,7 @@
 **A:** Sticky sessions for the initial single-instance deployment (it's the default). When scaling horizontally, switch to the Socket.IO Redis adapter for cross-instance pub/sub. Sticky sessions alone are fragile (instance failure drops all its users). The Redis adapter is a drop-in addition that doesn't require application code changes.
 
 ### 10.2 Single-Instance Limits
+
 - **Q**: What is the expected number of concurrent users for the initial
   deployment? This determines whether single-instance is sufficient.
 

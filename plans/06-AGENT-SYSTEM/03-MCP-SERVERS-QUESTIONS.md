@@ -9,6 +9,7 @@
 ## 1. Server Architecture
 
 ### 1.1 Server Boundaries
+
 - **Q**: Should each MCP server be a separate process, or should multiple
   MCP servers run within a single process? Separate processes provide
   isolation but add overhead; a combined process is more efficient but
@@ -35,6 +36,7 @@
 **A:** Each MCP server maintains its own database connection. Since MCP servers are separate processes (not threads), they cannot share a connection pool in-memory. Each server opens a connection to the database at startup. With 7 MCP servers per Claude Code session and up to 10 concurrent sessions, that's up to 70 database connections at peak — within normal PostgreSQL limits (default max 100, configurable to 200+). Connection pooling (e.g., PgBouncer) at the database level handles the connection management.
 
 ### 1.2 Server Packaging
+
 - **Q**: Should MCP servers be published as standalone npm packages
   (installable independently) or only exist as part of the monorepo?
   Standalone packages enable external tool development; monorepo-only
@@ -59,6 +61,7 @@
 ## 2. Tool Design
 
 ### 2.1 Tool Granularity
+
 - **Q**: Should tools be fine-grained (one tool per operation: `create_spec`,
   `update_spec`, `delete_spec`) or coarse-grained (one tool per domain:
   `manage_spec` with an `action` parameter)? Fine-grained is clearer for
@@ -86,6 +89,7 @@
 **A:** No batch tools at launch. Batch operations add complexity (partial success semantics, rollback on failure, large parameter payloads). The agent can call `create_spec` multiple times — with the 50-call cap, creating 10 specs in sequence is fine. If profiling shows that batch creation is a common bottleneck (e.g., document decomposition creating 20+ specs), a `bulk_create_specs` tool can be added later with clear partial-success semantics (returns success/failure per item).
 
 ### 2.2 Tool Naming
+
 - **Q**: What naming convention should tools follow? Snake_case
   (`create_spec`), camelCase (`createSpec`), or kebab-case (`create-spec`)?
   The MCP standard uses snake_case, but consistency with the TypeScript
@@ -106,6 +110,7 @@
 **A:** Written for the AI agent: technical, precise, with structured parameter descriptions. Each tool description includes: one-sentence purpose, parameter descriptions with types and constraints, return value description, and one example usage. Example: "Creates a new specification node in the knowledge graph. Returns the created spec with generated ID. Requires `title` (string, 3-200 chars) and `content` (string, markdown). Optional: `tags` (string array), `parent_id` (spec ID)." This gives the agent everything it needs to decide when and how to call the tool.
 
 ### 2.3 Tool Parameters
+
 - **Q**: Should optional tool parameters have sensible defaults (defined
   in the schema) or should the agent always specify them explicitly?
   Defaults reduce verbosity; explicit parameters improve predictability.
@@ -130,6 +135,7 @@
 ## 3. Knowledge Graph MCP Server
 
 ### 3.1 CRUD Operations
+
 - **Q**: Should `create_spec` automatically generate a summary, or should
   the agent explicitly provide one? Auto-generation is convenient but adds
   latency (LLM call for summarization). Could be done async.
@@ -155,6 +161,7 @@
 **A:** Not at launch. The agent calls `create_spec` (or `create_spec_with_edges`) in sequence. With the 50 MCP tool calls per message cap, creating up to ~15 specs with edges in a single turn is feasible. If document decomposition into 20+ specs becomes a common workflow, a bulk tool can be added later with per-item success/failure reporting. Premature optimization for batch operations adds complexity without proven need.
 
 ### 3.2 Graph Traversal
+
 - **Q**: What should the maximum traversal depth be? The plan says 10,
   but on a large graph, depth-10 traversal could return thousands of
   nodes. Should there be a hard cap on result size?
@@ -179,6 +186,7 @@
 **A:** Yes, for the duration of a single Claude Code invocation (one user message). If the agent calls `traverse_graph` from the same start spec with the same parameters twice in the same message turn, the second call returns cached results. The cache is invalidated between messages (since mutations may have changed the graph). This prevents redundant traversals within a single agent reasoning loop without risking stale data across turns.
 
 ### 3.3 Inquiry System
+
 - **Q**: Should agents be able to resolve their own inquiries, or should
   inquiries only be resolved by humans? Agent self-resolution could
   handle simple issues automatically; human-only ensures oversight.
@@ -446,5 +454,5 @@
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

@@ -38,18 +38,26 @@
   - Modifier: `PascalCase--modifier` (e.g., `SpecEditor--active`)
   - Element with modifier: `PascalCase__Element--modifier` (e.g., `SpecEditor__Header--collapsed`)
 - [ ] **FE-STYLE-002**: Define SCSS nesting rules (single level nesting)
+
   ```scss
   .SpecEditor {
-    &__Header { }
-    &__Content { }
-    &__Footer { }
-    &--active { }
-    &--readonly { }
+    &__Header {
+    }
+    &__Content {
+    }
+    &__Footer {
+    }
+    &--active {
+    }
+    &--readonly {
+    }
   }
   ```
+
   - Maximum one level of BEM nesting (`&__` and `&--`)
   - Pseudo-classes and media queries may nest inside elements
   - State classes (`.is-open`, `.has-error`) allowed as nested modifiers
+
 - [ ] **FE-STYLE-003**: Define modifier naming conventions
   - Boolean modifiers: `--active`, `--disabled`, `--loading`, `--collapsed`, `--open`
   - Value modifiers: `--size-sm`, `--size-lg`, `--variant-primary`, `--variant-danger`
@@ -86,7 +94,7 @@
 #### Design Decisions
 
 > **Q**: Should the project use global BEM class names or CSS Modules? Global BEM is conventional and aligns with the PRD's BEM requirement, but CSS Modules provide automatic scoping. Can both coexist (global for shared, modules for feature components)?
-> **A**: Use global BEM class names exclusively. The PRD mandates BEM SCSS with PascalCase naming, and mixing CSS Modules with BEM creates inconsistency in how developers think about scoping. BEM's naming convention (PascalCase__Item) already provides practical uniqueness. Each component's SCSS file is imported globally, and the BEM naming prevents collisions without module hashing.
+> **A**: Use global BEM class names exclusively. The PRD mandates BEM SCSS with PascalCase naming, and mixing CSS Modules with BEM creates inconsistency in how developers think about scoping. BEM's naming convention (PascalCase\_\_Item) already provides practical uniqueness. Each component's SCSS file is imported globally, and the BEM naming prevents collisions without module hashing.
 
 > **Q**: Should there be a namespace prefix on BEM blocks (e.g., `kg-Button`) to prevent collisions with third-party CSS, or is PascalCase sufficient?
 > **A**: No namespace prefix. PascalCase BEM blocks (`.Button`, `.SpecEditor`, `.ChatPanel`) are sufficiently unique. Third-party CSS collisions are not a concern because: headless Radix UI has no styles, TipTap styles are scoped to `.ProseMirror`, and gen UI projects run in iframes with isolated CSS. Adding a prefix like `kg-` creates visual noise in markup with no practical benefit.
@@ -99,6 +107,7 @@
 
 > **Q**: How should pseudo-element nesting work within BEM? Are `::before` and `::after` allowed to nest inside `&__Element` blocks?
 > **A**: Yes, pseudo-elements nest inside their element block. This is the natural SCSS pattern and the only place where deeper nesting is acceptable:
+>
 > ```scss
 > .Card {
 >   &__Header {
@@ -107,6 +116,7 @@
 >   }
 > }
 > ```
+>
 > State pseudo-classes (`:hover`, `:focus`, `:disabled`) also nest inside elements. The single-level BEM nesting rule applies to BEM blocks/elements/modifiers, not CSS pseudo-selectors.
 
 > **Q**: Should the project allow state classes (e.g., `.is-active`) alongside BEM modifiers, or should only BEM modifiers be used?
@@ -160,6 +170,7 @@
   - One SCSS file per component (no shared component SCSS files)
   - Import in the component's `.tsx` file: `import './SpecEditor.scss'`
 - [ ] **FE-STYLE-013**: Define component SCSS file template
+
   ```scss
   .ComponentName {
     // Base block styles
@@ -173,6 +184,7 @@
     }
   }
   ```
+
 - [ ] **FE-STYLE-014**: Define co-location rules
   - Component SCSS file lives next to its TSX file
   - Feature-level SCSS files not allowed (no `features/chat/chat-styles.scss`)
@@ -324,8 +336,12 @@
   - `.theme-light` (default), `.theme-dark`
   - CSS custom properties scoped to theme class
   ```scss
-  .theme-light { --color-bg: #{$neutral-50}; }
-  .theme-dark { --color-bg: #{$neutral-900}; }
+  .theme-light {
+    --color-bg: #{$neutral-50};
+  }
+  .theme-dark {
+    --color-bg: #{$neutral-900};
+  }
   ```
 - [ ] **FE-STYLE-030**: Implement `prefers-color-scheme` detection
   - Auto-apply dark theme if system preference is dark
@@ -649,24 +665,50 @@
 - [ ] **FE-STYLE-067**: Create mobile-first responsive mixins in `_mixins.scss`
   ```scss
   @mixin respond-to($breakpoint) {
-    @if $breakpoint == sm { @media (min-width: $breakpoint-sm) { @content; } }
-    @if $breakpoint == md { @media (min-width: $breakpoint-md) { @content; } }
-    @if $breakpoint == lg { @media (min-width: $breakpoint-lg) { @content; } }
-    @if $breakpoint == xl { @media (min-width: $breakpoint-xl) { @content; } }
-    @if $breakpoint == 2xl { @media (min-width: $breakpoint-2xl) { @content; } }
+    @if $breakpoint == sm {
+      @media (min-width: $breakpoint-sm) {
+        @content;
+      }
+    }
+    @if $breakpoint == md {
+      @media (min-width: $breakpoint-md) {
+        @content;
+      }
+    }
+    @if $breakpoint == lg {
+      @media (min-width: $breakpoint-lg) {
+        @content;
+      }
+    }
+    @if $breakpoint == xl {
+      @media (min-width: $breakpoint-xl) {
+        @content;
+      }
+    }
+    @if $breakpoint == 2xl {
+      @media (min-width: $breakpoint-2xl) {
+        @content;
+      }
+    }
   }
   ```
 - [ ] **FE-STYLE-068**: Create max-width (desktop-first) responsive mixins
   ```scss
   @mixin respond-below($breakpoint) {
-    @if $breakpoint == sm { @media (max-width: #{$breakpoint-sm - 1px}) { @content; } }
+    @if $breakpoint == sm {
+      @media (max-width: #{$breakpoint-sm - 1px}) {
+        @content;
+      }
+    }
     // ... etc
   }
   ```
 - [ ] **FE-STYLE-069**: Create range-based responsive mixin
   ```scss
   @mixin respond-between($min, $max) {
-    @media (min-width: $min) and (max-width: #{$max - 1px}) { @content; }
+    @media (min-width: $min) and (max-width: #{$max - 1px}) {
+      @content;
+    }
   }
   ```
 
@@ -753,8 +795,14 @@
   @mixin custom-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: var(--color-border-default) transparent;
-    &::-webkit-scrollbar { width: 8px; height: 8px; }
-    &::-webkit-scrollbar-thumb { background: var(--color-border-default); border-radius: 4px; }
+    &::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: var(--color-border-default);
+      border-radius: 4px;
+    }
   }
   ```
 - [ ] **FE-STYLE-080**: Apply custom scrollbar to all scrollable containers
@@ -790,9 +838,14 @@
   @mixin interactive {
     cursor: pointer;
     @include transition(background-color, color, border-color);
-    &:hover { background-color: var(--color-interactive-hover); }
-    &:active { background-color: var(--color-interactive-active); }
-    &:disabled, &--disabled {
+    &:hover {
+      background-color: var(--color-interactive-hover);
+    }
+    &:active {
+      background-color: var(--color-interactive-active);
+    }
+    &:disabled,
+    &--disabled {
       opacity: 0.5;
       cursor: not-allowed;
       pointer-events: none;
@@ -815,9 +868,15 @@
   @mixin card($elevation: 'raised') {
     background: var(--color-surface-card);
     border-radius: $border-radius-md;
-    @if $elevation == 'flat' { border: 1px solid var(--color-border-default); }
-    @if $elevation == 'raised' { box-shadow: $shadow-sm; }
-    @if $elevation == 'floating' { box-shadow: $shadow-lg; }
+    @if $elevation == 'flat' {
+      border: 1px solid var(--color-border-default);
+    }
+    @if $elevation == 'raised' {
+      box-shadow: $shadow-sm;
+    }
+    @if $elevation == 'floating' {
+      box-shadow: $shadow-lg;
+    }
   }
   ```
 - [ ] **FE-STYLE-088**: Define panel styling pattern
@@ -837,9 +896,17 @@
     background: var(--color-bg-primary);
     color: var(--color-text-primary);
     @include transition(border-color, box-shadow);
-    &:focus { border-color: var(--color-border-focus); @include focus-ring; }
-    &:disabled { background: var(--color-bg-secondary); opacity: 0.6; }
-    &--error { border-color: var(--color-border-error); }
+    &:focus {
+      border-color: var(--color-border-focus);
+      @include focus-ring;
+    }
+    &:disabled {
+      background: var(--color-bg-secondary);
+      opacity: 0.6;
+    }
+    &--error {
+      border-color: var(--color-border-error);
+    }
   }
   ```
 - [ ] **FE-STYLE-090**: Define label styling pattern
@@ -934,22 +1001,22 @@
 
 ### Task Count by Section
 
-| Section | Tasks |
-|---------|-------|
-| 1. BEM Methodology Implementation | 8 (FE-STYLE-001 through FE-STYLE-008) |
-| 2. SCSS File Organization | 6 (FE-STYLE-009 through FE-STYLE-014) |
-| 3. Design Tokens | 11 (FE-STYLE-015 through FE-STYLE-025) |
-| 4. Theme System | 7 (FE-STYLE-026 through FE-STYLE-032) |
-| 5. Typography System | 10 (FE-STYLE-033 through FE-STYLE-042) |
-| 6. Spacing & Layout System | 4 (FE-STYLE-043 through FE-STYLE-046) |
-| 7. Color System | 5 (FE-STYLE-047 through FE-STYLE-051) |
+| Section                             | Tasks                                  |
+| ----------------------------------- | -------------------------------------- |
+| 1. BEM Methodology Implementation   | 8 (FE-STYLE-001 through FE-STYLE-008)  |
+| 2. SCSS File Organization           | 6 (FE-STYLE-009 through FE-STYLE-014)  |
+| 3. Design Tokens                    | 11 (FE-STYLE-015 through FE-STYLE-025) |
+| 4. Theme System                     | 7 (FE-STYLE-026 through FE-STYLE-032)  |
+| 5. Typography System                | 10 (FE-STYLE-033 through FE-STYLE-042) |
+| 6. Spacing & Layout System          | 4 (FE-STYLE-043 through FE-STYLE-046)  |
+| 7. Color System                     | 5 (FE-STYLE-047 through FE-STYLE-051)  |
 | 8. Animation & Transition Standards | 14 (FE-STYLE-052 through FE-STYLE-065) |
-| 9. Responsive Design | 8 (FE-STYLE-066 through FE-STYLE-073) |
-| 10. Z-Index Management | 3 (FE-STYLE-074 through FE-STYLE-076) |
-| 11. Scrollbar Styling | 4 (FE-STYLE-077 through FE-STYLE-080) |
-| 12. Component Styling Patterns | 10 (FE-STYLE-081 through FE-STYLE-090) |
-| 13. Icon System | 4 (FE-STYLE-091 through FE-STYLE-094) |
-| **TOTAL** | **94** |
+| 9. Responsive Design                | 8 (FE-STYLE-066 through FE-STYLE-073)  |
+| 10. Z-Index Management              | 3 (FE-STYLE-074 through FE-STYLE-076)  |
+| 11. Scrollbar Styling               | 4 (FE-STYLE-077 through FE-STYLE-080)  |
+| 12. Component Styling Patterns      | 10 (FE-STYLE-081 through FE-STYLE-090) |
+| 13. Icon System                     | 4 (FE-STYLE-091 through FE-STYLE-094)  |
+| **TOTAL**                           | **94**                                 |
 
 > Note: Many design token tasks contain numerous sub-items (individual
 > variables). The effective effort exceeds 120 discrete decisions/implementations.
@@ -957,6 +1024,7 @@
 ### Definition of Done
 
 This plan is complete when:
+
 - [ ] All SCSS partials are created and imported in global.scss
 - [ ] Design tokens defined and accessible in all component SCSS files
 - [ ] Light and dark themes fully defined with all semantic tokens

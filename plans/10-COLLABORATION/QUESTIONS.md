@@ -9,6 +9,7 @@
 ## 1. Git Synchronization Model
 
 ### 1.1 Sync Strategy
+
 - **Q**: Should the default sync model be manual (user clicks "sync"), periodic
   (every N minutes), or event-driven (push notification triggers pull)? Each
   has different UX trade-offs. Manual is simplest but can lead to stale data;
@@ -30,6 +31,7 @@
 - **A:** Yes. Clicking the "changes available" indicator shows a preview panel listing changed specs (added/modified/deleted) with abbreviated diffs. The user can then confirm the pull or defer it.
 
 ### 1.2 Branching
+
 - **Q**: Should the collaboration model use branches at all, or should all
   users work directly on `main`? Branches add complexity but enable parallel
   experimentation. For a knowledge management tool (not code), is branching
@@ -52,6 +54,7 @@
 - **A:** N/A at launch. If branches are added, optional branch protection (require at least one approval before merge) can be a project-level setting, disabled by default.
 
 ### 1.3 Merge Strategy
+
 - **Q**: Should we implement custom JSON merge drivers for spec files, or rely
   on standard text-based git merge? Custom drivers reduce false conflicts but
   are complex to implement and maintain.
@@ -72,6 +75,7 @@
 ## 2. Conflict Resolution
 
 ### 2.1 Conflict UX
+
 - **Q**: Should conflict resolution happen in the spec editor (inline), in a
   dedicated conflict resolution view, or in a modal? Inline keeps context but
   adds complexity to the editor. Dedicated view is clearer but requires
@@ -93,6 +97,7 @@
 - **A:** Both edges are valid — edge creation is additive. If two users both add different edges from the same spec, both are preserved (union merge). If two users modify the same edge (e.g., change its label), that is a conflict and requires resolution. Edge deletion conflicting with edge modification is also a conflict.
 
 ### 2.2 Conflict Prevention
+
 - **Q**: Should there be advisory locking — when a user starts editing a spec,
   warn other users that it's being edited? This reduces conflicts but adds
   complexity and can be confusing in async workflows.
@@ -108,6 +113,7 @@
 ## 3. Multi-User Project Management
 
 ### 3.1 Project Structure
+
 - **Q**: Should a user be able to belong to multiple projects simultaneously?
   If so, is there a maximum number of projects per user?
 - **A:** Yes, users can belong to multiple projects. No hard maximum at launch. A practical soft limit of 20 projects per user is enforced with a warning, not a block. This prevents UI clutter and performance issues.
@@ -123,6 +129,7 @@
 - **A:** Open to all authenticated users at launch. Any user can create a project and becomes its Owner. The instance admin can disable this via a server config flag if they want to restrict project creation to admins only.
 
 ### 3.2 Roles & Permissions
+
 - **Q**: Are three project roles (Owner, Editor, Viewer) sufficient? Should
   there be a "Commenter" role (can view and comment but not edit)? Or a
   "Manager" role (can manage users but not edit specs)?
@@ -144,6 +151,7 @@
 ## 4. Spec Collaboration
 
 ### 4.1 Concurrent Editing
+
 - **Q**: Since the collaboration model is async (git-based), what happens when
   two users are editing the same spec at the same time? Should the UI warn
   them proactively, or only detect the conflict at push time?
@@ -160,6 +168,7 @@
 - **A:** No. Per the PRD, no real-time co-editing. The system is git-based async with advisory locks. OT/CRDT would fundamentally change the architecture, add enormous complexity, and conflict with the git-as-source-of-truth model. Real-time co-editing is explicitly out of scope.
 
 ### 4.2 Change Notifications
+
 - **Q**: How should changes to a spec be communicated to other users? Only when
   pushed (visible to all), or also when committed locally (visible only if
   another user pulls)?
@@ -179,6 +188,7 @@
 ## 5. Dialog Collaboration
 
 ### 5.1 Dialog Sharing
+
 - **Q**: Should dialog sessions be private by default or shared by default?
   Private protects exploration and half-formed ideas; shared promotes
   transparency and knowledge sharing.
@@ -199,6 +209,7 @@
 - **A:** No. Agent sessions are local to the machine, per the PRD. Agents only see dialogs from the user who initiated the session. Shared dialogs are for human consumption only. If a user wants the agent to consider information from another dialog, they copy the relevant content into their own session.
 
 ### 5.2 Dialog Persistence
+
 - **Q**: How long should dialog history be retained? 30 days? 90 days? Forever?
   Longer retention increases storage costs but provides better context for
   future work.
@@ -218,6 +229,7 @@
 ## 6. Agent Collaboration
 
 ### 6.1 Agent Coordination
+
 - **Q**: Should agents be aware of other active agent sessions in the project?
   If two users are running agents that modify related specs simultaneously,
   conflicts are likely. Should the system prevent this?
@@ -238,6 +250,7 @@
 - **A:** Agent-generated commits use a distinct author identity: `"[username]-agent" <username+agent@botnet.local>`. This makes agent commits immediately identifiable in git log without special tooling. The commit message includes a `[agent]` prefix tag.
 
 ### 6.2 Agent Locking
+
 - **Q**: Should advisory locks during agent operations be visible to other
   users' agents, or only to human users? If visible to agents, they could
   automatically wait or avoid conflicting modifications.
@@ -256,6 +269,7 @@
 ## 7. Communication Features
 
 ### 7.1 Comments
+
 - **Q**: Should comments be stored per spec (attached to the spec) or per spec
   version (attached to a specific version of the spec)? Per-version is more
   precise but comments may become orphaned after updates.
@@ -275,6 +289,7 @@
 - **A:** Collapsed. Resolved comments are minimized to a single line ("[User] resolved a comment — click to expand"). They can be re-opened if the discussion needs to continue. A filter toggle shows/hides resolved comments.
 
 ### 7.2 Activity Feed
+
 - **Q**: How granular should the activity feed be? Every auto-save creates a
   commit — should each be an event, or should events be batched (e.g.,
   "Alice made 12 edits to Spec X today")?
@@ -357,5 +372,5 @@
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |

@@ -1,0 +1,23 @@
+{
+  "allowedDependencies": {
+    "react": "^18",
+    "react-dom": "^18",
+    "recharts": "^2",
+    "d3": "^7",
+    "@emotion/react": "^11",
+    "@emotion/styled": "^11",
+    "framer-motion": "^10",
+    "lucide-react": "^0.300",
+    "clsx": "^2",
+    "date-fns": "^3"
+  },
+  "blockedPatterns": [
+    "node:*",
+    "fs",
+    "child_process",
+    "net",
+    "http",
+    "https",
+    "crypto"
+  ]
+}

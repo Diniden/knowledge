@@ -1,0 +1,52 @@
+---
+description: Testing conventions across all workspaces
+globs:
+  - "**/*.test.{ts,tsx}"
+  - "**/__fixtures__/**/*.ts"
+alwaysApply: false
+---
+
+# Testing
+
+## Runner
+
+Use `bun:test` — `describe`, `test`, `expect`. Not Jest or Vitest.
+
+## Conventions
+
+- Co-locate test files: `foo.test.ts` next to `foo.ts`.
+- Describe blocks group by function/component. Test names start with a verb: `test('returns 404 when spec not found')`.
+- AAA pattern: Arrange, Act, Assert — separated by blank lines.
+- One assertion per behavior. Multiple `expect` calls are fine if they assert the same behavior.
+
+## Component Tests
+
+Use `@testing-library/react`: `render`, `screen`, `userEvent`. Query by role/label, not class names.
+
+```typescript
+import { describe, test, expect } from 'bun:test';
+import { render, screen } from '@testing-library/react';
+import { SpecCard } from './SpecCard.js';
+
+describe('SpecCard', () => {
+  test('renders the spec title', () => {
+    render(<SpecCard title="Auth Flow" status="draft" onSelect={() => {}} />);
+    expect(screen.getByText('Auth Flow')).toBeTruthy();
+  });
+});
+```
+
+## Test Fixtures
+
+- Factories live in `__fixtures__/` directories co-located with the module.
+- Export builder functions: `createMockSpec()`, `createMockUser()`.
+
+## Mocking
+
+- Mock only external boundaries: HTTP, database, file system.
+- Use dependency injection to swap implementations — no mocking libraries.
+- NestJS tests: `Test.createTestingModule().overrideProvider().useValue()`.
+
+## E2E
+
+- Playwright for end-to-end tests in `client/ui/e2e/`.

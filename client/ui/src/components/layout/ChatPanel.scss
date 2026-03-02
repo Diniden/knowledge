@@ -1,0 +1,79 @@
+.ChatPanel {
+  grid-area: chat;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg);
+  border-left: $border-width-thin solid var(--color-border);
+  overflow: hidden;
+
+  &--collapsed {
+    width: $sidebar-collapsed-width;
+    @include flex-center;
+  }
+
+  &__expandTab {
+    @include flex-center;
+    width: 40px;
+    height: 40px;
+    border-radius: $radius-md;
+    font-size: $font-size-lg;
+    color: var(--color-text-secondary);
+    @include transition(background-color, color);
+
+    &:hover {
+      background-color: var(--color-interactive-hover);
+      color: var(--color-text);
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  &__header {
+    @include flex-between;
+    height: 48px;
+    padding: 0 $space-4;
+    flex-shrink: 0;
+    border-bottom: $border-width-thin solid var(--color-border);
+  }
+
+  &__title {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    color: var(--color-text);
+  }
+
+  &__minimize {
+    @include flex-center;
+    width: 28px;
+    height: 28px;
+    border-radius: $radius-md;
+    font-size: $font-size-sm;
+    color: var(--color-text-tertiary);
+    @include transition(background-color, color);
+
+    &:hover {
+      background-color: var(--color-interactive-hover);
+      color: var(--color-text);
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  &__body {
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  @include respond-below(lg) {
+    display: none;
+
+    &--collapsed {
+      display: none;
+    }
+  }
+}

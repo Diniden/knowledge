@@ -1,0 +1,55 @@
+---
+description: React, MobX, and BEM SCSS conventions for the client workspace
+globs: client/**/*.{ts,tsx,scss}
+alwaysApply: false
+---
+
+# Frontend Conventions
+
+## React
+
+- Functional components only. No class components.
+- Use `observer()` from MobX at the top-level container level. Primitive/compositional UI components are strictly props-driven.
+- Keep components focused: one responsibility per component.
+- Prefer composition over configuration (render props, children) over deeply nested prop drilling.
+- Use `React.lazy()` and `Suspense` for route-level code splitting.
+
+## MobX State Management
+
+- Stores use `makeObservable` with explicit decorator annotations: `@observable`, `@action`, `@computed`, `@action.bound`.
+- `configure({ enforceActions: 'always' })` is enabled — all state mutations must be in `@action` methods.
+- Store categories:
+  - **Domain stores**: backend data, API actions (SpecStore, GraphStore).
+  - **Session stores**: auth, user profile (AuthStore).
+  - **UI stores**: `@computed` domain transformations, app-level state (UILayoutStore).
+- All stores provided via RootStore pattern + React Context.
+- Simple UI state (hover, open/closed, form values) stays as local `useState`.
+
+## BEM SCSS
+
+- Block names use PascalCase matching the component name.
+- Naming: `.PascalCase { &__Element {} &--modifier {} }`.
+- Single-level nesting only. No `&__Item &__SubItem`.
+- Co-located files: `ComponentName.module.scss` next to `ComponentName.tsx`.
+- Global variables and mixins live in `client/ui/src/styles/`.
+- Use CSS custom properties for theming (dark mode support).
+
+## File Structure
+
+```
+client/ui/src/
+├── components/    # Shared UI components
+├── features/      # Feature-specific components and logic
+├── hooks/         # Custom React hooks
+├── stores/        # MobX stores
+├── services/      # API client services
+├── styles/        # Global styles, variables, mixins
+├── types/         # Client-specific types
+└── utils/         # Client-specific utilities
+```
+
+## Imports
+
+- Use `@kg/shared` for shared types and utilities.
+- Use relative imports within the client workspace.
+- Order: external packages, `@kg/*` packages, relative imports. Separated by blank lines.

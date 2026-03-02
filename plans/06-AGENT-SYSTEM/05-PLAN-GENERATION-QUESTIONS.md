@@ -10,6 +10,7 @@
 ## 1. Plan Format
 
 ### 1.1 Plan Structure
+
 - **Q**: Should plan files be Markdown (human-readable, agent-writable) or
   a structured format like YAML/JSON (machine-parseable, less readable)?
   Markdown is proposed, but it complicates automated parsing of step
@@ -36,6 +37,7 @@
 **A:** Yes, include pseudo-code for complex steps. Plan files include pseudo-code (not full implementation) for steps that involve non-obvious logic: database schema definitions, API route signatures, component prop interfaces. Simple steps ("create a React component for the login form") don't need pseudo-code. Pseudo-code is prefixed with `> Implementation hint:` to distinguish it from the step description. This helps the execution agent produce consistent output without being so specific that it becomes stale.
 
 ### 1.2 Plan Content
+
 - **Q**: How detailed should plan steps be? Very detailed steps ("create
   file X with content Y") are precise but rigid; high-level steps ("implement
   authentication") give the execution agent more freedom but may produce
@@ -66,6 +68,7 @@
 ## 2. Directory Structure
 
 ### 2.1 Parallel vs. Serial
+
 - **Q**: How should the plan generation agent determine which directories
   are parallel vs. serial? Based purely on spec dependencies (graph analysis),
   or should there be heuristics (e.g., "frontend and backend are always
@@ -92,6 +95,7 @@
 **A:** Yes. The plan structure is organized in phases, and each phase is a checkpoint. Within a phase, directories are parallel. Between phases, all parallel directories must complete before the next phase begins. Example: Phase 1 (parallel: database + API) → checkpoint → Phase 2 (serial: integration tests). This is the "Plans = directories (parallel) with plan files (serial)" model from the PRD. Phases are explicit in the master prompt. This simplifies execution and review without significantly reducing parallelism.
 
 ### 2.2 File Organization
+
 - **Q**: What's the optimal number of plan files per directory? Too few
   (1-2) means the directory structure is unnecessarily deep; too many
   (20+) makes individual directories hard to navigate.
@@ -114,6 +118,7 @@
 ## 3. Graph Traversal
 
 ### 3.1 Traversal Scope
+
 - **Q**: How should the traversal handle large knowledge graphs (1000+
   specs)? The default 5-hop, 100-spec limit may include too many specs
   for a focused plan. Should the user be able to manually curate the
@@ -141,6 +146,7 @@
 **A:** Plans span all relevant layers. A feature like "user authentication" naturally crosses layers (database schema → backend API → frontend login form). The plan organizes layers into parallel directories (Phase 1: parallel database + backend API, Phase 2: serial frontend integration). Cross-layer dependencies are explicit in the plan's dependency graph. Single-layer plans would be artificial and force the user to generate multiple plans for a single feature — that's worse UX than a multi-layer plan.
 
 ### 3.2 Traversal Optimization
+
 - **Q**: Should the traversal result be cached between plan generation
   sessions? If the user generates a plan, reviews it, rejects it, and
   asks for regeneration, should the traversal be re-run or reused?
@@ -188,6 +194,7 @@
 ## 5. Delta Detection
 
 ### 5.1 Change Tracking
+
 - **Q**: What should the baseline for delta detection be? The previous
   plan's generation timestamp? The previous plan's execution timestamp?
   A specific git commit? Each choice has different implications for what
@@ -214,6 +221,7 @@
 **A:** Yes. Edge changes that affect the plan scope trigger delta regeneration. Specifically: (1) New `depends-on` edge between two specs in the plan scope → re-evaluate execution order. (2) Deleted edge → re-evaluate if the plan files are still correctly sequenced. (3) New edge that brings a previously out-of-scope spec into scope → flag for user review ("Spec X is now connected to the plan scope. Should it be included?"). Edge changes are structural — they can fundamentally alter the plan's dependency graph and thus its execution order.
 
 ### 5.2 Delta Scope
+
 - **Q**: For delta builds, should ONLY the affected plan files be
   regenerated, or should the entire plan be regenerated with affected
   files receiving extra attention? Targeted regeneration is faster;
@@ -268,6 +276,7 @@
 ## 7. Review & Approval
 
 ### 7.1 Review Process
+
 - **Q**: Should plan review be mandatory before execution, or should users
   be able to execute plans immediately (at their own risk)? Mandatory
   review is safer; skip-review enables faster iteration in development.
@@ -293,6 +302,7 @@
 **A:** Yes. After generating all plan files, the plan generation agent runs a self-review pass: (1) Check all source specs are covered (no orphan specs in scope). (2) Check dependency ordering is consistent (no circular dependencies between plan files). (3) Check estimated effort is reasonable (no single file marked "large" that should be split). (4) Check for duplicate steps across files. The self-review is a final step in the `finalize_plan` tool call. Issues found are auto-fixed when possible (reorder files, split large files) or flagged in the plan summary for the reviewer.
 
 ### 7.2 Feedback Loop
+
 - **Q**: When a plan is rejected with feedback, should the agent regenerate
   from scratch or attempt to apply the feedback incrementally? Incremental
   is faster; full regeneration is more reliable.
@@ -316,6 +326,7 @@
 ## 8. Execution
 
 ### 8.1 Execution Model
+
 - **Q**: Should plan execution be fully automated (agent executes all steps
   without human intervention) or semi-automated (human confirms each step)?
   Full automation is efficient; semi-automation catches errors early.
@@ -342,6 +353,7 @@
 **A:** Plans account for existing code. The plan generation agent uses the File System MCP server's `search_in_files` and `read_file` tools to understand existing code structure before generating plan files. Plan steps reference existing files where appropriate: "Modify `src/routes/index.ts` to add the auth route" instead of "Create `src/routes/auth.ts`." The execution agent reads existing files before making changes. For greenfield projects, the plan creates all files from scratch. The plan generation skill includes guidance on how to analyze and integrate with existing codebases.
 
 ### 8.2 Execution Safety
+
 - **Q**: Should there be a "dry run" execution mode that generates code
   but doesn't commit it? This enables human review of generated code
   before it becomes permanent.
@@ -370,6 +382,7 @@
 ## 9. Versioning & Rollback
 
 ### 9.1 Version Management
+
 - **Q**: Should plan versions form a linear sequence or a tree (branching
   at rejected plans)? Linear is simpler; tree preserves the full revision
   history including rejected alternatives.
@@ -389,6 +402,7 @@
 **A:** Both. Plan files are stored as files in the KG repo (under `plans/{plan-id}/v{N}/`) and committed via the Git MCP server. Plan metadata (version, status, timestamps, source specs) is stored in PostgreSQL for fast querying. The git history provides diffs between versions ("what changed between v1 and v2?") for free. The database provides fast queries ("show all plans in status 'approved'") without parsing files. This dual storage leverages git's strengths (diffing, history) and the database's strengths (querying, indexing).
 
 ### 9.2 Rollback
+
 - **Q**: Should rollback be automatic on execution failure, or always
   require manual triggering? Automatic rollback is safer but may
   destroy useful partial progress.
@@ -510,5 +524,5 @@
 > Record decisions as questions are resolved.
 
 | Date | Question | Decision | Rationale |
-|------|----------|----------|-----------|
-| — | — | — | — |
+| ---- | -------- | -------- | --------- |
+| —    | —        | —        | —         |
